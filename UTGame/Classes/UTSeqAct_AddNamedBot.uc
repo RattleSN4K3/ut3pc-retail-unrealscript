@@ -22,7 +22,14 @@ event Activated()
 		Game.ScriptedStartSpot = StartSpot;
 		if (Game.SinglePlayerMissionID != INDEX_NONE)
 		{
-			SpawnedBot = Game.SinglePlayerAddBot(BotName, bForceTeam, TeamIndex);
+			if (Game.NumDivertedOpponents > 0 && bForceTeam && TeamIndex != 0)
+			{
+				Game.NumDivertedOpponents--;
+			}
+			else
+			{
+				SpawnedBot = Game.SinglePlayerAddBot(BotName, bForceTeam, TeamIndex);
+			}
 		}
 		else
 		{

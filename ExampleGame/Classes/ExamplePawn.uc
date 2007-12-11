@@ -144,7 +144,7 @@ defaultproperties
 		PhysicsAsset=PhysicsAsset'COG_Grunt.COG_Grunt_AMesh_Physics'
 		AnimSets(0)=AnimSet'COG_Grunt.COG_Grunt_BasicAnims'
 		AnimTreeTemplate=AnimTree'COG_Grunt.Grunt_AnimTree'
-		bOwnerNoSee=false
+		bOwnerNoSee=TRUE
 	End Object
 	Mesh=DemoPawnSkeletalMeshComponent
 	Components.Add(DemoPawnSkeletalMeshComponent)

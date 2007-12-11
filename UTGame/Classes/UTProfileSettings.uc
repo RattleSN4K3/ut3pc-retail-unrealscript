@@ -150,6 +150,7 @@ enum EUTBindableKeys
 	UTBND_RightMouseButton,
 	UTBND_MiddleMouseButton,
 	UTBND_ThumbMouseButton,
+	UTBND_ThumbMouseButton2,
 	UTBND_BackSpace,
 	UTBND_Tab,
 	UTBND_Enter,
@@ -249,6 +250,33 @@ enum EUTBindableKeys
 	UTBND_Backslash,
 	UTBND_RightBracket,
 	UTBND_Quote,
+
+	// Gamepad keys
+	UTBND_LeftStickX,
+	UTBND_LeftStickY,
+	UTBND_LeftStick_Click,
+	UTBND_RightStick_X,
+	UTBND_RightStick_Y,
+	UTBND_RightStick_Click,
+	UTBND_ButtonA,			// accept button
+	UTBND_ButtonB,			// cancel button
+	UTBND_ButtonX,			// option button 1
+	UTBND_ButtonY,			// option button 2
+	UTBND_LeftShoulder,
+	UTBND_RightShoulder,
+	UTBND_LeftTrigger,
+	UTBND_RightTrigger,
+	UTBND_Start,
+	UTBND_Select,
+	UTBND_DPad_Up,
+	UTBND_DPad_Down,
+	UTBND_DPad_Left,
+	UTBND_DPad_Right,
+
+	UTBND_SpecialX,
+	UTBND_SpecialY,
+	UTBND_SpecialZ,
+	UTBND_SpecialW
 };
 var transient array<name>	KeyMappingArray;	/** Mapping of enums to keynames. */
 
@@ -707,12 +735,11 @@ function bool AddPersistentKey(ESinglePlayerPersistentKeys AddKey)
 {
 	local int PSI_Index, Value;
 
-
 	// Make sure the key does not exist first
 
 	if ( HasPersistentKey(AddKey) )
 	{
-		`log("Persistent Key"@AddKey@"already exists.");
+//		`log("[SinglePlayer] Persistent Key"@AddKey@"already exists.");
 		return false;
 	}
 
@@ -723,11 +750,13 @@ function bool AddPersistentKey(ESinglePlayerPersistentKeys AddKey)
 		GetProfileSettingValueInt( PSI_Index, Value );
 		if ( Value == ESPKey_None )
 		{
+//			`log("[SinglePlayer] Adding Persistent Key"@AddKey);
 			SetProfileSettingValueInt( PSI_Index, AddKey );
 			return true;
 		}
 	}
 
+//	`log("[SinglePlayer] Persistent Key Slots Filled");
 	return false;
 }
 
@@ -742,8 +771,10 @@ function bool RemovePersistentKey(ESinglePlayerPersistentKeys RemoveKey)
 {
 	local iNT PSI_Index;
 
+
 	if ( HasPersistentKey(RemoveKey, PSI_Index) )
 	{
+//		`log("[SinglePlayer] Removing Persistent Key"@RemoveKey);
 		SetProfileSettingValueInt( PSI_Index, ESPKey_None );
 		return true;
 	}
@@ -810,7 +841,7 @@ function UnlockChapter(int ChapterIndex)
 {
 	local int Mask,Value;
 
-	`log("[SinglePlayer] Unlocking Chapter"@ChapterIndex);
+//	`log("[SinglePlayer] Unlocking Chapter"@ChapterIndex);
 
 	Mask = 1 << (ChapterIndex-1);
 	GetProfileSettingValueInt( PSI_ChapterMask, Value );
@@ -846,7 +877,7 @@ function AddModifierCard(name Card)
 			GetProfileSettingValueInt( i, CardID);
 			if (CardID == TargetID && bUnique )
 			{
-				`log("[SinglePlayer] The Modifier card"@CardID@" is unique and you already have it");
+//				`log("[SinglePlayer] The Modifier card"@CardID@" is unique and you already have it");
 				return;
 			}
 		}
@@ -858,7 +889,7 @@ function AddModifierCard(name Card)
 			GetProfileSettingValueInt( i, CardID);
 			if (CardID == INDEX_None)
 			{
-				`log("[SinglePlayer] Adding Modifier card"@CardID);
+//				`log("[SinglePlayer] Adding Modifier card"@CardID);
 				SetProfileSettingValueInt(i, TargetID);
 				Work = "CardTitle"$Card;
 				Work = Localize("CardDesc",Work,"UTGameUI");
@@ -867,12 +898,12 @@ function AddModifierCard(name Card)
 			}
 		}
 
-		`log("[SinglePlayer] Attempted to add Modifier card"@CardID@"failed!");
+//		`log("[SinglePlayer] Attempted to add Modifier card"@CardID@"failed!");
 
 	}
 	else
 	{
-		`log("[SinglePlayer] Attempted to add Modifier card"@CardID@"failed because TargetID = NONE!");
+//		`log("[SinglePlayer] Attempted to add Modifier card"@CardID@"failed because TargetID = NONE!");
 	}
 
 }
@@ -896,7 +927,7 @@ function UseModifierCard(name Card)
 			GetProfileSettingValueInt( i, CardID);
 			if (CardID == TargetID)
 			{
-				`log("[SinglePlayer] Modifier Card"@Card@"has been used!");
+//				`log("[SinglePlayer] Modifier Card"@Card@"has been used!");
 				SetProfileSettingValueInt(i,-1);
 				return;
 			}
@@ -911,7 +942,7 @@ function UseModifierCard(name Card)
 function ClearModifierCards()
 {
 	local int i;
-	`log("[SinglePlayer] Clearing all Modifier card.");
+//	`log("[SinglePlayer] Clearing all Modifier card.");
 	for (i = PSI_ModifierCardDeck0; i < PSI_ModifierCardEnd; i++)
 	{
 		SetProfileSettingValueInt( i, -1);
@@ -1288,7 +1319,7 @@ function int GetProfileIDForDBA(EDigitalButtonActions KeyAction)
 {
 	local int ProfileId;
 	ProfileId = UTPID_KeyAction_1+KeyAction;
-	assert(ProfileId<=UTPID_KeyAction_49);
+	`assert(ProfileId<=UTPID_KeyAction_49);
 	return ProfileId;
 }
 
@@ -1528,16 +1559,23 @@ function bool ActionIsBound(EDigitalButtonActions ActionIdx)
 // Returns the string of an action name.
 function string GetActionName(EDigitalButtonActions ActionIdx)
 {
-	local array<name> Values;
 	local string ActionName;
+	local int ProfileSettingIDIndex, Idx;
 
 	ActionName = "";
 
-	if ( GetProfileSettingValues(UTPID_GamepadBinding_ButtonA, Values) )
+	for ( ProfileSettingIDIndex = 0; ProfileSettingIDIndex < ProfileMappings.length; ProfileSettingIDIndex++ )
 	{
-		if ( ActionIdx < Values.length )
+		if ( ProfileMappings[ProfileSettingIDIndex].Id == UTPID_GamepadBinding_ButtonA )
 		{
-			ActionName = string(Values[ActionIdx]);
+			for ( Idx = 0; Idx < ProfileMappings[ProfileSettingIDIndex].ValueMappings.Length; Idx++ )
+			{
+				if (ProfileMappings[ProfileSettingIDIndex].ValueMappings[Idx].Id == int(ActionIdx))
+				{
+					ActionName = string(ProfileMappings[ProfileSettingIDIndex].ValueMappings[Idx].Name);
+					break;
+				}
+			}
 		}
 	}
 
@@ -1547,7 +1585,7 @@ function string GetActionName(EDigitalButtonActions ActionIdx)
 defaultproperties
 {
 	// If you change any profile ids, increment this number!!!!
-	VersionNumber=57
+	VersionNumber=61
 
 	/////////////////////////////////////////////////////////////
 	// ProfileSettingIds - Array of profile setting IDs to use as lookups
@@ -1865,7 +1903,7 @@ defaultproperties
 	ProfileMappings[73]=(Id=UTPID_EnforcerPriority,Name="UTGame.UTWeap_Enforcer_Priority",MappingType=PVMT_RawValue)
 	ProfileMappings[74]=(Id=UTPID_ShockRiflePriority,Name="UTGame.UTWeap_ShockRifle_Priority",MappingType=PVMT_RawValue)
 	ProfileMappings[75]=(Id=UTPID_StingerPriority,Name="UTGame.UTWeap_Stinger_Priority",MappingType=PVMT_RawValue)
-	ProfileMappings[76]=(Id=UTPID_AVRILPriority,Name="UTGameContent.UTWeap_Avril_Content",MappingType=PVMT_RawValue)
+	ProfileMappings[76]=(Id=UTPID_AVRILPriority,Name="UTGameContent.UTWeap_Avril_Content_Priority",MappingType=PVMT_RawValue)
 	ProfileMappings[77]=(Id=UTPID_RedeemerPriority,Name="UTGameContent.UTWeap_Redeemer_Content",MappingType=PVMT_RawValue)
 
 	// HUD
@@ -2059,7 +2097,7 @@ defaultproperties
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSmoothing,Data=(Type=SDT_Int32,Value1=UTPID_VALUE_YES))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_ReduceMouseLag,Data=(Type=SDT_Int32,Value1=UTPID_VALUE_YES))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_EnableJoystick,Data=(Type=SDT_Int32,Value1=UTPID_VALUE_YES))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSensitivityGame,Data=(Type=SDT_Int32,Value1=5))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSensitivityGame,Data=(Type=SDT_Int32,Value1=2500))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSensitivityMenus,Data=(Type=SDT_Int32,Value1=1))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSmoothingStrength,Data=(Type=SDT_Int32,Value1=1))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseAccelTreshold,Data=(Type=SDT_Int32,Value1=1))))
@@ -2235,6 +2273,7 @@ defaultproperties
 	KeyMappingArray[UTBND_RightMouseButton]="RightMouseButton";
 	KeyMappingArray[UTBND_MiddleMouseButton]="MiddleMouseButton";
 	KeyMappingArray[UTBND_ThumbMouseButton]="ThumbMouseButton";
+	KeyMappingArray[UTBND_ThumbMouseButton2]="ThumbMouseButton2";
 	KeyMappingArray[UTBND_BackSpace]="BackSpace";
 	KeyMappingArray[UTBND_Tab]="Tab";
 	KeyMappingArray[UTBND_Enter]="Enter";
@@ -2334,6 +2373,31 @@ defaultproperties
 	KeyMappingArray[UTBND_Backslash]="Backslash";
 	KeyMappingArray[UTBND_RightBracket]="RightBracket";
 	KeyMappingArray[UTBND_Quote]="Quote";
+
+	KeyMappingArray[UTBND_LeftStickX]="XBoxTypeS_LeftX"
+	KeyMappingArray[UTBND_LeftStickY]="XboxTypeS_LeftY"
+	KeyMappingArray[UTBND_LeftStick_Click]="XboxTypeS_LeftThumbstick"
+	KeyMappingArray[UTBND_RightStick_X]="XboxTypeS_RightX"
+	KeyMappingArray[UTBND_RightStick_Y]="XboxTypeS_RightY"
+	KeyMappingArray[UTBND_RightStick_Click]="XboxTypeS_RightThumbstick"
+	KeyMappingArray[UTBND_ButtonA]="XboxTypeS_A"
+	KeyMappingArray[UTBND_ButtonB]="XboxTypeS_B"
+	KeyMappingArray[UTBND_ButtonX]="XboxTypeS_X"
+	KeyMappingArray[UTBND_ButtonY]="XboxTypeS_Y"
+	KeyMappingArray[UTBND_LeftShoulder]="XboxTypeS_LeftShoulder"
+	KeyMappingArray[UTBND_RightShoulder]="XboxTypeS_RightShoulder"
+	KeyMappingArray[UTBND_LeftTrigger]="XboxTypeS_LeftTrigger"
+	KeyMappingArray[UTBND_RightTrigger]="XboxTypeS_RightTrigger"
+	KeyMappingArray[UTBND_Start]="XboxTypeS_Start"
+	KeyMappingArray[UTBND_Select]="XboxTypeS_Back"
+	KeyMappingArray[UTBND_DPad_Up]="XboxTypeS_DPad_Up"
+	KeyMappingArray[UTBND_DPad_Down]="XboxTypeS_DPad_Down"
+	KeyMappingArray[UTBND_DPad_Left]="XboxTypeS_DPad_Right"
+	KeyMappingArray[UTBND_DPad_Right]="XboxTypeS_DPad_Left"
+	KeyMappingArray[UTBND_SpecialX]="SIXAXIS_AccelX"
+	KeyMappingArray[UTBND_SpecialY]="SIXAXIS_AccelY"
+	KeyMappingArray[UTBND_SpecialZ]="SIXAXIS_AccelZ"
+	KeyMappingArray[UTBND_SpecialW]="SIXAXIS_Gyro"
 
 	// Action mapping array
 	DigitalButtonActionsToCommandMapping[DBA_None]="";
@@ -2659,4 +2723,3 @@ defaultproperties
 	CampaignBoneNames.Add(B_CTFSteamlight)
 
 }
-

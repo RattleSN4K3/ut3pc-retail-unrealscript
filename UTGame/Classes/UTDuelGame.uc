@@ -76,6 +76,16 @@ event PostLogin(PlayerController NewPlayer)
 	}
 }
 
+/**
+ * returns true if Viewer is allowed to spectate ViewTarget
+ **/
+function bool CanSpectate( PlayerController Viewer, PlayerReplicationInfo ViewTarget )
+{
+	if ( (ViewTarget == None) || ViewTarget.bOnlySpectator )
+		return false;
+	return ( Viewer.PlayerReplicationInfo.bIsSpectator );
+}
+
 function UTBot AddBot(optional string botName, optional bool bUseTeamIndex, optional int TeamIndex)
 {
 	local UTBot NewBot;
@@ -125,7 +135,7 @@ function Logout(Controller Exiting)
 	else if ( !bRotateQueueEachKill && Exiting.PlayerReplicationInfo != None && Exiting.PlayerReplicationInfo.Team != None &&
 		Exiting.PlayerReplicationInfo.Team.Size == 1 )
 	{
-		if (!bGameEnded && (!GameReplicationInfo.bMatchHasBegun || IsInState('RoundOver')))
+		if (!GameReplicationInfo.bMatchHasBegun || WorldInfo.IsInSeamlessTravel())
 		{
 			if (Queue.length > 0)
 			{
@@ -133,7 +143,7 @@ function Logout(Controller Exiting)
 				GetPlayerFromQueue();
 			}
 		}
-		else
+		else if (!bGameEnded)
 		{
 			foreach WorldInfo.AllControllers(class'Controller', C)
 			{
@@ -235,13 +245,23 @@ function Controller GetPlayerFromQueue()
 	local Controller C;
 	local UTDuelPRI PRI;
 	local UTTeamInfo NewTeam;
+	local int TeamCount[2];
 
 	PRI = Queue[0];
 	Queue.Remove(0, 1);
 	PRI.QueuePosition = -1;
 	UpdateQueuePositions();
 
-	NewTeam = Teams[Teams[0].Size > Teams[1].Size ? 1 : 0];
+	// after a seamless travel some players might still have the old TeamInfo from the previous level
+	// so we need to manually count instead of using Size
+	foreach WorldInfo.AllControllers(class'Controller', C)
+	{
+		if (!C.bPendingDelete && C.bIsPlayer && C.PlayerReplicationInfo.Team != None && C.PlayerReplicationInfo.Team.TeamIndex < 2)
+		{
+			TeamCount[C.PlayerReplicationInfo.Team.TeamIndex]++;
+		}
+	}
+	NewTeam = Teams[TeamCount[0] > TeamCount[1] ? 1 : 0];
 	C = Controller(PRI.Owner);
 	SetTeam(C, NewTeam, false);
 	if (C.IsA('UTBot'))
@@ -264,12 +284,18 @@ function ScoreKill(Controller Killer, Controller Other)
 		PRI = UTDuelPRI(Other.PlayerReplicationInfo);
 		if (PRI != None)
 		{
-			AddToQueue(PRI);
-			C = GetPlayerFromQueue();
-			RestartPlayer(C);
-			if (C.PlayerReplicationInfo.Team != None)
+			if (!Other.bPendingDelete)
 			{
-				C.PlayerReplicationInfo.Team.Score = C.PlayerReplicationInfo.Score;
+				AddToQueue(PRI);
+			}
+			if (Queue.length > 0)
+			{
+				C = GetPlayerFromQueue();
+				RestartPlayer(C);
+				if (C.PlayerReplicationInfo.Team != None)
+				{
+					C.PlayerReplicationInfo.Team.Score = C.PlayerReplicationInfo.Score;
+				}
 			}
 		}
 	}
@@ -315,6 +341,12 @@ function RestartPlayer(Controller aPlayer)
 {
 	if (Queue.Find(UTDuelPRI(aPlayer.PlayerReplicationInfo)) == INDEX_NONE)
 	{
+		// force respawn player even if they're processing characters
+		// (unfortunate, but better than them potentially hanging the game state)
+		if (UTPlayerController(aPlayer) != None)
+		{
+			UTPlayerController(aPlayer).bInitialProcessingComplete = true;
+		}
 		Super.RestartPlayer(aPlayer);
 	}
 }
@@ -445,6 +477,7 @@ defaultproperties
 
 	// Class used to write stats to the leaderboard
 	OnlineStatsWriteClass=class'UTGame.UTLeaderboardWriteTDM'
+	OnlineGameSettingsClass=class'UTGameSettingsDUEL'
 	MidgameScorePanelTag=DuelPanel
 
 	// For Duel games, we want the two players (on opposing teams) to be able to trash talk each other!

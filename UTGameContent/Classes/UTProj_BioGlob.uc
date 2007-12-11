@@ -25,7 +25,7 @@ function InitBio(UTWeap_BioRifle_Content FiringWeapon, int InGlobStrength)
 	Velocity = Normal(Velocity) * Speed * (0.4 + InGlobStrength)/(1.35*InGlobStrength);
 
 	SetGlobStrength(InGlobStrength);
-	RestTime = Default.RestTime + InGlobStrength;
+	RestTime = Default.RestTime + 0.6*InGlobStrength;
 }
 
 simulated function PostBeginPlay()

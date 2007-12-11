@@ -8,6 +8,8 @@ class SeqVar_Object extends SequenceVariable
 
 var() protected Object ObjValue;
 
+var const array<class<Object> > SupportedClasses;
+
 /** returns the object this variable is currently pointing to
  * if this variable represents a list of objects, only returns the first one
  */
@@ -27,4 +29,5 @@ defaultproperties
 	ObjName="Object"
 	ObjCategory="Object"
 	ObjColor=(R=255,G=0,B=255,A=255)
+	SupportedClasses=(class'Object')
 }

@@ -15,6 +15,11 @@ var transient UIEditbox InputEditbox;
 /** Whether or not this is a password input box. */
 var transient bool bIsPasswordKeyboard;
 
+/**
+ * Repositions the scene's widgets to provide the ideal layout with regards to spacing and readability.
+ */
+native final function LayoutScene();
+
 /** Sets delegates for the scene. */
 event PostInitialize()
 {
@@ -24,6 +29,20 @@ event PostInitialize()
 	InputEditbox.SetDataStoreBinding("");
 	InputEditbox.SetValue("");
 	InputEditbox.OnSubmitText=OnSubmitText;
+
+	if ( MessageLabel != None )
+	{
+		// if the message label is resized, we need to reposition our options.
+		MessageLabel.NotifyPositionChanged = OnMessagePositionChanged;
+	}
+}
+
+/**
+ * Handler for the message label's OnPositionChanged delegate.  Called when the message label is repositioned or resized.
+ */
+function OnMessagePositionChanged( UIScreenObject Sender )
+{
+	LayoutScene();
 }
 
 /**
@@ -119,8 +138,19 @@ function ShowKeyboard()
 
 	PlayerInt = GetPlayerInterface();
 	PlayerInt.AddKeyboardInputDoneDelegate(OnKeyboardInputComplete);
-	PlayerInt.ShowKeyboardUI(GetPlayerIndex(), TitleLabel.GetDataStoreBinding(), MessageLabel.GetDataStoreBinding(), InputEditbox.bPasswordMode, false,
-		InputEditbox.GetValue(), InputEditbox.MaxCharacters);
+
+	//@hack: on ps3, we use the description as the title for the ps3's keyboard ui, but the description is a little too long to fit so we'll use the
+	// title in this case.
+	if ( IsConsole(CONSOLE_PS3) && bIsPasswordKeyboard )
+	{
+		PlayerInt.ShowKeyboardUI(GetPlayerIndex(), "", TitleLabel.GetValue(), InputEditbox.bPasswordMode, false,
+			InputEditbox.GetValue(), InputEditbox.MaxCharacters);
+	}
+	else
+	{
+		PlayerInt.ShowKeyboardUI(GetPlayerIndex(), TitleLabel.GetValue(), MessageLabel.GetValue(), InputEditbox.bPasswordMode, false,
+			InputEditbox.GetValue(), InputEditbox.MaxCharacters);
+	}
 }
 
 /**

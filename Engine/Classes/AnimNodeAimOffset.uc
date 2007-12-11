@@ -17,7 +17,6 @@ class AnimNodeAimOffset extends AnimNodeBlendBase
  */
 struct native AimTransform
 {
-	var		Rotator	Rotation;
 	var()	Quat	Quaternion;
 	var()	Vector	Translation;
 };
@@ -93,21 +92,6 @@ var	transient AnimNodeAimOffset	TemplateNode;
 /** Bake offsets from animations. */
 var()	bool			bBakeFromAnimations;
 
-//// ONLY FOR BACKWARD COMPATIBILITY (before VER_AIMOFFSET_PROFILES)
-var		Vector2d			HorizontalRange;
-var		Vector2d			VerticalRange;
-var		Array<AimComponent>	AimComponents;
-var		Name				AnimName_LU;
-var		Name				AnimName_LC;
-var		Name				AnimName_LD;
-var		Name				AnimName_CU;
-var		Name				AnimName_CC;
-var		Name				AnimName_CD;
-var		Name				AnimName_RU;
-var		Name				AnimName_RC;
-var		Name				AnimName_RD;
-////
-
 struct native AimOffsetProfile
 {
 	/** Name of this aim-offset profile. */
@@ -172,11 +156,10 @@ native function SetActiveProfileByIndex(int ProfileIndex);
 
 defaultproperties
 {
-	Children(0)=(Name="Input",Weight=1.0)
+	bSkipTickWhenZeroWeight=TRUE
 	bFixNumChildren=TRUE
+	Children(0)=(Name="Input",Weight=1.0)
 
-	HorizontalRange=(X=-1,Y=+1)
-	VerticalRange=(X=-1,Y=+1)
 	ForcedAimDir=ANIMAIM_CENTERCENTER
 	PassThroughAtOrAboveLOD=1000
 }

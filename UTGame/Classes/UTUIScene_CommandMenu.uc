@@ -25,6 +25,8 @@ defaultproperties
 	bRenderParentScenes=false
 	bAlwaysRenderScene=true
 	bCloseOnLevelChange=true
+	bIgnoreAxisInput=true
+	bFlushPlayerInput=false
 
 	Begin Object Name=SceneEventComponent
 		DisabledEventAliases.Add(Clicked)

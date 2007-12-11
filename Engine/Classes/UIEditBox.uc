@@ -22,7 +22,9 @@ enum EEditBoxCharacterSet
 	/** Allows only alphabetic characters */
 	CHARSET_AlphaOnly,
 	/** Allows only numeric characters */
-	CHARSET_NumericOnly
+	CHARSET_NumericOnly,
+	/** Allows alpha numeric characters (a-z,A-Z,0-9) */
+	CHARSET_AlphaNumeric,
 };
 
 /**

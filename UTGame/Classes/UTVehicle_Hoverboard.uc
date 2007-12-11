@@ -434,7 +434,7 @@ function bool DriverEnter(Pawn P)
 	// keep player from getting super jump while getting onto hoverboard
 	if ( P.Velocity.Z > 0 )
 	{
-		LastJumpTime = WorldInfo.TimeSeconds - 1;
+		LastJumpTime = WorldInfo.TimeSeconds - 0.75;
 	}
 
 	// give impulse to physics to match velocity player had before
@@ -515,7 +515,7 @@ simulated function VehicleCalcCamera(float DeltaTime, int SeatIndex, out vector 
 	}
 
 	TargetRoll = 0;
-	if(!bInAJump)
+	if(!bInAJump && Mesh.BodyInstance != None)
 	{
 		AngVel = Mesh.BodyInstance.GetUnrealWorldAngularVelocity();
 		TargetRoll = VelRollFactor * AngVel.Z * VelSize;

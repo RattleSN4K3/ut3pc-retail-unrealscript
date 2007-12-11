@@ -210,15 +210,6 @@ simulated state WeaponPuttingDown
 		FlickerOff();
 	}
 }
-simulated state WeaponAbortPutDown
-{
-	simulated function BeginState(Name PreviousStateName)
-	{
-		Super.BeginState(PreviousStateName);
-		Flicker();
-	}
-
-}
 
 defaultproperties
 {

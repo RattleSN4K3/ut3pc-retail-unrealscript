@@ -100,42 +100,29 @@ function CopyAndWriteAllStats(UniqueNetId UniqId, UTPlayerReplicationInfo PRI, b
 		//and copy them into the online subsystem where they will be
 		//sent via the network in EndOnlineGame()
 
-		`log("STATSCLASS:"@class.name);
-		`log("STATSNAME:"@name);
-
-		`log("------General------");
 		self.SetPureServerMode(bIsPureServer);
 		self.CopyAllStats(PRI);
 		StatsInterface.WriteOnlineStats(UniqId, self);
 
-		`log("------WeaponStats------");
 		if (WeaponsStatsClass != none)
 		{
 			WeaponStats = UTLeaderboardWriteWeaponsDM(new WeaponsStatsClass);
-			`log("WEAPSTATSCLASS:"@WeaponStats.class.name);
-			`log("WEAPSTATSNAME:"@WeaponStats.name);
 			WeaponStats.SetPureServerMode(bIsPureServer);
 			WeaponStats.CopyAllStats(PRI);
 			StatsInterface.WriteOnlineStats(UniqId, WeaponStats);
 		}
 
-		`log("------VehicleStats------");
 		if (VehicleStatsClass != none)
 		{
 			VehicleStats = UTLeaderboardWriteVehiclesDM(new VehicleStatsClass);
-			`log("VEHSTATSCLASS:"@VehicleStats.class.name);
-			`log("VEHSTATSNAME:"@VehicleStats.name);
 			VehicleStats.SetPureServerMode(bIsPureServer);
 			VehicleStats.CopyAllStats(PRI);
 			StatsInterface.WriteOnlineStats(UniqId, VehicleStats);
 		}
 
-		`log("------VehicleWeaponsStats------");
 		if (VehicleWeaponsStatsClass != none)
 		{
 			VehicleWeaponsStats = UTLeaderboardWriteVehicleWeaponsDM(new VehicleWeaponsStatsClass);
-			`log("VWEAPSTATSCLASS:"@VehicleWeaponsStats.class.name);
-			`log("VWEAPSTATSNAME:"@VehicleWeaponsStats.name);
 			VehicleWeaponsStats.SetPureServerMode(bIsPureServer);
 			VehicleWeaponsStats.CopyAllStats(PRI);
 			StatsInterface.WriteOnlineStats(UniqId, VehicleWeaponsStats);

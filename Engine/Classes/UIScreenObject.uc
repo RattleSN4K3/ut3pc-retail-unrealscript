@@ -9,8 +9,6 @@ class UIScreenObject extends UIRoot
 	abstract
 	placeable;
 
-`include(Core/Globals.uci)
-
 /** The location of this screen object */
 var(Presentation)			UIScreenValue_Bounds	Position;
 
@@ -278,6 +276,18 @@ native static final noexport function bool PlayUISound( name SoundCueName, optio
  * @param	WidgetName		the name to use for the new widget
  */
 native final function UIObject CreateWidget( UIScreenObject Owner, class<UIObject> WidgetClass, optional Object WidgetArchetype, optional name WidgetName );
+
+/**
+ * Perform all initialization for this widget. Called on all widgets when a scene is opened,
+ * once the scene has been completely initialized.
+ * For widgets added at runtime, called after the widget has been inserted into its parent's
+ * list of children.
+ *
+ * @param	inOwnerScene	the scene to add this widget to.
+ * @param	inOwner			the container widget that will contain this widget.  Will be NULL if the widget
+ *							is being added to the scene's list of children.
+ */
+native final function virtual Initialize( UIScene inOwnerScene, optional UIObject inOwner );
 
 /**
  * Insert a widget at the specified location
@@ -753,6 +763,13 @@ native final function UIObject GetFocusedControl( optional bool bRecurse, option
  *			or NULL if this widget doesn't have a LastFocusedControl
  */
 native final function UIObject GetLastFocusedControl( optional bool bRecurse, optional int PlayerIndex=GetBestPlayerIndex() ) const;
+
+/**
+ * Manually sets the last focused control for this widget; only necessary in cases where a particular child should be given focus
+ * but this widget (me) doesn't currently have focus.  Setting the last focused control to the ChildToFocus will make it so that
+ * ChildToFocus is given focus the next time this widget does.
+ */
+native final function OverrideLastFocusedControl( int PlayerIndex, UIObject ChildToFocus );
 
 /**
  * Returns TRUE if this widget has a UIState_Enabled object in its StateStack
@@ -1268,6 +1285,13 @@ function bool CanPlayOnline(int ControllerId=GetBestControllerId())
 	return class'UIInteraction'.static.CanPlayOnline(ControllerId);
 }
 
+/**
+ * Wrapper for getting the NAT type
+ */
+function ENATType GetNATType()
+{
+	return class'UIInteraction'.static.GetNatType();
+}
 
 /**
  * Displays the friends UI

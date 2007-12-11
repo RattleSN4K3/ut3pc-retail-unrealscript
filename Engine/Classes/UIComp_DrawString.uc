@@ -351,10 +351,20 @@ native final virtual function bool SetStyleResolverTag( name NewResolverTag );
  * @param	StyleProperty		if specified, only the style reference corresponding to the specified property
  *								will be resolved; otherwise, all style references will be resolved.
  */
-native final virtual function bool NotifyResolveStyle( UISkin ActiveSkin, bool bClearExistingValue, optional UIState CurrentMenuState, const optional name StylePropertyName );
+native final function virtual bool NotifyResolveStyle( UISkin ActiveSkin, bool bClearExistingValue, optional UIState CurrentMenuState, const optional name StylePropertyName );
 
 
 /* === Unrealscript === */
+/**
+ * Changes the minimum and maximum auto-size values for this string.
+ *
+ * @param	Orientation		the orientation to enable/disable
+ * @param	MinValue		the minimum size that auto-sizing should resize to (specify 0 to disable)
+ * @param	MaxValue		the maximum size that auto-sizing should resize to (specify 0 to disable)
+ * @param	MinScaleType	the scale type for the minimum value
+ * @param	MaxScaleType	the scale type for the maximum value
+ */
+native final function SetAutoSizeExtent( EUIOrientation Orientation, float MinValue, float MaxValue, EUIExtentEvalType MinScaleType, EUIExtentEvalType MaxScaleType );
 
 /**
  * Returns TRUE if autosizing is enabled for the specified orientation.

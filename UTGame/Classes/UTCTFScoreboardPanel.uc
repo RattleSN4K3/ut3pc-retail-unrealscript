@@ -49,6 +49,7 @@ function float DrawScore(UTPlayerReplicationInfo PRI, float YPos, int FontIndex,
 
 	// Draw the player's Kills
 	Spot = GetPlayerScore(PRI);
+	Canvas.Font = Fonts[FontIndex].Font;
 	Canvas.StrLen(Spot, Width, Height);
 	DrawString( Spot, RightColumnPosX+RightColumnWidth-Width, YPos,FontIndex,FontScale);
 

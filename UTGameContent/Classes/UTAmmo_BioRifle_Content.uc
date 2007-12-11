@@ -1,4 +1,7 @@
-﻿class UTAmmo_BioRifle_Content extends UTAmmoPickupFactory;
+﻿/**
+ * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ */
+class UTAmmo_BioRifle_Content extends UTAmmoPickupFactory;
 
 defaultproperties
 {

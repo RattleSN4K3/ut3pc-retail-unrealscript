@@ -9,12 +9,9 @@
 class ParticleModuleBeamModifier extends ParticleModuleBeamBase
 	native(Particle)
 	editinlinenew
-	dontcollapsecategories
 	hidecategories(Object);
 
-/**
- *	What to modify.
- */
+/**	What to modify. */
 enum BeamModifierType
 {
 	/** Modify the source of the beam.				*/
@@ -23,6 +20,7 @@ enum BeamModifierType
 	PEB2MT_Target
 };
 
+/**	Whether this module modifies the Source or the Target. */
 var(Modifier)		BeamModifierType				ModifierType;
 
 struct native BeamModifierOptions

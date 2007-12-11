@@ -32,7 +32,6 @@ var name ConeParam;
 
 var ParticleSystemComponent EffectEmitter;
 
-
 var actor LastHitActor;
 
 var bool bIsBeamActive;
@@ -48,10 +47,15 @@ var bool bSkipAggresiveSleep;
 
 var float CustomGravityScaling;
 
+/** @hack: replicated copy of bHoldingDuck for clients */
+var bool bIsDucking;
+
 
 
 replication
 {
+	if (!bNetOwner)
+		bIsDucking;
 	if (!IsSeatControllerReplicationViewer(1))
 		TurretFlashCount, TurretWeaponRotation;
 }
@@ -88,7 +92,7 @@ simulated function SleepCheckGroundDistance()
 		if(HitActor != None)
 		{
 			SleepCheckDistance = VSize(HitLocation - Location);
-		}		
+		}
 
 		// If distance has changed, wake it
 		if(Abs(SleepCheckDistance - LastSleepCheckDistance) > 10.0)
@@ -462,10 +466,10 @@ defaultproperties
 	EyeStepBlendRate=2.0
 	BaseEyeheight=0
 	Eyeheight=0
-	
+
 	bFindGroundExit=false
 	bShouldAutoCenterViewPitch=FALSE
-	
+
 	bIsNecrisVehicle=true
 
 	HornIndex=3

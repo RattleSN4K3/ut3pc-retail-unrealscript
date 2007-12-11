@@ -11,8 +11,6 @@ class UIScrollFrame extends UIContainer
 	placeable
 	native(UIPrivate);
 
-`include(Core/Globals.uci)
-
 /**
  * Component for rendering the background image.  If given a value, this image will not move when the user scrolls, whereas
  * the background image for the client panel will.

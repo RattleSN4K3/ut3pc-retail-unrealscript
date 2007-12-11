@@ -144,6 +144,8 @@ struct native GameMapCycle
 	var array<string> Maps;
 };
 var globalconfig array<GameMapCycle> GameSpecificMapCycles;
+/** index of current map in the cycle */
+var globalconfig int MapCycleIndex;
 
 /** Array of active bot names. */
 struct native ActiveBotInfo
@@ -230,6 +232,8 @@ enum EVoiceChannel
 	VC_Team2
 };
 
+/** for single player when "Tactical Diversion" card is used - skip adding this many Kismet spawned bots */
+var int NumDivertedOpponents;
 
 
 
@@ -291,7 +295,7 @@ static function bool AllowMutator( string MutatorClassName )
 }
 
 // Parse options for this game...
-static event class<GameInfo> SetGameType(string MapName, string Options)
+static event class<GameInfo> SetGameType(string MapName, string Options, string Portal)
 {
 	local string ThisMapPrefix;
 	local int i,pos;
@@ -312,17 +316,17 @@ static event class<GameInfo> SetGameType(string MapName, string Options)
 	}
 
 	// strip the UEDPIE_ from the filename, if it exists (meaning this is a Play in Editor game)
-	if (Left(MapName, 7) ~= "UEDPIE_")
+	if (Left(MapName, 6) ~= "UEDPIE")
 	{
-		MapName = Right(MapName, Len(MapName) - 7);
+		MapName = Right(MapName, Len(MapName) - 6);
 	}
-	else if (Left(MapName, 10) ~= "UEDPOC_PS3")
+	else if (Left(MapName, 6) ~= "UEDPS3")
 	{
-		MapName = Right(MapName, Len(MapName) - 10);
+		MapName = Right(MapName, Len(MapName) - 6);
 	}
-	else if (Left(MapName, 12) ~= "UEDPOC_Xenon")
+	else if (Left(MapName, 6) ~= "UED360")
 	{
-		MapName = Right(MapName, Len(MapName) - 12);
+		MapName = Right(MapName, Len(MapName) - 6);
 	}
 
 	// replace self with appropriate gametype if no game specified
@@ -744,6 +748,13 @@ event InitGame( string Options, out string ErrorMessage )
 	local name GameClassName;
 	local bool bVoteOverride;
 
+	// reset map cycle if we're just starting up
+	if (WorldInfo.TimeSeconds == 0.0)
+	{
+		class'UTGame'.default.MapCycleIndex = INDEX_NONE;
+		class'UTGame'.static.StaticSaveConfig();
+	}
+
 	// make sure no bots got saved in the .ini as in use
 	for (i = 0; i < ActiveBots.length; i++)
 	{
@@ -831,6 +842,8 @@ event InitGame( string Options, out string ErrorMessage )
 		bAutoContinueToNextRound = bool(InOpt);
 	}
 
+	ParseAutomatedTestingOptions(Options);
+
 	if ( HasOption(Options, "NumPlay") )
 		bAutoNumBots = false;
 
@@ -881,6 +894,7 @@ event InitGame( string Options, out string ErrorMessage )
 	if ( InOpt != "" )
 	{
 		bPauseable = true;
+		bAllowKeyboardAndMouse = true;
 		SinglePlayerMissionID = int(InOpt);
 
 		InOpt = ParseOption(Options,"NecrisLocked");
@@ -898,6 +912,7 @@ event InitGame( string Options, out string ErrorMessage )
 		{
 			bHeavyArmor = bool(InOpt);
 		}
+		NumDivertedOpponents = GetIntOption(Options, "diverted", 0);
 	}
 	else
 	{
@@ -939,11 +954,11 @@ event InitGame( string Options, out string ErrorMessage )
 		// Default to false, and turn back to true if we have maps.
 		bVoteOverride = true;
 		GameClassName = class.name;
-		for (i=0; i<default.GameSpecificMapCycles.Length; i++)
+		for (i=0; i<class'UTGame'.default.GameSpecificMapCycles.Length; i++)
 		{
-			if (default.GameSpecificMapCycles[i].GameClassName == GameClassName)
+			if (class'UTGame'.default.GameSpecificMapCycles[i].GameClassName == GameClassName)
 			{
-				if (default.GameSpecificMapCycles[i].Maps.Length > 1)
+				if (class'UTGame'.default.GameSpecificMapCycles[i].Maps.Length > 1)
 				{
 					bVoteOverride = false;
 					break;
@@ -969,9 +984,21 @@ event InitGame( string Options, out string ErrorMessage )
  */
 function bool SetPause(PlayerController PC, optional delegate<CanUnpause> CanUnpauseDelegate)
 {
+	local UTPlayerController OtherPC;
+
 	if ( !PC.IsLocalPlayerController() )
 	{
 		return false;
+	}
+
+	//@hack: unfortunately the character construction process requires game tick so we can't be paused while
+	// clients are doing it or they will appear to hang on the loading screen
+	foreach WorldInfo.AllControllers(class'UTPlayerController', OtherPC)
+	{
+		if (!OtherPC.bInitialProcessingComplete)
+		{
+			return false;
+		}
 	}
 
 	return Super.SetPause(PC, CanUnpauseDelegate);
@@ -985,15 +1012,18 @@ function int LevelRecommendedPlayers()
 	return (MapInfo != None) ? Min(12, (MapInfo.RecommendedPlayersMax + MapInfo.RecommendedPlayersMin) / 2) : 1;
 }
 
-event PlayerController Login
-(
-    string Portal,
-    string Options,
-    out string ErrorMessage
-)
+event PlayerController Login(string Portal, string Options, out string ErrorMessage)
 {
 	local PlayerController NewPlayer;
 	local Controller C;
+	local bool bDedicatedServerSpectator;
+
+	// if this is the first player, and he has the dedicated server option, mark him as such and force to be spectator
+	if (NumPlayers == 0 && WorldInfo.NetMode != NM_DedicatedServer && HasOption(Options, "dedicated"))
+	{
+		bDedicatedServerSpectator = true;
+		Options $= "?SpectatorOnly=1";
+	}
 
 	if ( MaxLives > 0 )
 	{
@@ -1013,7 +1043,13 @@ event PlayerController Login
 	if ( UTPlayerController(NewPlayer) != None )
 	{
 		if ( bMustJoinBeforeStart && GameReplicationInfo.bMatchHasBegun )
+		{
 			UTPlayerController(NewPlayer).bLatecomer = true;
+		}
+		if (bDedicatedServerSpectator)
+		{
+			UTPlayerController(NewPlayer).bDedicatedServerSpectator = true;
+		}
 	}
 
 	return NewPlayer;
@@ -1211,7 +1247,7 @@ function bool AtCapacity(bool bSpectator)
 	if ( !bForcedSpectator )
 		return Super.AtCapacity(bSpectator);
 
-	return ( NumPlayers + NumSpectators >= MaxPlayers + MaxSpectators );
+	return ( GetNumPlayers() + NumSpectators >= MaxPlayers + MaxSpectators );
 }
 
 event PostLogin( playercontroller NewPlayer )
@@ -1239,8 +1275,10 @@ event PostLogin( playercontroller NewPlayer )
 		}
 	}
 
-
-
+	//@hack: unfortunately the character construction process requires game tick so we can't be paused while
+	// clients are doing it or they will appear to hang on the loading screen
+	Pausers.length = 0;
+	WorldInfo.Pauser = None;
 }
 
 /**
@@ -1252,8 +1290,12 @@ function UpdateGameSettingsCounts()
 	local int TotalOpenConnections, TotalConnections;
 	if (GameSettings != None)
 	{
+		// Make sure that we don't exceed our max allowing player counts for this game type!  Usually this is 32.
+		GameSettings.NumPublicConnections = Clamp( GameSettings.NumPublicConnections, 0, MaxPlayers );
+		GameSettings.NumPrivateConnections = Clamp( GameSettings.NumPrivateConnections, 0, MaxPlayers - GameSettings.NumPublicConnections );
+
 		// Update the number of open slots available
-		GameSettings.NumOpenPublicConnections = GameSettings.NumPublicConnections - NumPlayers - NumTravellingPlayers;
+		GameSettings.NumOpenPublicConnections = GameSettings.NumPublicConnections - GetNumPlayers();
 		if (GameSettings.NumOpenPublicConnections < 0)
 		{
 			GameSettings.NumOpenPublicConnections = 0;
@@ -1366,6 +1408,14 @@ function RestartPlayer(Controller aPlayer)
 		if ( Best != None )
 			Best.PlayerStartTime = WorldInfo.TimeSeconds + 8;
 	}
+
+
+	// Make sure VOIP state for this player is updated.  They may have just entered the game after spectating
+	// for awhile post-connection.
+	if( PC != None )
+	{
+		SetupPlayerMuteList( PC, false );		// Force spectator channel?
+	}
 }
 
 /**
@@ -1419,11 +1469,11 @@ function ChangeName(Controller Other, string S, bool bNameChange)
 		{
 			if ( PlayerController(Other) != None )
 			{
-				PlayerController(Other).ReceiveLocalizedMessage( GameMessageClass, 8 );
-				if ( Other.PlayerReplicationInfo.PlayerName ~= DefaultPlayerName )
-				{
-					Other.PlayerReplicationInfo.SetPlayerName(DefaultPlayerName$Other.PlayerReplicationInfo.PlayerID);
-				}
+					PlayerController(Other).ReceiveLocalizedMessage( GameMessageClass, 8 );
+					if ( Other.PlayerReplicationInfo.PlayerName ~= DefaultPlayerName )
+					{
+						Other.PlayerReplicationInfo.SetPlayerName(DefaultPlayerName$Other.PlayerReplicationInfo.PlayerID);
+					}
 				return;
 			}
 		}
@@ -1436,7 +1486,7 @@ function SetAlias(Controller Other, string NewAlias)
 {
     local Controller APlayer;
 
-    if ( Other.PlayerReplicationInfo.PlayerAlias ~= NewAlias )
+    if ( Other.PlayerReplicationInfo.GetPlayerAlias() ~= NewAlias )
     {
 		return;
 	}
@@ -1453,7 +1503,7 @@ function SetAlias(Controller Other, string NewAlias)
 		{
 			if ( PlayerController(Other) != None )
 			{
-				PlayerController(Other).ReceiveLocalizedMessage( GameMessageClass, 8 );
+					PlayerController(Other).ReceiveLocalizedMessage( GameMessageClass, 8 );
 				return;
 			}
 		}
@@ -1563,12 +1613,22 @@ function KillBot(UTBot B)
 
 function bool NeedPlayers()
 {
-    if ( bMustJoinBeforeStart )
-	return false;
-    if ( bPlayersVsBots )
-		return ( NumBots < Min(16,BotRatio*NumPlayers) );
-
-    return (NumPlayers + NumBots < DesiredPlayerCount);
+	if ( bMustJoinBeforeStart )
+	{
+		return false;
+	}
+	else if ( bPlayersVsBots )
+	{
+		return (NumBots < Min(16, BotRatio * NumPlayers));
+	}
+	else if (SinglePlayerMissionID != INDEX_NONE)
+	{
+		return (GetNumPlayers() + NumBots < DesiredPlayerCount);
+	}
+	else
+	{
+		return (NumPlayers + NumBots < DesiredPlayerCount);
+	}
 }
 
 exec function AddBots(int Num)
@@ -1746,6 +1806,7 @@ function InitGameReplicationInfo()
 		M = M.GetNextUTMutator();
 	}
 
+	GRI.RulesString = "";
 	GRI.AddGameRule(GetMapTypeRule());
 	GRI.AddGameRule(GetEndGameConditionRule());
 	GRI.AddGameRule(" ");
@@ -1797,22 +1858,22 @@ function ReduceDamage( out int Damage, pawn injured, Controller instigatedBy, ve
 	if ( instigatedBy == None )
 		return;
 
-	if ( WorldInfo.Game.GameDifficulty <= 3 )
+	if ( WorldInfo.Game.GameDifficulty < 4.5 )
 	{
-		if ( injured.IsPlayerPawn() && (injured.Controller == instigatedby) && ((WorldInfo.NetMode == NM_Standalone) || (SinglePlayerMissionID != INDEX_NONE)) )
+		if ( (WorldInfo.Game.GameDifficulty < 4) && injured.IsPlayerPawn() && (injured.Controller == instigatedby) && ((WorldInfo.NetMode == NM_Standalone) || (SinglePlayerMissionID != INDEX_NONE)) )
 			Damage *= 0.5;
 
 		//skill level modification
 		if ( (AIController(instigatedBy) != None) && ((WorldInfo.NetMode == NM_Standalone) || (SinglePlayerMissionID != INDEX_NONE)) )
 		{
 			InstigatorSkill = AIController(instigatedBy).Skill;
-			if ( (InstigatorSkill <= 3) && injured.IsHumanControlled() )
+			if ( (InstigatorSkill < 4.5) && injured.IsHumanControlled() )
 				{
 					if ( ((instigatedBy.Pawn != None) && (instigatedBy.Pawn.Weapon != None) && instigatedBy.Pawn.Weapon.bMeleeWeapon)
 						|| ((injured.Weapon != None) && injured.Weapon.bMeleeWeapon && (VSize(injured.location - instigatedBy.Pawn.Location) < 600)) )
-							Damage = Damage * (0.76 + 0.08 * InstigatorSkill);
+							Damage = Damage * (0.64 + 0.08 * InstigatorSkill);
 					else
-							Damage = Damage * (0.25 + 0.15 * InstigatorSkill);
+							Damage = Damage * (0.2 + 0.15 * InstigatorSkill);
 			}
 		}
 	}
@@ -1901,63 +1962,85 @@ function UpdateGameplayMuteList( PlayerController PC )
  */
 function SetupPlayerMuteList( UTPlayerController PC, bool bForceSpectatorChannel )
 {
-	local TeamInfo Team;
+	local TeamInfo MyTeam;
+	local int MyVoiceChannel;
 	local TeamInfo OtherTeam;
 	local UTPlayerController OtherPC;
+	local int OtherVoiceChannel;
+	local UniqueNetId ZeroUniqueNetId;
 
-	// `log( "VOIP| SetupPlayerMuteList:  For player [" @ PC.PlayerReplicationInfo.PlayerName @ " : " @ PC.PlayerReplicationInfo.UniqueId.Uid[0]@PC.PlayerReplicationInfo.UniqueId.Uid[1]@PC.PlayerReplicationInfo.UniqueId.Uid[2]@PC.PlayerReplicationInfo.UniqueId.Uid[3]@PC.PlayerReplicationInfo.UniqueId.Uid[4]@PC.PlayerReplicationInfo.UniqueId.Uid[5]@PC.PlayerReplicationInfo.UniqueId.Uid[6]@PC.PlayerReplicationInfo.UniqueId.Uid[7] @ "]  Force spectator [" @ bForceSpectatorChannel @ "]" );
-
-	// Start off in the spectator channel
-	Team = PC.PlayerReplicationInfo.Team;
-	PC.VoiceChannel = VC_Spectators;
-	if( !PC.PlayerReplicationInfo.bIsSpectator && !bForceSpectatorChannel )
+	// Make sure we have a valid unique online ID.  If we don't, then one of the following is true:
+	//    * Player isn't signed into an online profile (we don't support voice chat unless you're signed in online.)
+	//    * Player doesn't have a unique online ID (maybe it's an AI or something?)
+	//    * Player's unique online ID isn't available to the server yet
+	if (PC.PlayerReplicationInfo != None && PC.PlayerReplicationInfo.UniqueId != ZeroUniqueNetId)
 	{
-		// OK, we're not a spectator and we were not asked to be forced into that channel
-		PC.VoiceChannel = VC_Team1;
-		if( Team != None && Team.TeamIndex > 0 && !bIgnoreTeamForVoiceChat )
-		{
-			// We're on team 2 and we were asked to respect the team settings
-			PC.VoiceChannel = VC_Team2;
-		}
-	}
+		// `log( "VOIP| SetupPlayerMuteList:  For player [" @ PC.PlayerReplicationInfo.PlayerName @ " : " @ PC.PlayerReplicationInfo.UniqueId.Uid[0]@PC.PlayerReplicationInfo.UniqueId.Uid[1]@PC.PlayerReplicationInfo.UniqueId.Uid[2]@PC.PlayerReplicationInfo.UniqueId.Uid[3]@PC.PlayerReplicationInfo.UniqueId.Uid[4]@PC.PlayerReplicationInfo.UniqueId.Uid[5]@PC.PlayerReplicationInfo.UniqueId.Uid[6]@PC.PlayerReplicationInfo.UniqueId.Uid[7] @ "]  Force spectator [" @ bForceSpectatorChannel @ "]" );
 
-	// `log( "VOIP|                           My voice channel: [" @ PC.VoiceChannel @ "]" );
-
-	// Check all players
-	foreach WorldInfo.AllControllers( class'UTPlayerController', OtherPC )
-	{
-		if( OtherPC != PC )
+		// Start off in the spectator channel
+		MyTeam = PC.PlayerReplicationInfo.Team;
+		MyVoiceChannel = VC_Spectators;
+		if( !bForceSpectatorChannel && !PC.PlayerReplicationInfo.bIsSpectator )
 		{
-			// Start the other player off in the spectator channel
-			OtherPC.VoiceChannel = VC_Spectators;
-			if( !OtherPC.PlayerReplicationInfo.bIsSpectator )
+			// OK, we're not a spectator and we were not asked to be forced into that channel
+			MyVoiceChannel = VC_Team1;
+			if( !bIgnoreTeamForVoiceChat && MyTeam != None && MyTeam.TeamIndex > 0 && PC.PlayerReplicationInfo.TeamID != 255 )
 			{
-				// Other player isn't a spectator, so assume team 1 first
-				OtherPC.VoiceChannel = VC_Team1;
-				OtherTeam = OtherPC.PlayerReplicationInfo.Team;
-				if( OtherTeam != None && OtherTeam.TeamIndex > 0 && !bIgnoreTeamForVoiceChat )
+				// We're on team 2 and we were asked to respect the team settings
+				MyVoiceChannel = VC_Team2;
+			}
+		}
+
+		// `log( "VOIP|                           My voice channel [" @ MyVoiceChannel @ "]  Spectator [" @ PC.PlayerReplicationInfo.bIsSpectator @ "]" );
+
+		// Check all players
+		foreach WorldInfo.AllControllers( class'UTPlayerController', OtherPC )
+		{
+			if (OtherPC != PC && OtherPC.PlayerReplicationInfo != None)
+			{
+				// Make sure the other player has a valid online ID.
+				if( OtherPC.PlayerReplicationInfo.UniqueId != ZeroUniqueNetId )
 				{
-					// Other player is on a team and it's team 2, and we were asked to respect that
-					OtherPC.VoiceChannel = VC_Team2;
+					// Start the other player off in the spectator channel
+					OtherVoiceChannel = VC_Spectators;
+					if( !bForceSpectatorChannel && !OtherPC.PlayerReplicationInfo.bIsSpectator )
+					{
+						// Other player isn't a spectator, so assume team 1 first
+						OtherVoiceChannel = VC_Team1;
+						OtherTeam = OtherPC.PlayerReplicationInfo.Team;
+						if( !bIgnoreTeamForVoiceChat && OtherTeam != None && OtherTeam.TeamIndex > 0 && OtherPC.PlayerReplicationInfo.TeamID != 255 )
+						{
+							// Other player is on a team and it's team 2, and we were asked to respect that
+							OtherVoiceChannel = VC_Team2;
+						}
+					}
+
+					// If not on the same team and not in the list already, mute
+					if( OtherVoiceChannel != MyVoiceChannel )
+					{
+						// `log( "VOIP|                           Cannot hear [" @ OtherPC.PlayerReplicationInfo.PlayerName @ " : " @ OtherPC.PlayerReplicationInfo.UniqueId.Uid[0]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[1]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[2]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[3]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[4]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[5]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[6]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[7] @ "]  Voice channel [" @ OtherVoiceChannel @ "]  Spectator [" @ OtherPC.PlayerReplicationInfo.bIsSpectator @ "]" );
+
+						PC.GameplayMutePlayer( OtherPC.PlayerReplicationInfo.UniqueId );
+						OtherPC.GameplayMutePlayer( PC.PlayerReplicationInfo.UniqueId );
+					}
+					else
+					{
+						// `log( "VOIP|                           Can hear [" @ OtherPC.PlayerReplicationInfo.PlayerName @ " : " @ OtherPC.PlayerReplicationInfo.UniqueId.Uid[0]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[1]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[2]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[3]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[4]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[5]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[6]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[7] @ "]  Voice channel [" @ OtherVoiceChannel @ "]  Spectator [" @ OtherPC.PlayerReplicationInfo.bIsSpectator @ "]" );
+
+						PC.GameplayUnmutePlayer( OtherPC.PlayerReplicationInfo.UniqueId );
+						OtherPC.GameplayUnmutePlayer( PC.PlayerReplicationInfo.UniqueId );
+					}
+				}
+				else
+				{
+					// `log( "VOIP|                           Skipping [" @ OtherPC.PlayerReplicationInfo.PlayerName @ "], player doesn't have a UniqueNetId." );
 				}
 			}
-
-			// If not on the same team and not in the list already, mute
-			if( OtherPC.VoiceChannel != PC.VoiceChannel )
-			{
-				// `log( "VOIP|                           Cannot hear [" @ OtherPC.PlayerReplicationInfo.PlayerName @ " : " @ OtherPC.PlayerReplicationInfo.UniqueId.Uid[0]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[1]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[2]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[3]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[4]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[5]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[6]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[7] @ "]  Voice channel [" @ OtherPC.VoiceChannel @ "]" );
-
-				PC.GameplayMutePlayer( OtherPC.PlayerReplicationInfo.UniqueId );
-				OtherPC.GameplayMutePlayer( PC.PlayerReplicationInfo.UniqueId );
-			}
-			else
-			{
-				// `log( "VOIP|                           Can hear [" @ OtherPC.PlayerReplicationInfo.PlayerName @ " : " @ OtherPC.PlayerReplicationInfo.UniqueId.Uid[0]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[1]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[2]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[3]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[4]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[5]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[6]@OtherPC.PlayerReplicationInfo.UniqueId.Uid[7] @ "]  Voice channel [" @ OtherPC.VoiceChannel @ "]" );
-
-				PC.GameplayUnmutePlayer( OtherPC.PlayerReplicationInfo.UniqueId );
-				OtherPC.GameplayUnmutePlayer( PC.PlayerReplicationInfo.UniqueId );
-			}
 		}
+	}
+	else
+	{
+		// `log( "VOIP| SetupPlayerMuteList:  Player [" @ PC.PlayerReplicationInfo.PlayerName @ "] doesn't have a UniqueNetId.  Nothing to do." );
 	}
 }
 
@@ -1993,13 +2076,7 @@ function ResetAllPlayerMuteListsToSpectatorChannel()
 {
 	local UTPlayerController PC;
 
-	// Do a pass through resetting everyones voice channels
-	foreach WorldInfo.AllControllers( class'UTPlayerController', PC )
-	{
-		PC.VoiceChannel = VC_Spectators;
-	}
-
-	// Do a second pass through rebuilding the mute list
+	// Allow everyone to hear each other
 	foreach WorldInfo.AllControllers( class'UTPlayerController', PC )
 	{
 		// Clear the gameplay mute list so everyone can talk to each other while traveling
@@ -2047,21 +2124,24 @@ function StartMatch()
 		}
 	}
 
-	foreach WorldInfo.AllControllers(class'UTPlayerController', PC)
+	if (WorldInfo.Game.bAutomatedTestingWithOpen == true)
 	{
-		PC.IncrementNumberOfMatchesPlayed();
-		break;
+		WorldInfo.Game.IncrementNumberOfMatchesPlayed();
 	}
+	else
+	{
+		foreach WorldInfo.AllControllers(class'UTPlayerController', PC)
+		{
+			PC.IncrementNumberOfMatchesPlayed();
+			break;
+		}
+	}
+	WorldInfo.Game.IncrementAutomatedTestingMapIndex();
 
 	if( bCheckingForFragmentation == TRUE )
 	{
 		//ConsoleCommand( "killparticles" );
 		ConsoleCommand( "MemFragCheck" );
-	}
-	if( bCheckingForMemLeaks == TRUE )
-	{
-		//ConsoleCommand( "MemLeakCheck" );
-		ConsoleCommand( "MEMTAG_UPDATE" );
 	}
 
 	if( BugLocString != "" || BugRotString != "" )
@@ -2075,7 +2155,15 @@ function StartMatch()
 		}
 	}
 
+
+	if( AutomatedTestingExecCommandToRunAtStartMatch != "" )
+	{
+		`log( "AutomatedTestingExecCommandToRunAtStartMatch: " $ AutomatedTestingExecCommandToRunAtStartMatch );
+		ConsoleCommand( AutomatedTestingExecCommandToRunAtStartMatch );
+	}
+
 	//SetTimer( 10.0f, TRUE, 'TrackMemoryFunctor');
+	//WorldInfo.DoMemoryTracking();
 }
 
 /** This is our TrackMemory functor where we can put anything we want to do every N seconds. **/
@@ -2292,6 +2380,22 @@ function UTBot SinglePlayerAddBot(optional string BotName, optional bool bUseTea
 	return AddBot(BotName, bUseTeamIndex, TeamIndex);
 }
 
+/** @return whether we are running a console "fake" dedicated server (listen server with rendering turned off) */
+function bool IsConsoleDedicatedServer()
+{
+	local UTPlayerController PC;
+
+	foreach LocalPlayerControllers(class'UTPlayerController', PC)
+	{
+		if (PC.bDedicatedServerSpectator)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 auto State PendingMatch
 {
 
@@ -2365,7 +2469,7 @@ auto State PendingMatch
 
 		if ( bWaitForNetPlayers && (WorldInfo.NetMode != NM_Standalone) )
 		{
-			if ( NumPlayers >= MinNetPlayers )
+			if ( (NumPlayers >= MinNetPlayers) && (NumPlayers > 0) )
 				PendingMatchElapsedTime++;
 			else
 				PendingMatchElapsedTime = 0;
@@ -2449,7 +2553,7 @@ auto State PendingMatch
 
 
 Begin:
-	if (WorldInfo.NetMode == NM_Standalone || WorldInfo.NetMode == NM_ListenServer)
+	if (WorldInfo.NetMode == NM_Standalone || (WorldInfo.NetMode == NM_ListenServer && !IsConsoleDedicatedServer()))
 	{
 		Sleep(0.0); //@hack - so local player has time to get friendly faction from profile
 		AddInitialBots();
@@ -2501,11 +2605,11 @@ function DoMapVote()
 	if ( VoteCollector != none )
 	{
 		GameClassName = class.name;
-		for (i=0; i<default.GameSpecificMapCycles.Length; i++)
+		for (i=0; i<class'UTGame'.default.GameSpecificMapCycles.Length; i++)
 		{
-			if (default.GameSpecificMapCycles[i].GameClassName == GameClassName)
+			if (class'UTGame'.default.GameSpecificMapCycles[i].GameClassName == GameClassName)
 			{
-				VoteCollector.Initialize(default.GameSpecificMapCycles[i].Maps);
+				VoteCollector.Initialize(class'UTGame'.default.GameSpecificMapCycles[i].Maps);
 			}
 		}
 	}
@@ -3185,6 +3289,59 @@ function bool AllowClientToTeleport(UTPlayerReplicationInfo ClientPRI, Actor Des
 /** displays the path to the given base for the given player */
 function ShowPathTo(PlayerController P, int TeamNum);
 
+event GetSeamlessTravelActorList(bool bToEntry, out array<Actor> ActorList)
+{
+	local int i;
+	local UTBot B;
+	local UTPlayerReplicationInfo PRI;
+
+	// clear some class references on persistent actors to make sure unnecessary content doesn't stay in memory
+	for (i = 0; i < GameReplicationInfo.PRIArray.length; i++)
+	{
+		PRI = UTPlayerReplicationInfo(GameReplicationInfo.PRIArray[i]);
+		if (PRI != None)
+		{
+			PRI.HUDPawnClass = None;
+		}
+	}
+	foreach WorldInfo.AllControllers(class'UTBot', B)
+	{
+		B.KilledVehicleClass = None;
+	}
+
+	Super.GetSeamlessTravelActorList(bToEntry, ActorList);
+}
+
+event PostSeamlessTravel()
+{
+	local UTBot B;
+	local int i;
+	local UTPlayerReplicationInfo PRI;
+
+	Super.PostSeamlessTravel();
+
+	//@hack: workaround for PRIs getting left around in Campaign for some reason
+	if (UTGameReplicationInfo(WorldInfo.GRI) != None && UTGameReplicationInfo(WorldInfo.GRI).bStoryMode)
+	{
+		foreach WorldInfo.AllControllers(class'UTBot', B)
+		{
+			if (UTPlayerReplicationInfo(B.PlayerReplicationInfo) != None && UTPlayerReplicationInfo(B.PlayerReplicationInfo).bPrecachedBot)
+			{
+				B.Destroy();
+			}
+		}
+
+		for (i = 0; i < WorldInfo.GRI.PRIArray.length; i++)
+		{
+			PRI = UTPlayerReplicationInfo(WorldInfo.GRI.PRIArray[i]);
+			if (PRI != None && PRI.Owner == None)
+			{
+				PRI.Destroy();
+			}
+		}
+	}
+}
+
 event HandleSeamlessTravelPlayer(out Controller C)
 {
 	local UTBot B;
@@ -3271,6 +3428,7 @@ function WriteOnlinePlayerScores()
 {
 	local int Index;
 	local int Count;
+	local PlayerReplicationInfo PRI;
 	local array<OnlinePlayerScore> PlayerScores;
 	local UniqueNetId ZeroId;
 
@@ -3286,22 +3444,21 @@ function WriteOnlinePlayerScores()
 		for (Index = 0; Index < GameReplicationInfo.PRIArray.Length; Index++)
 		{
 			// Ignore bots (bots have a zero unique net id)
-			if (GameReplicationInfo.PRIArray[Index].UniqueId != ZeroId)
+			PRI = GameReplicationInfo.PRIArray[Index];
+			if (PRI != None && PRI.UniqueId != ZeroId)
 			{
 				// Build the skill data for this player
 				Count++;
 				PlayerScores.Length = Count;
-				PlayerScores[Count-1].PlayerId = GameReplicationInfo.PRIArray[Index].UniqueId;
-				PlayerScores[Count-1].Score = GameReplicationInfo.PRIArray[Index].Score;
+				PlayerScores[Count-1].PlayerId = PRI.UniqueId;
+				PlayerScores[Count-1].Score = PRI.Score;
 				// Each player is on their own team (rated as individuals)
-				PlayerScores[Count-1].TeamId = Index;
+				PlayerScores[Count-1].TeamId = 255;
 			}
 		}
 
-		// Sorts the scores into relative positions (1st, 2nd, 3rd, etc.)
 		if (PlayerScores.Length > 0)
 		{
-			SortPlayerScores(PlayerScores);
 			// Now write out the scores
 			OnlineSub.StatsInterface.WriteOnlinePlayerScores(PlayerScores);
 		}
@@ -3319,22 +3476,28 @@ function WriteOnlinePlayerScores()
  */
 native function SortPlayerScores(out array<OnlinePlayerScore> PlayerScores);
 
+/** @return the index of the current map in the given list (used when starting up a server to start counting at the current map) */
+function int GetCurrentMapCycleIndex(const out array<string> MapList)
+{
+	return MapList.Find(string(WorldInfo.GetPackageName()));
+}
+
 /**
  * Returns the next map to play.  If we are in story mode, we need to go back to the map selection menu
  */
 function string GetNextMap()
 {
 	local bool SPResult;
-	local int GameIndex, MapIndex;
+	local int GameIndex;
 	local string MapName;
+	local array<string> MapList;
 
 	if ( SinglePlayerMissionID > INDEX_NONE)
 	{
 		// TODO Add code to determine a win or loss
 
 		SPResult = GetSinglePlayerResult();
-		return "UTM-MissionSelection?SPI="$SinglePlayerMissionID$"?SPResult="$string(SPResult)$"?Difficulty="$GameDifficulty;
-
+		return "UTM-MissionSelection?SPI="$SinglePlayerMissionID$"?SPResult="$int(SPResult)$"?Difficulty="$GameDifficulty;
 	}
 	else
 	{
@@ -3347,24 +3510,30 @@ function string GetNextMap()
 			}
 		}
 
-		GameIndex = GameSpecificMapCycles.Find('GameClassName', Class.Name);
+		GameIndex = class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', Class.Name);
 		if (GameIndex != INDEX_NONE)
 		{
-			MapIndex = GameSpecificMapCycles[GameIndex].Maps.Find(string(WorldInfo.GetPackageName()));
-			if (MapIndex != INDEX_NONE && MapIndex + 1 < GameSpecificMapCycles[GameIndex].Maps.length)
+			if (MapCycleIndex == INDEX_NONE)
 			{
-				return GameSpecificMapCycles[GameIndex].Maps[MapIndex + 1];
+				//@FIXME: use temporary because compiler's "can't pass array elements by reference" restriction
+				//	doesn't understand that 'const out' is safe
+				MapList = class'UTGame'.default.GameSpecificMapCycles[GameIndex].Maps;
+				MapCycleIndex = GetCurrentMapCycleIndex(MapList);
+				if (MapCycleIndex == INDEX_NONE)
+				{
+					// assume current map is actually zero
+					MapCycleIndex = 0;
+				}
 			}
-			else
-			{
-				return GameSpecificMapCycles[GameIndex].Maps[0];
-			}
-		}
-		else
-		{
-			return "";
+			MapCycleIndex = (MapCycleIndex + 1 < class'UTGame'.default.GameSpecificMapCycles[GameIndex].Maps.length) ? (MapCycleIndex + 1) : 0;
+			class'UTGame'.default.MapCycleIndex = MapCycleIndex;
+			class'UTGame'.static.StaticSaveConfig();
+
+			return class'UTGame'.default.GameSpecificMapCycles[GameIndex].Maps[MapCycleIndex];
 		}
 	}
+
+	return "";
 }
 
 function ProcessServerTravel(string URL, optional bool bAbsolute)
@@ -3512,11 +3681,10 @@ function bool GetTravelType()
 
 /**
  * AllowCheats - Allow cheating in single player games and coop games.
- * FIXMESTEVE - remove from coop games before ship!!!
  */
 function bool AllowCheats(PlayerController P)
 {
-	return ( WorldInfo.NetMode == NM_Standalone || SinglePlayerMissionID != INDEX_NONE );
+	return ( (WorldInfo.NetMode == NM_Standalone) || ((SinglePlayerMissionID != INDEX_NONE) && (WorldInfo.NetMode == NM_ListenServer)) );
 }
 
 function SkipCinematics(PlayerController PC)

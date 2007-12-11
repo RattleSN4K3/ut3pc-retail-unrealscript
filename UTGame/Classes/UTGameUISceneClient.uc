@@ -74,10 +74,25 @@ var transient float		ToastScale;
 var transient LinearColor	ToastColor;
 var transient LinearColor	ToastTextColor;
 
+
+/**
+ * Screen warning messages.  These are fairly intrusive messages that cover up the center of the viewport.
+ * Useful for vital modal warnings, such as 'Controller Disconnected' on console platforms.
+ */
+
+/** Screen warning message text.  Will be implicitly visible when string isn't empty. */
+var transient string ScreenWarningMessage;
+
+
 /** Whether or not to dim the entire screen, used for the network dialog on ps3. */
 var transient bool bDimScreen;
 
 var transient name LastModifierCardUsed;
+
+/**
+ * Indicates whether we've checked that the user's machine meets the min specs.
+ */
+var	globalconfig	bool	bPerformedMinSpecCheck;
 
 
 
@@ -176,16 +191,41 @@ event FinishToast()
 }
 
 
+
+/**
+ * Displays a screen warning message.  This message will be displayed prominently centered in the viewport and
+ * will persist until you call ClearScreenWarningMessage().  It's useful for important modal warnings, such
+ * as when the controller is disconnected on a console platform.
+ *
+ * @param Message Message to display
+ */
+function ShowScreenWarningMessage( string Message )
+{
+	ScreenWarningMessage = Message;	
+}
+
+
+
+/**
+ * Clears the screen warning message if one was set.  It will no longer be rendered.
+ */
+function ClearScreenWarningMessage()
+{
+	ScreenWarningMessage = "";
+}
+
+
+
 defaultproperties
 {
 	ToastTransitionTime = 0.125f;
 	ToastColor=(R=0.95f,G=0.95f,B=0.95f,A=1.0f)
 	ToastTextColor=(R=0.5f,G=0.0f,B=0.0f,A=1.0f)
-	ToastImage=Texture2D'UI_HUD.HUD.UI_HUD_BaseD'
-	ToastImageU=15
-	ToastImageUL=200
+	ToastImage=Texture2D'UI_HUD.UI.UI_Box01'
+	ToastImageU=0
+	ToastImageUL=32
 	ToastImageV=0
-	ToastImageVL=171
+	ToastImageVL=32
 	ToastFont=Font'UI_Fonts_Final.Menus.Fonts_Positec'
 	ToastScale=1.5
 

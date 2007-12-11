@@ -33,6 +33,9 @@ simulated function SetBurnOut()
 
 defaultproperties
 {
+// this class ended up being removed from all maps - removing the content references here fixes a bunch of errors
+// when compiling script in the shipping game that were due to the content no longer being used in the final build
+/*
 	Begin Object Name=CollisionCylinder
 		CollisionHeight=+40.0
 		CollisionRadius=+140.0
@@ -222,4 +225,5 @@ defaultproperties
 	WheelParticleEffects[3]=(MaterialType=Snow,ParticleTemplate=ParticleSystem'Envy_Level_Effects_2.Vehicle_Snow_Effects.P_Hellbender_Wheel_Snow')
 
     ToolTipIconCoords=(U=359,V=241,UL=126,VL=58)
+*/
 }

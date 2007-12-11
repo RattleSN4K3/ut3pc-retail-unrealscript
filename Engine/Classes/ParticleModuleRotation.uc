@@ -4,10 +4,12 @@
 class ParticleModuleRotation extends ParticleModuleRotationBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
-/** Initial rotation distribution, in degrees. */
+/**
+ *	Initial rotation of the particle (1 = 360 degrees).
+ *	The value is retrieved using the EmitterTime.
+ */
 var(Rotation) rawdistributionfloat	StartRotation;
 
 

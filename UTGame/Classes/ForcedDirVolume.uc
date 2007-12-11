@@ -117,6 +117,8 @@ defaultproperties
 		RBChannel=RBCC_Untitled4
 	End Object
 
+	bPushedByEncroachers=FALSE
+	bMovable=FALSE
 	bWorldGeometry=false
 	bCollideActors=true
 	bBlockActors=true

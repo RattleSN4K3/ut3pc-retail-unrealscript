@@ -29,11 +29,33 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 }
 
 
+/**
+* Callback for when the weapon preference scene is opened.
+*/
+function OnShowWeaponPreferenceScene_Opened(UIScene OpenedScene, bool bInitialActivation)
+{
+	if(OpenedScene != None)
+	{
+		UTUIFrontEnd_WeaponPreference(OpenedScene).MarkDirty = WeaponPreferencesChanged;
+	}
+}
 
 /** Displays the key binding scene. */
 function OnShowWeaponPreferenceScene()
 {
-	UTUIScene(GetScene()).OpenSceneByName(WeaponPreferenceScene);
+	UTUIScene(GetScene()).OpenSceneByName(WeaponPreferenceScene, false, OnShowWeaponPreferenceScene_Opened);
+}
+
+function WeaponPreferencesChanged()
+{
+	// total hackery - kids, don't do this at home
+	local UTUIFrontEnd_Settings SettingsScene;
+
+	SettingsScene = UTUIFrontEnd_Settings(GetScene().GetPreviousScene());
+	if ( SettingsScene != None )
+	{
+		SettingsScene.MarkDirty();
+	}
 }
 
 

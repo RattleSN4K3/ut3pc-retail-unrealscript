@@ -148,7 +148,7 @@ final function class<UIDataStore> FindDataStoreClass( class<UIDataStore> Require
 /**
  * Called when the current map is being unloaded.  Cleans up any references which would prevent garbage collection.
  */
-final function NotifyGameSessionEnded()
+final event NotifyGameSessionEnded()
 {
 	local int i, DataStoreIndex;
 	local array<UIDataStore> DataStoreArray;

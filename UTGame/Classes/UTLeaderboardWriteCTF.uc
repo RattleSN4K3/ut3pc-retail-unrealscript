@@ -20,8 +20,8 @@ function CopyAllStats(UTPlayerReplicationInfo PRI)
 defaultproperties
 {
 	WeaponsStatsClass=class'UTLeaderboardWriteWeaponsDM'
-	VehicleStatsClass=none
-	VehicleWeaponsStatsClass=none
+	VehicleStatsClass=class'UTLeaderboardWriteVehiclesDM'
+	VehicleWeaponsStatsClass=class'UTLeaderboardWriteVehicleWeaponsDM'
 
 	// Sort the leaderboard by this property
 RatingId=PROPERTY_LEADERBOARDRATING

@@ -12,14 +12,14 @@
 
 
 
-/** Class that this variable will act as. Set automaticall when connected to a SequenceOp variable connector. */
+/** Class that this variable will act as. Set automatically when connected to a SequenceOp variable connector. */
 var class<SequenceVariable> ExpectedType;
 
-/** Will search entire level's sequences (ie all subsequences) to find a variable whos VarName matches FindVarName. */
+/** Will search entire level's sequences (ie all subsequences) to find a variable whose VarName matches FindVarName. */
 var() Name	FindVarName;
 
 /** For use in Kismet, to indicate if this variable is ok. Updated in UpdateStatus. */
-var	bool	bStatusIsOk;
+var	transient bool bStatusIsOk;
 
 defaultproperties
 {

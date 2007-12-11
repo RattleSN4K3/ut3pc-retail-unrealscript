@@ -27,6 +27,9 @@ var transient array<UTUIOptionButton>	ControllerBindings;
 /** Widget names for the controller binding widgets. */
 var transient array<name>	ControllerBindingNames;
 
+/** Delegate to mark the profile as dirty. */
+delegate MarkDirty();
+
 /** Post initialize callback. */
 event PostInitialize()
 {
@@ -83,6 +86,8 @@ function OnAccept()
 	{
 		UTPC.ClearStringAliasBindingMapCache();
 	}
+
+	MarkDirty();
 
 	CloseScene(self);
 }

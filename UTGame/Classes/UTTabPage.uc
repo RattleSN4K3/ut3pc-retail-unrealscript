@@ -23,6 +23,17 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 }
 
 /**
+ * Wrapper for getting a reference to the scene's button bar.
+ */
+function UTUIButtonBar GetButtonBar()
+{
+	local UTUIFrontEnd UTOwnerScene;
+
+	UTOwnerScene = UTUIFrontEnd(GetScene());
+	return UTOwnerScene != None ? UTOwnerScene.ButtonBar : None;
+}
+
+/**
  * Provides a hook for unrealscript to respond to input using actual input key names (i.e. Left, Tab, etc.)
  *
  * Called when an input key event is received which this widget responds to and is in the correct state to process.  The

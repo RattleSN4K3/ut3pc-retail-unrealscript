@@ -4,13 +4,18 @@
 class ParticleModuleVelocityOverLifetime extends ParticleModuleVelocityBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
+/**
+ *	The scaling  value applied to the velocity.
+ *	Value is retrieved using the RelativeTime of the particle.
+ */
 var(Velocity) rawdistributionvector	VelOverLife;
-// If Absolute is true, the velocity will be SET to the value from the above dist.
-// If Absolute is false, the velocity will be modified by the above dist.
-var(Acceleration) export			bool			Absolute;
+/**
+ *	If true, the velocity will be SET to the value from the above dist.
+ *	If false, the velocity will be modified by the above dist.
+ */
+var(Velocity) export			bool			Absolute;
 
 
 

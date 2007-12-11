@@ -27,11 +27,13 @@ function OnStartGame()
 {
 	// Make sure the user wants to start the game.
 	local UTUIScene_MessageBox MessageBoxReference;
-	local array<string> MessageBoxOptions;
+//	local array<string> MessageBoxOptions;
 
 	if(MapTab.CanBeginMatch() && ConditionallyCheckNumControllers())
 	{
 		MessageBoxReference = GetMessageBoxScene();
+		OnStartGame_Confirm(MessageBoxReference, 0, 0);
+		/*
 
 		if(MessageBoxReference != none)
 		{
@@ -41,6 +43,7 @@ function OnStartGame()
 			MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
 			MessageBoxReference.Display("<Strings:UTGameUI.MessageBox.StartGame_Message>", "<Strings:UTGameUI.MessageBox.StartGame_Title>", OnStartGame_Confirm);
 		}
+		*/
 	}
 }
 

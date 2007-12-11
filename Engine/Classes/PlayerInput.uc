@@ -139,6 +139,10 @@ event PlayerInput( float DeltaTime )
 
 	// PlayerInput shouldn't take timedilation into account
 	DeltaTime /= WorldInfo.TimeDilation;
+	if (Outer.bDemoOwner && WorldInfo.NetMode == NM_Client)
+	{
+		DeltaTime /= WorldInfo.DemoPlayTimeDilation;
+	}
 
 	PreProcessInput( DeltaTime );
 

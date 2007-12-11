@@ -40,6 +40,12 @@ var const int QR2FirstPropertyKeyId;
 /** The number of registered property keys */
 var const int QR2NumPropertyKeys;
 
+/** The QR2 key id for the np id */
+var const int QR2NpIdKeyId;
+
+/** The string form of the np id */
+var const string QR2NpIdString;
+
 /** The list of delegates to notify when a game invite is accepted */
 var array<delegate<OnGameInviteAccepted> > GameInviteAcceptedDelegates;
 
@@ -54,6 +60,14 @@ var array<delegate<OnRegisterPlayerComplete> > RegisterPlayerCompleteDelegates;
 
 /** This is the list of requested delegates to fire when complete */
 var array<delegate<OnUnregisterPlayerComplete> > UnregisterPlayerCompleteDelegates;
+
+struct native SBServer
+{
+	var native const transient private pointer Server{_SBServer};
+};
+
+/** Holds a set of servers that are pending info requests */
+var array<SBServer> ServersPendingInfo;
 
 /**
  * Updates the localized settings/properties for the game in question

@@ -32,16 +32,20 @@ var transient array<int>	OldEnabledMutators;
 /** Post initialization event - Setup widget delegates.*/
 event PostInitialize()
 {
+	AvailableList = UIList(FindChild('lstAvailable', true));
+	EnabledList = UIList(FindChild('lstEnabled', true));
+
+	// Set default focused list
+	LastFocusedList = AvailableList;
+
 	Super.PostInitialize();
 
 	// Store widget references
-	AvailableList = UIList(FindChild('lstAvailable', true));
 	AvailableList.OnValueChanged = OnAvailableList_ValueChanged;
 	AvailableList.OnSubmitSelection = OnAvailableList_SubmitSelection;
 	AvailableList.NotifyActiveStateChanged = OnAvailableList_NotifyActiveStateChanged;
 	AvailableList.OnRawInputKey=OnMutatorList_RawInputKey;
 
-	EnabledList = UIList(FindChild('lstEnabled', true));
 	EnabledList.OnValueChanged = OnEnabledList_ValueChanged;
 	EnabledList.OnSubmitSelection = OnEnabledList_SubmitSelection;
 	EnabledList.NotifyActiveStateChanged = OnEnabledList_NotifyActiveStateChanged;
@@ -53,9 +57,6 @@ event PostInitialize()
 
 	// Get reference to the menu datastore
 	MenuDataStore = UTUIDataStore_MenuItems(GetCurrentUIController().DataStoreManager.FindDataStore('UTMenuItems'));
-
-	// Set default focused list
-	LastFocusedList = AvailableList;
 
 	// Get the list of mutators before we entered the scene.
 	OldEnabledMutators = MenuDataStore.EnabledMutators;
@@ -115,7 +116,7 @@ static function ApplyGameModeFilter()
 	local int MutatorIdx;
 	local array<int> FinalItems;
 	local UTUIDataStore_MenuItems LocalMenuDataStore;
-		
+
 	LocalMenuDataStore = UTUIDataStore_MenuItems(GetCurrentUIController().DataStoreManager.FindDataStore('UTMenuItems'));
 
 	for(MutatorIdx=0; MutatorIdx<LocalMenuDataStore.EnabledMutators.length; MutatorIdx++)

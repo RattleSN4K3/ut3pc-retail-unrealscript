@@ -1051,6 +1051,7 @@ event DrawPanel()
 	local int DrawIndex;
 	local float XPos, YPos, CellHeight;
 	local float TimeSeconds,DeltaTime;
+	local float FinalSelectionBarPos;
 	local vector MousePos;
 	local WorldInfo WI;
 
@@ -1134,24 +1135,23 @@ event DrawPanel()
 
 	XPos = DefaultCellHeight * SelectionCellHeightMultiplier * ScrollWidthRatio * ResScaling.X;
 	YPos = 0 - WindowTop;	// Figure out where to start rendering
-	//YPos += DrawOffsetY;
 
 	// Draw selection bar first
-	if(bTransitioning)
+	if( bTransitioning )
 	{
-		if ( !OnDrawSelectionBar(self, SelectionAlpha * (BarPosition-OldBarPosition) + OldBarPosition) )
-		{
-			DrawSelectionBG(SelectionAlpha * (BarPosition-OldBarPosition) + OldBarPosition);
-		}
+		FinalSelectionBarPos = YPos + SelectionAlpha * (BarPosition-OldBarPosition) + OldBarPosition;
 	}
 	else
 	{
-		if ( !OnDrawSelectionBar(Self, BarPosition) )
-		{
-			DrawSelectionBG(BarPosition);
-		}
+		FinalSelectionBarPos = YPos + BarPosition;
 	}
 
+	if ( !OnDrawSelectionBar( self, FinalSelectionBarPos ) )
+	{
+		DrawSelectionBG( FinalSelectionBarPos );
+	}
+
+	
 	// Draw all items
 	DrawIndex = 0;
 	for (DrawIndex = 0; DrawIndex < List.Length; DrawIndex++)
@@ -1202,11 +1202,16 @@ event float GetItemScale(int ItemIdx, float SelectionPosValue, optional out floa
 {
 	local float Dist;
 
-	Dist = FClamp(ItemIdx - SelectionPosValue, -BubbleRadius, BubbleRadius);
-	Dist /= BubbleRadius;
-	Dist = 1.0f - Abs(Dist);
-	Alpha = Dist;
-	Dist = Dist * (SelectionCellHeightMultiplier-1.0f) + 1.0f;
+	// We'll only enable the bubble effect if BubbleRadius is set
+	Dist = 1.0f;
+	if( BubbleRadius > 0 )
+	{
+		Dist = FClamp(ItemIdx - SelectionPosValue, -BubbleRadius, BubbleRadius);
+		Dist /= BubbleRadius;
+		Dist = 1.0f - Abs(Dist);
+		Alpha = Dist;
+		Dist = Dist * (SelectionCellHeightMultiplier-1.0f) + 1.0f;
+	}
 
 	return Dist;
 }

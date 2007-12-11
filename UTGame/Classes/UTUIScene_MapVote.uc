@@ -20,11 +20,11 @@ event PostInitialize()
 	TimeRemaining = UILabel( FindChild('TimeRemaining',true));
 }
 
-function Initialize(UTVoteReplicationInfo NewVoteRI)
+function InitializeVRI(UTVoteReplicationInfo NewVoteRI)
 {
 	if ( MapList != none )
 	{
-		MapList.Initialize(NewVoteRI);
+		MapList.InitializeVRI(NewVoteRI);
 	}
 }
 

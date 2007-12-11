@@ -13,8 +13,6 @@ class PlayerController extends Controller
 	nativereplication
 	dependson(MusicTrackDataStructures,OnlineSubsystem);
 
-`include(Core/Globals.uci)
-
 var const			Player			Player;						// Player info
 var 				Camera			PlayerCamera;				// Camera associated with this Player Controller
 var const class<Camera>				CameraClass;
@@ -136,7 +134,7 @@ struct native ClientAdjustment
 };
 var ClientAdjustment PendingAdjustment;
 
-// Progess Indicator - used by the engine to provide status messages (HUD is responsible for displaying these).
+// Progress Indicator - used by the engine to provide status messages (HUD is responsible for displaying these).
 var					string			ProgressMessage[2];
 var					float			ProgressTimeOut;
 
@@ -316,6 +314,13 @@ var float SpectatorCameraSpeed;
  */
 var const duplicatetransient byte NetPlayerIndex;
 
+/** this is set on the OLD PlayerController when performing a swap over a network connection
+ * so we know what connection we're waiting on acknowledgement from to finish destroying this PC
+ * (or when the connection is closed)
+ * @see GameInfo::SwapPlayerControllers()
+ */
+var const duplicatetransient NetConnection PendingSwapConnection;
+
 /** minimum time before can respawn after dying */
 var float MinRespawnDelay;
 
@@ -348,9 +353,15 @@ enum EProgressMessageType
 	/** Updates the amount remaining on a package download */
 	PMT_DownloadProgress,
 
+	/** Indicates that the download progress currently being rendered is out of date and should be redrawn */
+	PMT_RedrawDownloadProgress,
+
 	/** Connection to the server was lost */
 	PMT_ConnectionFailure,
 };
+
+/** set when received a valid ServerSetUniqueId() call, so we don't allow duplicates */
+var bool bReceivedUniqueId;
 
 
 
@@ -376,11 +387,13 @@ native final function string GetServerNetworkAddress();
 native function string ConsoleCommand(string Command, optional bool bWriteToLog = true);
 
 /** travel to a different map
- * @param URL the URL to travel to
- * @param TravelType type of URL
- * @param bSeamless whether to use seamless travel (requires TravelType of TRAVEL_Relative)
+ * @param URL - the URL to travel to
+ * @param TravelType - type of URL
+ * @param bSeamless (opt) - whether to use seamless travel (requires TravelType of TRAVEL_Relative)
+ * @param MapPackageGuid (opt) - the GUID of the map package to travel to - this is used to find the file when it has been autodownloaded,
+ * 				so it is only needed for clients
  */
-reliable client native event ClientTravel(string URL, ETravelType TravelType, optional bool bSeamless = false);
+reliable client native event ClientTravel(string URL, ETravelType TravelType, optional bool bSeamless = false, optional init Guid MapPackageGuid);
 
 native(546) final function UpdateURL(string NewOption, string NewValue, bool bSave1Default);
 native final function string GetDefaultURL(string Option);
@@ -403,6 +416,9 @@ native final function bool CheckSpeedHack(float DeltaTime);
 returns an integer to use as a pitch to orient player view along current ground (flat, up, or down)
 */
 native(524) final function int FindStairRotation(float DeltaTime);
+
+/** Clears out 'left-over' audio components. */
+native function CleanUpAudioComponents();
 
 /**
  * Attempts to pause/unpause the game when the UI opens/closes. Note: pausing
@@ -441,20 +457,21 @@ function OnControllerChanged(int ControllerId,bool bIsConnected)
 	// Don't worry about remote players
 	LocPlayer = LocalPlayer(Player);
 	// If the controller that changed, is attached to the this playercontroller
-	if (LocPlayer != None && LocPlayer.ControllerId == ControllerId)
+	if (WorldInfo.IsConsoleBuild() && LocPlayer != None && LocPlayer.ControllerId == ControllerId)
 	{
 		bIsControllerConnected = bIsConnected;
 		`Log("Controller "$ControllerId$" is connected == "$bIsConnected);
 		// do not pause if there is no controller when we are automatedperftesting
-		if( WorldInfo.Game != None && WorldInfo.Game.bAutomatedPerfTesting == TRUE )
-		{
-			// do nothing here
-		}
-		else
-		{
-			// Pause if the controller was removed, otherwise unpause
-			SetPause(bIsConnected == false,CanUnpauseControllerConnected);
-		}
+		//@todo fix this to work again once UI changes are merged back into main
+// 		if( WorldInfo.Game != None && WorldInfo.Game.bAutomatedPerfTesting == TRUE )
+// 		{
+// 			// do nothing here
+// 		}
+// 		else if ( WorldInfo.GRI != None && !WorldInfo.GRI.PreventPause() )
+// 		{
+// 			// Pause if the controller was removed, otherwise unpause
+// 			SetPause(bIsConnected == false,CanUnpauseControllerConnected);
+// 		}
 	}
 }
 
@@ -703,6 +720,12 @@ event InitInputSystem()
 			SeqAct_Interp(AllInterpActions[i]).AddPlayerToDirectorTracks(self);
 		}
 	}
+
+	// this is a good stop gap measure for any cases that we miss / other code getting turned on / called
+	// there is never a case where we want the tilt to be on at the point where the player controller is created
+	SetOnlyUseControllerTiltInput( FALSE );
+	SetUseTiltForwardAndBack( TRUE );
+	SetControllerTiltActive( FALSE );
 }
 
 /**
@@ -712,14 +735,15 @@ event InitInputSystem()
  */
 simulated event ReplicatedEvent(name VarName)
 {
-	local UniqueNetId ZeroUniqueId;
-
 	Super.ReplicatedEvent(VarName);
 
 	if (VarName == 'PlayerReplicationInfo')
 	{
 		// Now the PRI is valid so we can use it for the UniqueId
-		if ( (PlayerReplicationInfo != None) && (ZeroUniqueId == PlayerReplicationInfo.UniqueId) )
+		// NOTE: Even if we already have a UniqueId set, we still call InitUniquePlayerId, so the server
+		//   can make sure the player is registered with the online subsystem and VOIP is setup OK.  Also,
+		//   this is how we currently check for banned players
+		if ( (PlayerReplicationInfo != None) )
 		{
 			InitUniquePlayerId();
 		}
@@ -768,7 +792,7 @@ reliable server function ServerSetUniquePlayerId(UniqueNetId UniqueId,bool bWasI
 {
 	local UniqueNetId ZeroId;
 
-	if (!bPendingDestroy)
+	if (!bPendingDestroy && !bReceivedUniqueId)
 	{
 		// if this player is banned, kick him
 		//@todo: we should be doing this in the PreLogin/Login phase
@@ -805,6 +829,8 @@ reliable server function ServerSetUniquePlayerId(UniqueNetId UniqueId,bool bWasI
 				// Now that the unique id is replicated, this player can contribute to skill
 				WorldInfo.Game.RecalculateSkillRating();
 			}
+
+			bReceivedUniqueId = true;
 		}
 	}
 }
@@ -1491,6 +1517,40 @@ reliable client event TeamMessage( PlayerReplicationInfo PRI, coerce string S, n
 
 function PlayBeepSound();
 
+/**
+ * Unregisters all delegates previously registered with the online subsystem.  Called when the player controller is being
+ * destroyed and/or replaced.
+ *
+ * @note: in certain cases (i.e. when the channel is closed from the server's end), the player controller will no longer have
+ * a reference its ULocalPlayer object.  these delegates won't be cleared, but GC should clear the references for us.
+ */
+event ClearOnlineDelegates()
+{
+	local LocalPlayer LP;
+
+	`log("Clearing online delegates for" @ Self @ "(" $ `showobj(Player) $ ")");
+
+	LP = LocalPlayer(Player);
+	if ( Role < ROLE_Authority || LP != None )
+	{
+		// If there is an online subsystem, clear our callback for UI/controller changes
+		if ( OnlineSub != None )
+		{
+			if ( OnlineSub.SystemInterface != None )
+			{
+				OnlineSub.SystemInterface.ClearExternalUIChangeDelegate(OnExternalUIChanged);
+				OnlineSub.SystemInterface.ClearControllerChangeDelegate(OnControllerChanged);
+			}
+
+			// Cleanup game invite delegate
+			if ( OnlineSub.GameInterface != None && LP != None )
+			{
+				OnlineSub.GameInterface.ClearGameInviteAcceptedDelegate(LP.ControllerId,OnGameInviteAccepted);
+			}
+		}
+	}
+}
+
 event Destroyed()
 {
 	local Vehicle	DrivenVehicle;
@@ -1499,17 +1559,10 @@ event Destroyed()
 	// Disable any currently playing rumble
 	ClientPlayForceFeedbackWaveform(none);
 
-	// If there is an online subsystem, clear our callback for UI/controller changes
-	if (OnlineSub != None && OnlineSub.SystemInterface != None)
+	// if this is a local player, clear all online delegates
+	if ( Role < ROLE_Authority || LocalPlayer(Player) != None )
 	{
-		OnlineSub.SystemInterface.ClearExternalUIChangeDelegate(OnExternalUIChanged);
-		OnlineSub.SystemInterface.ClearControllerChangeDelegate(OnControllerChanged);
-
-		// Cleanup game invite delegate
-		if (OnlineSub.GameInterface != None && LocalPlayer(Player) != None)
-		{
-			OnlineSub.GameInterface.ClearGameInviteAcceptedDelegate(LocalPlayer(Player).ControllerId,OnGameInviteAccepted);
-		}
+		ClearOnlineDelegates();
 	}
 
 	// cheatmanager and playerinput cleaned up in C++ PostScriptDestroyed()
@@ -2705,6 +2758,12 @@ function ReplicateMove
 	local byte ClientRoll;
 	local float NetMoveDelta;
 
+	// do nothing if we are no longer connected
+	if (Player == None)
+	{
+		return;
+	}
+
 	MaxResponseTime = Default.MaxResponseTime * WorldInfo.TimeDilation;
 	DeltaTime = ((Pawn != None) ? Pawn.CustomTimeDilation : CustomTimeDilation) * FMin(DeltaTime, MaxResponseTime);
 
@@ -2727,7 +2786,7 @@ function ReplicateMove
 		}
 	}
 
-	// Get a SavedMove actor to store the movement in.
+	// Get a SavedMove object to store the movement in.
 	NewMove = GetFreeMove();
 	if ( NewMove == None )
 	{
@@ -2898,7 +2957,9 @@ reliable server function ServerSpeech( name Type, int Index, string Callsign );
 exec function RestartLevel()
 {
 	if( WorldInfo.NetMode==NM_Standalone )
+	{
 		ClientTravel( "?restart", TRAVEL_Relative );
+	}
 }
 
 exec function LocalTravel( string URL )
@@ -4062,7 +4123,7 @@ ignores SeePlayer, HearNoise, Bump;
 			return;
 		}
 
-		if( Role == Role_Authority && WorldInfo.NetMode != NM_StandAlone )
+		if (Role == ROLE_Authority)
 		{
 			// Update ViewPitch for remote clients
 			Pawn.SetRemoteViewPitch( Rotation.Pitch );
@@ -4175,7 +4236,7 @@ ignores SeePlayer, HearNoise, Bump;
 			return;
 		}
 
-		if( Role == Role_Authority && WorldInfo.NetMode != NM_StandAlone )
+		if (Role == ROLE_Authority)
 		{
 			// Update ViewPitch for remote clients
 			Pawn.SetRemoteViewPitch( Rotation.Pitch );
@@ -4188,7 +4249,7 @@ ignores SeePlayer, HearNoise, Bump;
 			Pawn.DoJump( bUpdating );
 			if( Pawn.Physics == PHYS_Falling )
 			{
-				GotoState('PlayerWalking');
+				GotoState(Pawn.LandMovementState);
 			}
 		}
 	}
@@ -4568,12 +4629,18 @@ state BaseSpectating
 
 unreliable server function ServerViewNextPlayer()
 {
-	ViewAPlayer(+1);
+	if (IsSpectating())
+	{
+		ViewAPlayer(+1);
+	}
 }
 
 unreliable server function ServerViewPrevPlayer()
 {
-	ViewAPlayer(-1);
+	if (IsSpectating())
+	{
+		ViewAPlayer(-1);
+	}
 }
 
 /**
@@ -4634,10 +4701,13 @@ function ViewAPlayer(int dir)
 
 unreliable server function ServerViewSelf()
 {
-	ResetCameraMode();
-    SetViewTarget( Self );
-    ClientSetViewTarget( Self );
-	ClientMessage(OwnCamera, 'Event');
+	if (IsSpectating())
+	{
+		ResetCameraMode();
+		SetViewTarget( Self );
+		ClientSetViewTarget( Self );
+		ClientMessage(OwnCamera, 'Event');
+	}
 }
 
 state Spectating extends BaseSpectating
@@ -5148,7 +5218,7 @@ Begin:
 
 function bool CanRestartPlayer()
 {
-    return !PlayerReplicationInfo.bOnlySpectator && HasClientLoadedCurrentWorld();
+    return PlayerReplicationInfo != None && !PlayerReplicationInfo.bOnlySpectator && HasClientLoadedCurrentWorld();
 }
 
 /**
@@ -5444,7 +5514,7 @@ reliable client final function ClientPlayForceFeedbackWaveform(ForceFeedbackWave
 		return; // don't play forcefeedback if gamepad isn't being used
 	}
 
-	if( ForceFeedbackManager != None && PlayerReplicationInfo.bControllerVibrationAllowed )
+	if( ForceFeedbackManager != None && PlayerReplicationInfo != None && PlayerReplicationInfo.bControllerVibrationAllowed )
 	{
 		ForceFeedbackManager.PlayForceFeedbackWaveform(FFWaveform);
 	}
@@ -5826,14 +5896,6 @@ event GetSeamlessTravelActorList(bool bToEntry, out array<Actor> ActorList)
 	}
 }
 
-/** tells the server to destroy the PC; primarily used by the internal netcode when the client has successfully received
- * a new PC replicated from the server to get rid of the old one
- */
-reliable server final event ServerDestroy()
-{
-	Destroy();
-}
-
 /** called when seamless travelling and we are being replaced by the specified PC
  * clean up any persistent state (post process chains on LocalPlayers, for example)
  * (not called if PlayerControllerClass is the same for the from and to gametypes)
@@ -5932,9 +5994,10 @@ function GameplayMutePlayer(UniqueNetId PlayerNetId)
 	if (VoicePacketFilter.Find('Uid',PlayerNetId.Uid) == INDEX_NONE)
 	{
 		VoicePacketFilter[VoicePacketFilter.Length] = PlayerNetId;
-		// Now process on the client needed for splitscreen net play
-		ClientMutePlayer(PlayerNetId);
 	}
+
+	// Now process on the client needed for splitscreen net play
+	ClientMutePlayer(PlayerNetId);
 }
 
 /**
@@ -5967,10 +6030,11 @@ function GameplayUnmutePlayer(UniqueNetId PlayerNetId)
 			if (RemoveIndex != INDEX_NONE)
 			{
 				VoicePacketFilter.Remove(RemoveIndex,1);
-				// Now process on the client
-				ClientUnmutePlayer(PlayerNetId);
 			}
 		}
+
+		// Now process on the client
+		ClientUnmutePlayer(PlayerNetId);
 	}
 }
 
@@ -6003,9 +6067,10 @@ reliable server event ServerMutePlayer(UniqueNetId PlayerNetId)
 		if (Other.VoicePacketFilter.Find('Uid',PlayerReplicationInfo.UniqueId.Uid) == INDEX_NONE)
 		{
 			Other.VoicePacketFilter[Other.VoicePacketFilter.Length] = PlayerReplicationInfo.UniqueId;
-			// Tell the other PC to mute this one
-			Other.ClientMutePlayer(PlayerReplicationInfo.UniqueId);
 		}
+
+		// Tell the other PC to mute this one
+		Other.ClientMutePlayer(PlayerReplicationInfo.UniqueId);
 	}
 }
 
@@ -6050,10 +6115,11 @@ reliable server event ServerUnmutePlayer(UniqueNetId PlayerNetId)
 			if (RemoveIndex != INDEX_NONE)
 			{
 				Other.VoicePacketFilter.Remove(RemoveIndex,1);
-				// Tell the other PC to unmute this one
-				Other.ClientUnmutePlayer(PlayerReplicationInfo.UniqueId);
 			}
 		}
+
+		// Tell the other PC to unmute this one
+		Other.ClientUnmutePlayer(PlayerReplicationInfo.UniqueId);
 	}
 }
 
@@ -6334,7 +6400,7 @@ function OnDestroyForInviteComplete(bool bWasSuccessful)
  */
 function OnInviteJoinComplete(bool bWasSuccessful)
 {
-	local string URL;
+	local string URL, ConnectPassword;
 
 	if (bWasSuccessful)
 	{
@@ -6343,6 +6409,14 @@ function OnInviteJoinComplete(bool bWasSuccessful)
 			// Get the platform specific information
 			if (OnlineSub.GameInterface.GetResolvedConnectString(URL))
 			{
+				// if a password was set in the registry (this would normally be done by the UI scene that handles accepting
+				// the game invite or join friend request), append it to the URL
+				if ( class'UIRoot'.static.GetDataStoreStringValue("<Registry:ConnectPassword>", ConnectPassword) && ConnectPassword != "" )
+				{
+					// we append "Password=" because that's what AccessControl checks for (see AccessControl.PreLogin)
+					URL $= "?Password=" $ ConnectPassword;
+				}
+
 				`Log("Resulting url is ("$URL$")");
 				// Open a network connection to it
 				ConsoleCommand("open "$URL);
@@ -6355,6 +6429,7 @@ function OnInviteJoinComplete(bool bWasSuccessful)
 		NotifyInviteFailed();
 	}
 	ClearInviteDelegates();
+	class'UIRoot'.static.SetDataStoreStringValue("<Registry:ConnectPassword>", "");
 }
 
 /** Override to display a message to the user */
@@ -6595,7 +6670,7 @@ final reliable client event AddDebugText(string DebugText, optional Actor SrcAct
 		}
 		else
 		{
-			`log("Adding debug text:"@DebugText@"for actor:");
+			`log("Adding debug text:"@DebugText@"for actor:"@SrcActor);
 			// search for an existing entry
 			if (!bSkipOverwriteCheck)
 			{
@@ -6731,8 +6806,8 @@ function bool CanViewUserCreatedContent()
 
 function IncrementNumberOfMatchesPlayed()
 {
-	`log( "  Num Matches Played: " $ PlayerReplicationInfo.NumberOfMatchesPlayed );
-	PlayerReplicationInfo.NumberOfMatchesPlayed++;
+	`log( "  Num Matches Played: " $ PlayerReplicationInfo.AutomatedTestingData.NumberOfMatchesPlayed );
+	PlayerReplicationInfo.AutomatedTestingData.NumberOfMatchesPlayed++;
 }
 
 /** For AI debugging */
@@ -6744,6 +6819,19 @@ event SoakPause(Pawn P)
 	myHud.bShowDebugInfo = true;
 }
 
+// AI PATHING DEBUG
+exec function PathStep( optional int Cnt)
+{
+	Pawn.IncrementPathStep( Max(1, Cnt), myHud.Canvas );
+}
+exec function PathChild( optional int Cnt )
+{
+	Pawn.IncrementPathChild( Max(1, Cnt), myHud.Canvas );
+}
+exec function PathClear()
+{
+	Pawn.ClearPathStep();
+}
 
 defaultproperties
 {

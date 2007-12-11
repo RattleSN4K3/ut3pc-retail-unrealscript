@@ -6,18 +6,27 @@
 class ParticleModuleLocationPrimitiveBase extends ParticleModuleLocationBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
+/** If TRUE, the positive X axis is valid for spawning. */
 var(Location) bool					Positive_X;
+/** If TRUE, the positive Y axis is valid for spawning. */
 var(Location) bool					Positive_Y;
+/** If TRUE, the positive Z axis is valid for spawning. */
 var(Location) bool					Positive_Z;
+/** If TRUE, the negative X axis is valid for spawning. */
 var(Location) bool					Negative_X;
+/** If TRUE, the negative Y axis is valid for spawning. */
 var(Location) bool					Negative_Y;
+/** If TRUE, the negative Zaxis is valid for spawning. */
 var(Location) bool					Negative_Z;
+/** If TRUE, particles will only spawn on the surface of the primitive. */
 var(Location) bool					SurfaceOnly;
+/** If TRUE, the particle should get its velocity from the position within the primitive. */
 var(Location) bool					Velocity;
+/** The scale applied to the velocity. (Only used if 'Velocity' is checked). */
 var(Location) rawdistributionfloat	VelocityScale;
+/** The location of the bounding primitive relative to the position of the emitter. */
 var(Location) rawdistributionvector	StartLocation;
 
 

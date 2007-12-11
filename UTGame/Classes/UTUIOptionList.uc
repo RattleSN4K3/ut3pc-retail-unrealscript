@@ -323,19 +323,100 @@ function OnOption_NotifyActiveStateChanged( UIScreenObject Sender, int PlayerInd
 	}
 }
 
-/** Selects the specified option item. */
-function SelectItem(int OptionIdx)
+/**
+ * Enables / disables an item in the list.  If the item is the currently selected item, selects the next item in the list, if possible.
+ *
+ * @param	OptionIdx		the index for the option that should be updated
+ * @param	bShouldEnable	TRUE to enable the item; FALSE to disable.
+ *
+ * @return	TRUE if the item's state was successfully changed; FALSE if it couldn't be changed or OptionIdx was invalid.
+ */
+function bool EnableItem( int PlayerIndex, UIObject ChosenObj, bool bShouldEnable=true )
 {
-	OptionIdx = Clamp(OptionIdx, 0, GeneratedObjects.length - 1);
+	return EnableItemAtIndex(PlayerIndex, GetObjectInfoIndexFromObject(ChosenObj), bShouldEnable);
+}
+function bool EnableItemAtIndex( int PlayerIndex, int OptionIdx, bool bShouldEnable=true )
+{
+	local bool bResult, bStateChangeAllowed;
+	local int idx;
+	local UIObject ChosenObj;
 
-	if(OptionIdx >=0  && OptionIdx < GeneratedObjects.length)
+	if ( OptionIdx >= 0 && OptionIdx < GeneratedObjects.Length )
 	{
-		GeneratedObjects[OptionIdx].OptionObj.SetFocus(none);
+		ChosenObj = GeneratedObjects[OptionIdx].OptionObj;
+		if ( ChosenObj != None )
+		{
+			bStateChangeAllowed = true;
+			if ( !bShouldEnable )
+			{
+				if ( OptionIdx == CurrentIndex )
+				{
+					bStateChangeAllowed = false;
+					for ( idx = (OptionIdx + 1) % GeneratedObjects.Length; idx != CurrentIndex; idx = (idx + 1) % GeneratedObjects.Length )
+					{
+						if ( SelectItem(idx, PlayerIndex, false) )
+						{
+							bStateChangeAllowed = true;
+							break;
+						}
+					}
+				}
+				else if ( ChosenObj == GetFocusedControl(false, PlayerIndex) )
+				{
+					bStateChangeAllowed = ChosenObj.KillFocus(None, PlayerIndex);
+				}
+			}
+
+			if ( bStateChangeAllowed )
+			{
+				bResult = ChosenObj.SetEnabled(bShouldEnable, PlayerIndex);
+			}
+		}
 	}
+
+	return bResult;
+}
+
+/** Returns the currently selected option object */
+function UIObject GetCurrentlySelectedOption()
+{
+	if ( CurrentIndex >= 0 && CurrentIndex < GeneratedObjects.Length )
+	{
+		return GeneratedObjects[CurrentIndex].OptionObj;
+	}
+
+	return None;
+}
+
+/** Selects the specified option item. */
+function bool SelectItem(int OptionIdx, optional int PlayerIndex=GetBestPlayerIndex(), optional bool bClampValue=true )
+{
+	local bool bResult;
+
+	if ( bClampValue )
+	{
+		OptionIdx = Clamp(OptionIdx, 0, GeneratedObjects.length - 1);
+	}
+
+	if ( OptionIdx >= 0 && OptionIdx < GeneratedObjects.length
+	&&	GeneratedObjects[OptionIdx].OptionObj.IsEnabled(GetBestPlayerIndex()))
+	{
+		if ( IsFocused(PlayerIndex) )
+		{
+			bResult = GeneratedObjects[OptionIdx].OptionObj.SetFocus(none);
+		}
+		else
+		{
+			OverrideLastFocusedControl(PlayerIndex, GeneratedObjects[OptionIdx].OptionObj);
+			bResult = true;
+		}
+	}
+
+	return bResult;
 }
 
 /** Selects the next item in the list. */
-function SelectNextItem(optional bool bWrap=false)
+function bool SelectNextItem(optional bool bWrap=false, optional int PlayerIndex=GetBestPlayerIndex())
 {
 	local int TargetIndex;
 
@@ -346,11 +427,11 @@ function SelectNextItem(optional bool bWrap=false)
 		TargetIndex = TargetIndex%(GeneratedObjects.length);
 	}
 
-	SelectItem(TargetIndex);
+	return SelectItem(TargetIndex, PlayerIndex);
 }
 
 /** Selects the previous item in the list. */
-function SelectPreviousItem(optional bool bWrap=false)
+function bool SelectPreviousItem(optional bool bWrap=false, optional int PlayerIndex=GetBestPlayerIndex())
 {
 	local int TargetIndex;
 
@@ -361,7 +442,7 @@ function SelectPreviousItem(optional bool bWrap=false)
 		TargetIndex=GeneratedObjects.length-1;
 	}
 
-	SelectItem(TargetIndex);
+	return SelectItem(TargetIndex, PlayerIndex);
 }
 
 /** Checks to see if the user has clicked on the scroll arrows. */

@@ -30,6 +30,9 @@ var		int		InDrawY;
 /** controls which scene DPG to render this post-process effect in (mirrors ESceneDepthPriorityGroup) */
 var() ESceneDepthPriorityGroup SceneDPG;
 
+/** If true, the effect should be rendered after lighting and not at the end of the DPG. */
+var bool bAffectsLightingOnly;
+
 
 
 defaultproperties
@@ -37,4 +40,5 @@ defaultproperties
 	SceneDPG=SDPG_PostProcess
 	bShowInEditor=TRUE
 	bShowInGame=TRUE
+	bAffectsLightingOnly=FALSE
 }

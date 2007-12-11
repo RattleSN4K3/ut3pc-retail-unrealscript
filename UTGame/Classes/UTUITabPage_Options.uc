@@ -33,6 +33,7 @@ delegate OnOptionFocused(UIScreenObject InObject, UIDataProvider OptionProvider)
 event PostInitialize()
 {
 	local UIInteraction UIController;
+	local UITabControl OwnerTabControl;
 
 	Super.PostInitialize();
 
@@ -54,7 +55,9 @@ event PostInitialize()
 	SetDataStoreBinding("<Strings:UTGameUI.FrontEnd.TabCaption_GameSettings>");
 
 	// Update label
-	if(OptionList != None && OptionList.CurrentIndex >= 0 && OptionList.CurrentIndex<OptionList.GeneratedObjects.length)
+	OwnerTabControl = GetOwnerTabControl();
+	if((OwnerTabControl == None || OwnerTabControl.ActivePage == Self)
+	&&	OptionList != None && OptionList.CurrentIndex >= 0 && OptionList.CurrentIndex<OptionList.GeneratedObjects.length)
 	{
 		OnOptionList_OptionFocused(OptionList.GeneratedObjects[OptionList.CurrentIndex].OptionObj, OptionList.GeneratedObjects[OptionList.CurrentIndex].OptionProvider);
 	}
@@ -289,6 +292,7 @@ function OnResetToDefaults_Confirm(UTUIScene_MessageBox MessageBox, int Selectio
 			}
 
 			UTScene.ConsoleCommand("RetrieveSettingsFromProfile");
+			UTUIFrontEnd_Settings(UTScene.GetPreviousScene()).MarkDirty();
 		}
 	}
 }

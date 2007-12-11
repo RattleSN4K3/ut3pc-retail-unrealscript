@@ -64,6 +64,60 @@ event PostInitialize()
 	PlayerInt = GetPlayerInterface();
 }
 
+/** Setup the scene's buttonbar. */
+function SetupButtonBar()
+{
+	ButtonBar.Clear();
+
+	if(bSupportBackButton)
+	{
+		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", OnButtonBar_Back);
+	}
+
+	if(CurrentOptions.length>0)
+	{
+		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Select>", OnButtonBar_Select);
+	}
+}
+
+/**
+ * Gets the OnlineFriend struct for the player we're displaying this player card for.
+ *
+ * @param	OwnerPC			the player controller associated with the player to get friend info from (i.e. the local player)
+ * @param	FriendNetId		the unique network id associated with the friend to get info for (i.e. the friend)
+ * @param	out_FriendData	receives the online friend data
+ *
+ * @return	FALSE if this player isn't one of our friends or the OnlineFriend data couldn't be found.
+ */
+static function bool GetOnlineFriendData( UTPlayerController OwnerPC, const out OnlineSubsystem.UniqueNetId FriendNetId, out OnlineSubsystem.OnlineFriend out_FriendData )
+{
+	local bool bResult;
+	local int FriendIdx;
+	local UIDataProvider_OnlineFriends FriendsProvider;
+	local OnlinePlayerInterface PlayerInterface;
+
+	PlayerInterface = GetPlayerInterface();
+	if (PlayerInterface != None && OwnerPC != None && OwnerPC.OnlinePlayerData != None
+	&&	PlayerInterface.IsFriend(LocalPlayer(OwnerPC.Player).ControllerId, FriendNetId) )
+	{
+		FriendsProvider = OwnerPC.OnlinePlayerData.FriendsProvider;
+		if ( FriendsProvider != None )
+		{
+			for ( FriendIdx=0; FriendIdx< FriendsProvider.FriendsList.length; FriendIdx++ )
+			{
+				if ( FriendsProvider.FriendsList[FriendIdx].UniqueId == FriendNetId )
+				{
+					out_FriendData = FriendsProvider.FriendsList[FriendIdx];
+					bResult = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return bResult;
+}
+
 /** Sets the current player for this player card. */
 function SetPlayer(UniqueNetId InNetId, string InPlayerName, optional string InAccountName, optional bool bIncludeKickOption, optional bool bIncludeBanOption)
 {
@@ -89,21 +143,23 @@ function GenerateOptions(bool bIncludeKickOption, bool bIncludeBanOption)
 {
 	local UniqueNetId LocalNetId;
 	local UTPlayerController UTPC;
+	local LocalPlayer LP;
 	local int FriendIdx;
 	local bool bIsFriend;
 
 	CurrentOptions.length=0;
 
 	UTPC = GetUTPlayerOwner();
-	if(PlayerInt != None && UTPC!=None)
+	LP = LocalPlayer(UTPC.Player);
+	if ( PlayerInt != None && UTPC!=None && LP != None )
 	{
-		if(PlayerInt.GetUniquePlayerId(GetPlayerOwner().ControllerId, LocalNetId))
+		if(PlayerInt.GetUniquePlayerId(LP.ControllerId, LocalNetId))
 		{
 			StringListDataStore.Empty('PlayerCardOptions', true);
 
 			if(LocalNetId != PlayerNetId)
 			{
-				bIsFriend = PlayerInt.IsFriend(GetPlayerOwner().ControllerId, PlayerNetId);
+				bIsFriend = PlayerInt.IsFriend(LP.ControllerId, PlayerNetId);
 				if(bIsFriend==false)
 				{
 					CurrentOptions[CurrentOptions.length]=PCO_SendFriendRequest;
@@ -156,6 +212,10 @@ function GenerateOptions(bool bIncludeKickOption, bool bIncludeBanOption)
 
 	MenuList.RefreshSubscriberValue();
 
+	// Show/Hide description label depending on if we have any options.
+	DescriptionLabel.SetVisibility(CurrentOptions.length>0);
+
+	SetupButtonBar();
 }
 
 /**
@@ -246,9 +306,78 @@ function OnInviteToGame()
 	}
 }
 
+/**
+ * Determines whether we need to supply a password in order to join this friend's match.
+ *
+ * @return	TRUE if the friend's server is password-protected; FALSE otherwise.
+ */
+static function bool FollowRequiresPassword( UTPlayerController UTPlayerOwner, const out OnlineSubsystem.UniqueNetId FriendNetId )
+{
+	local bool bResult;
+	local OnlineSubsystem.OnlineFriend FriendData;
+
+	if ( GetOnlineFriendData(UTPlayerOwner, FriendNetId, FriendData) )
+	{
+		bResult = InStr(FriendData.PresenceInfo, "bRequiresPassword") != INDEX_NONE;
+	}
+
+	return bResult;
+}
+
+/**
+ * Displays a dialog to the user which allows him to enter the password for the currently selected server.
+ */
+private function PromptForServerPassword()
+{
+	local UTUIScene_InputBox PasswordInputScene;
+
+	PasswordInputScene = GetInputBoxScene();
+	if ( PasswordInputScene != None )
+	{
+		PasswordInputScene.SetPasswordMode(true);
+		PasswordInputScene.DisplayAcceptCancelBox(
+			"<Strings:UTGameUI.MessageBox.EnterServerPassword_Message>",
+			"<Strings:UTGameUI.MessageBox.EnterServerPassword_Title>",
+			OnPasswordDialog_Closed
+			);
+	}
+	else
+	{
+		`log("Failed to open the input box scene (" $ InputBoxScene $ ")");
+	}
+}
+
+/**
+ * The user has made a selection of the choices available to them.
+ */
+private function OnPasswordDialog_Closed(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
+{
+	local UTUIScene_InputBox PasswordInputScene;
+	local string ServerPassword;
+
+	PasswordInputScene = UTUIScene_InputBox(MessageBox);
+	if ( PasswordInputScene != None && SelectedOption == 0 )
+	{
+		// strip out all
+		ServerPassword = class'UTUIFrontEnd_HostGame'.static.StripInvalidPasswordCharacters(PasswordInputScene.GetValue());
+		OnFollow(ServerPassword);
+	}
+}
 
 /** Tries to follow the player that owns this playercard by joining their current game. */
-function OnFollow()
+function OnFollow( optional string ServerPassword )
+{
+	if ( FollowRequiresPassword(GetUTPlayerOwner(), PlayerNetId) && ServerPassword == "" )
+	{
+		PromptForServerPassword();
+	}
+	else
+	{
+		SetDataStoreStringValue("<Registry:ConnectPassword>", ServerPassword, Self, GetPlayerOwner());
+		ProcessFollow();
+	}
+}
+private function ProcessFollow()
 {
 	if(PlayerInt != None)
 	{
@@ -278,6 +407,7 @@ function OnJoiningMessage_Closed()
 {
 	`Log("UTUIScene_PlayerCard::OnJoiningMessage_Closed() - bWasAbleToJoin:"@bWasAbleToJoin);
 
+	SetDataStoreStringValue("<Registry:ConnectPassword>", "", Self, GetPlayerOwner());
 	if(bWasAbleToJoin==false)
 	{
 		DisplayMessageBox("<Strings:UTGameUI.Errors.JoinFriendFailed_Message>","<Strings:UTGameUI.Errors.JoinFriendFailed_Title>");
@@ -368,11 +498,14 @@ function OnMenu_ValueChanged( UIObject Sender, optional int PlayerIndex=0 )
 	local string StringValue;
 
 	SelectedItem = MenuList.GetCurrentItem();
-	SelectedItem = CurrentOptions[SelectedItem];
+	if ( SelectedItem < CurrentOptions.Length )
+	{
+		SelectedItem = CurrentOptions[SelectedItem];
 
-	StringValue = DescLinks[SelectedItem];
-	StringValue = Localize("PlayerCard",StringValue,"UTGameUI");
-	DescriptionLabel.SetDatastoreBinding(StringValue);
+		StringValue = DescLinks[SelectedItem];
+		StringValue = Localize("PlayerCard",StringValue,"UTGameUI");
+		DescriptionLabel.SetDatastoreBinding(StringValue);
+	}
 }
 
 

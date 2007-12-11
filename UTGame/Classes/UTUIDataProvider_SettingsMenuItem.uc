@@ -7,8 +7,14 @@ class UTUIDataProvider_SettingsMenuItem extends UTUIResourceDataProvider
 	native(UI)
 	PerObjectConfig;
 
+
+
 /** Friendly displayable name to the player. */
-var config localized string FriendlyName;
+var localized string FriendlyName;
 
 /** Localized description of the map */
-var config localized string Description;
+var localized string Description;
+
+/** Only valid for front-end menus - will be hidden ingame */
+var	config bool	bFrontEndOnly;
+

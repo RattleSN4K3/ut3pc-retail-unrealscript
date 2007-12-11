@@ -7,8 +7,13 @@
 class SeqEvent_RemoteEvent extends SequenceEvent
 	native(Sequence);
 
+;
+
 /** Name of this event for remote activation */
 var() Name EventName;
+
+/** For use in Kismet, to indicate if this variable is ok. Updated in UpdateStatus. */
+var transient bool bStatusIsOk;
 
 defaultproperties
 {

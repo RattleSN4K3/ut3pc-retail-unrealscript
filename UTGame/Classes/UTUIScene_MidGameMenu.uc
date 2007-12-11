@@ -8,7 +8,6 @@ class UTUIScene_MidGameMenu extends UTUIScene_Hud
 
 var transient UTUIButtonBar	ButtonBar;
 var transient UTUITabControl TabControl;
-var transient UTVoteReplicationInfo VoteRI;
 var transient UILabel MapVoteClock;
 var transient UIPanel LoadingPanel;
 var transient UIImage LoadingRotator;
@@ -26,13 +25,6 @@ var transient bool bReturningToMainMenu;
 var transient UTUIScene_MessageBox MBScene;
 
 
-
-
-function NotifyGameSessionEnded()
-{
-	VoteRI = none;
-	Super.NotifyGameSessionEnded();
-}
 
 event SceneActivated( bool bInitialActivation )
 {
@@ -89,23 +81,69 @@ event SceneDeactivated()
 
 	if (bNeedsProfileSave)
 	{
-		UTPC.SaveProfile(GetPlayerIndex());
-		UTPC.LoadSettingsFromProfile(false);
+		SaveProfile();
 	}
 
 	GRI = UTGameReplicationInfo(WI.GRI);
 	if ( GRI != none )
 	{
+		GRI.LastUsedMidgameTab = TabControl.ActivePage.WidgetTag;
 		GRI.MidGameMenuClosed();
+
 		if (GRI.bMatchIsOver && !bReturningToMainMenu)
 		{
 			UTPC.ShowScoreboard();
 		}
     }
-
-    VoteRI = None;
 }
 
+/**
+ * Opens the 'save profile' scene, which takes care of saving the player's profile.
+ */
+function SaveProfile()
+{
+	local OnlineSubsystem OnlineSub;
+	local UTPlayerController UTPC;
+	local UTUIScene_SaveProfile SaveProfileScene;
+
+	UTPC = GetUTPlayerOwner();
+
+	SaveProfileScene = UTPC.SaveProfile(GetPlayerIndex());
+	if ( SaveProfileScene != None )
+	{
+		OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
+		if (OnlineSub != None && OnlineSub.PlayerInterface != None)
+		{
+			// Register the call back so we can shut down the scene upon completion
+			OnlineSub.PlayerInterface.AddWriteProfileSettingsCompleteDelegate(GetPlayerIndex(),OnSaveProfileComplete);
+		}
+		SaveProfileScene.PerformSave();
+	}
+}
+
+/**
+ * Called when the save has completed the async operation
+ *
+ * @param bWasSuccessful whether the save worked ok or not
+ */
+function OnSaveProfileComplete(bool bWasSuccessful)
+{
+	local OnlineSubsystem OnlineSub;
+	local UTPlayerController UTPC;
+
+	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
+	if (OnlineSub != None && OnlineSub.PlayerInterface != None)
+	{
+		// Register the call back so we can shut down the scene upon completion
+		OnlineSub.PlayerInterface.ClearWriteProfileSettingsCompleteDelegate(GetPlayerIndex(),OnSaveProfileComplete);
+	}
+
+	UTPC = GetUTPlayerOwner();
+	if ( UTPC != None )
+	{
+		UTPC.LoadSettingsFromProfile(false);
+	}
+}
 
 /**
  * Setup the delegates for the scene and cache all of the various UI Widgets
@@ -113,6 +151,9 @@ event SceneDeactivated()
 event PostInitialize( )
 {
 	local class<UTGame> GameClass;
+	local WorldInfo WI;
+
+	WI = GetWorldInfo();
 
 	Super.PostInitialize();
 
@@ -130,7 +171,7 @@ event PostInitialize( )
 
 	TabControl = UTUITabControl( FindChild('TabControl',true) );
 
-	if ( TabControl != none )
+	if ( TabControl != none && WI != none )
 	{
 
 		GameClass = Class<UTGame>( GetWorldInfo().GRI.GameClass);
@@ -141,14 +182,20 @@ event PostInitialize( )
 
 		TabControl.OnPageActivated = OnPageActivated;
 
-		if ( GetWorldInfo().NetMode == NM_StandALone || IsConsole() )
+		if ( WI.NetMode == NM_StandALone || IsConsole() )
 		{
 			TabControl.RemoveTabByTag('ChatTab');
 		}
 
-		if ( GetWorldInfo().NetMode == NM_StandALone)
+		if ( WI.NetMode == NM_StandALone)
 		{
 			TabControl.RemoveTabByTag('FriendsTab');
+			TabControl.RemoveTabByTag('MessageTab');
+		}
+
+		if ( WI.GRI.bMatchIsOver )
+		{
+			TabControl.RemoveTabByTag('SettingsTab');
 		}
 	}
 
@@ -171,8 +218,7 @@ function PreRenderCallBack()
 
 	if (PC != none && PC.VoteRI != none )
 	{
-		VoteRI = PC.VoteRI;
-		BeginVoting(VoteRI);
+		BeginVoting(PC.VoteRI);
 	}
 
 	bCloseOnLevelChange = false;
@@ -236,6 +282,8 @@ function SetupButtonBar()
 					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.LeaveGame>",ButtonBarDisconnect) ;
 				}
 
+                ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ExitGame>",ButtonBarExitGame);
+
 				if(!bWaitingForReady && TabControl != none)
 				{
 					// Let the current tab page try to setup the button bar
@@ -286,39 +334,49 @@ function bool ButtonBarDisconnect(UIScreenObject InButton, int InPlayerIndex)
 
 }
 
-
-function CleanUpScoreboards()
+function bool ButtonBarExitGame(UIScreenObject InButton, int InPlayerIndex)
 {
-	local array<UIObject> Kids;
-	local int i;
-
-
-	Kids = GetChildren(true);
-	for (i=0;i<Kids.Length;i++)
+	MBScene = GetMessageBoxScene();
+	if(MBScene != none)
 	{
-		if ( UTScoreboardPanel(Kids[i]) != none )
-		{
-			UTScoreboardPanel(Kids[i]).SelectedPRI = none;
-		}
+		TabControl.PlayUIAnimation('FadeOut',,5.0);
+		ButtonBar.PlayUIAnimation('FadeOut',,5.0);
+		MBScene.DisplayAcceptCancelBox("<Strings:UTGameUI.MidGameMenu.QuitGameWarning>","<Strings:UTGameUI.Campaign.Confirmation", MB_ExitSelection);
 	}
 
-	UTUITabPage_Scoreboard(FindChild('ScoreTab',true)).SelectedPRI = none;
+	return true;
 
 }
+function MB_ExitSelection(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
+{
+	TabControl.PlayUIAnimation('FadeIn',,5.0);
+	ButtonBar.PlayUIAnimation('FadeIn',,5.0);
+
+	if (SelectedOption == 0)
+	{
+		ConsoleCommand("Quit");
+	}
+}
+
 
 function MB_Selection(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
 {
 	local UTPlayerController PC;
+	local UISceneClient SC;
 
 	TabControl.PlayUIAnimation('FadeIn',,5.0);
 	ButtonBar.PlayUIAnimation('FadeIn',,5.0);
 
 	if (SelectedOption == 0)
 	{
-		bReturningToMainMenu = true;
-		CleanUpScoreboards();
-		SceneClient.CloseScene(self);
 		PC = GetUTPlayerOwner();
+		SC = GetSceneClient();
+		if ( SC != None )
+		{
+			bReturningToMainMenu = true;
+			SC.CloseScene(self);
+		}
+
 		PC.QuitToMainMenu();
 	}
 	MBScene = none;
@@ -380,18 +438,24 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 	return false;
 }
 
-event UpdateVote(UTGameReplicationInfo GRI, bool bVoteInProgress)
+event UpdateVote(UTGameReplicationInfo GRI)
 {
 	local string s;
+	local UTVoteReplicationInfo VoteRI;
+	local UTPlayerController UTPC;
 
-	if (bVoteInProgress)
+	UTPC = GetUTPlayerOwner();
+
+	if ( UTPC != none && UTPC.VoteRI != none )
 	{
+
+		VoteRI = UTPC.VoteRI;
 
 	    S = "<Strings:UTGameUI.MidGameMenu.VoteTimePrefix>"@GRI.MapVoteTimeRemaining;
 	    S @= (GRI.MapVoteTimeRemaining > 1) ? "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>" : "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>";
 	    if( (VoteRI != none) && (VoteRI.LeadingMap != "") )
 	    {
-	    	S @= "("$InGamePage.TrimGameType(VoteRI.LeadingMap)$")";
+	    	S @= "("$InGamePage.GetMapFriendlyName(VoteRI.LeadingMap)$")";
 	    }
 
 	 	MapVoteClock.SetDataStoreBinding(S);
@@ -416,7 +480,6 @@ function BeginVoting(UTVoteReplicationInfo NewVoteRI)
 //	`log("### BeginVoting"@GameTab);
 	if (GameTab != none )
 	{
-		VoteRI = NewVoteRI;
 		GameTab.BeginVoting(NewVoteRI);
 	}
 }
@@ -501,5 +564,5 @@ defaultproperties
 	bCloseOnLevelChange=true
 	bPauseGameWhileActive=false
 	bSaveSceneValuesOnClose=false
+	bDisableWorldRendering=true
 }
-

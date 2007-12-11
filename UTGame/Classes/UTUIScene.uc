@@ -9,7 +9,6 @@ class UTUIScene extends UIScene
 	native(UI)
 	dependson(OnlinePlayerInterface,UTGameInteraction);
 
-`include(Core/Globals.uci)
 `include(UTOnlineConstants.uci)
 
 /** Possible factions for the bots. */
@@ -31,6 +30,11 @@ enum EUTRecordDemo
 };
 
 var(Editor) transient bool bEditorRealTimePreview;
+
+// hack to prevent the in-game command/taunt menu from causing the player's motion to stutter on consoles..
+// @todo ronp - real fix is to toggle whether the UI controller performs axis repeat delays by looking at whether the current scene
+// handles axis input, but this requires fixing all the scenes that are currently hardwired into the ProcessRawInputKey delegate.
+var(Flags)	bool	bIgnoreAxisInput;
 
 /** Global scene references, only scenes that are used in-game and in-menus should be referenced here. */
 var transient UIScene MessageBoxScene;
@@ -108,6 +112,10 @@ native function GetPossibleAudioDevices(out array<string> OutResults);
 /** @return Returns the currently selected audio device. */
 native function string GetCurrentAudioDevice();
 
+/**
+ * @return	TRUE if the user's machine is below the minimum required specs to play the game.
+ */
+native final function bool IsBelowMinSpecs() const;
 
 /**
  * Sets the audio device to use for playback.
@@ -129,21 +137,6 @@ native function bool TryCharacterUnlock(string UnlockCode);
 function UTGameInteraction GetUTInteraction()
 {
 	return UTGameInteraction(GetCurrentUIController());
-}
-
-/** Post initialize callback for the scene.  */
-event PostInitialize()
-{
-	local UIObject CycleTabsLabel;
-
-	Super.PostInitialize();
-
-	// Show the cycle tabs label if it exists and if we are on console.
-	CycleTabsLabel = FindChild('lblCycleTabs', true);
-	if(CycleTabsLabel != None)
-	{
-		CycleTabsLabel.SetVisibility(IsConsole(CONSOLE_Any));
-	}
 }
 
 /**
@@ -201,7 +194,7 @@ event bool IsControllerInput(name KeyName)
 }
 
 /** Trims whitespace from the beginning and end of a string. */
-function string TrimWhitespace(string InString)
+static function string TrimWhitespace(string InString)
 {
 	local int StartIdx;
 	local int EndIdx;
@@ -312,10 +305,9 @@ function UIScene OpenScene(UIScene SceneToOpen, optional bool bSkipAnimation=fal
 	OnSceneOpened = SceneDelegate;
 
 	// only hide the current scene if the scene we're about to open doesn't render its parent scenes
+	CurrentScene = UTUIScene(GetSceneClient().GetActiveScene());
 	if ( !bSkipAnimation && SceneToOpen != None && (!SceneToOpen.bRenderParentScenes || CurrentScene.bAlwaysRenderScene) )
 	{
-		CurrentScene = UTUIScene(GetSceneClient().GetActiveScene());
-
 		if(CurrentScene != None && !CurrentScene.bRenderParentScenes )
 		{
 			CurrentScene.OnHideAnimationEnded = OnCurrentScene_HideAnimationEnded;
@@ -477,21 +469,24 @@ function bool CloseScene(UIScene SceneToClose, bool bSkipKismetNotify=false, boo
 	local bool bResult;
 
 	UTSceneToClose = UTUIScene(SceneToClose);
-	if(UTSceneToClose != None && !bSkipAnimation && UTSceneToClose.BeginHideAnimation(true))
+	if ( UTSceneToClose.IsSceneActive() )
 	{
-		// Block input while animating
-		GetUTInteraction().BlockUIInput(true);
+		if(UTSceneToClose != None && !bSkipAnimation && UTSceneToClose.BeginHideAnimation(true))
+		{
+			// Block input while animating
+			GetUTInteraction().BlockUIInput(true);
 
-		UTSceneToClose.bHidingScene = true;
-		UTSceneToClose.OnHideAnimationEnded = OnPendingCloseScene_HideAnimationEnded;
-		PendingCloseScene = UTSceneToClose;
-		bSkipPendingCloseSceneNotify = bSkipKismetNotify;
-		bResult = false;
-	}
-	else
-	{
-		FinishCloseScene(SceneToClose, bSkipAnimation, bSkipKismetNotify);
-		bResult = true;
+			UTSceneToClose.bHidingScene = true;
+			UTSceneToClose.OnHideAnimationEnded = OnPendingCloseScene_HideAnimationEnded;
+			PendingCloseScene = UTSceneToClose;
+			bSkipPendingCloseSceneNotify = bSkipKismetNotify;
+			bResult = false;
+		}
+		else
+		{
+			FinishCloseScene(SceneToClose, bSkipAnimation, bSkipKismetNotify);
+			bResult = true;
+		}
 	}
 
 	return bResult;
@@ -528,8 +523,8 @@ function FinishCloseScene(UIScene SceneToClose, bool bSkipAnimations=false, bool
 
 	if ( SceneToClose != none )
 	{
+		TopScene = UTUIScene(SceneToClose.GetPreviousScene());
 		SceneClient.CloseScene(SceneToClose);
-		TopScene = UTUIScene(GetSceneClient().GetActiveScene());
 
 		// If the scene we just closed wasn't set to render its parent scenes, then begin the show animation on the topmost scene.
 		if ( TopScene != None && !SceneToClose.bRenderParentScenes && !TopScene.bAlwaysRenderScene )
@@ -674,7 +669,7 @@ function PlaySound( SoundCue InSoundCue)
 }
 
 /** @return Returns a datastore given its tag and player owner. */
-function UIDataStore FindDataStore(name DataStoreTag, optional LocalPlayer InPlayerOwner)
+static function UIDataStore FindDataStore(name DataStoreTag, optional LocalPlayer InPlayerOwner)
 {
 	local DataStoreClient DSClient;
 	local UIDataStore Result;
@@ -747,11 +742,11 @@ function SavePlayerProfile(optional int PlayerIndex=GetBestPlayerIndex())
 }
 
 /** @return Returns the name of the specified player if they have an alias or are logged in, or "DefaultPlayer" otherwise. */
-function string GetPlayerName(int PlayerIndex=INDEX_NONE)
+function string GetPlayerName(int PlayerIndex=GetBestPlayerIndex())
 {
 	local string PlayerName;
 
-	if(IsLoggedIn(PlayerIndex))
+	if(IsLoggedIn(GetPlayerControllerId(PlayerIndex)))
 	{
 		PlayerName=GetUTPlayerOwner(PlayerIndex).OnlinePlayerData.PlayerNick;
 	}
@@ -799,7 +794,7 @@ function name GetBotTeamNameFromIndex(EUTBotTeam TeamIndex)
 }
 
 /** @return Checks to see if the specified player is logged in, if not an error message is shown and FALSE is returned. */
-function bool CheckLoginAndError(int ControllerId=INDEX_NONE, optional bool bMustBeLoggedInOnline=false, optional string AlternateTitle, optional string AlternateMessage)
+function bool CheckLoginAndError(int ControllerId=GetBestControllerId(), optional bool bMustBeLoggedInOnline=false, optional string AlternateTitle, optional string AlternateMessage)
 {
 	local UTUIScene_MessageBox MessageBoxReference;
 	local bool bResult;
@@ -822,7 +817,7 @@ function bool CheckLoginAndError(int ControllerId=INDEX_NONE, optional bool bMus
 		MessageBoxReference.OnSelection=OnLoginError_Confirm;
 	}
 
-	`log(`location@`showvar(ControllerId)@`showvar(bMustBeLoggedInOnline)@`showvar(IsLoggedIn(ControllerId,bMustBeLoggedInOnline),LoggedIn),!bResult,'RONDEBUG');
+	`log(`location@`showvar(ControllerId)@`showvar(bMustBeLoggedInOnline)@`showvar(IsLoggedIn(ControllerId,bMustBeLoggedInOnline),LoggedIn),!bResult,'DevOnline');
 	return bResult;
 }
 
@@ -853,32 +848,127 @@ function bool CheckLinkConnectionAndError( optional string AlternateTitle, optio
 }
 
 /** @return Checks to see if the specified player can play online games, if not an error message is shown and FALSE is returned. */
-function bool CheckOnlinePrivilegeAndError(int ControllerId=INDEX_NONE,  optional string AlternateTitle, optional string AlternateMessage )
+function bool CheckOnlinePrivilegeAndError(int ControllerId=GetBestControllerId(),  optional string AlternateTitle, optional string AlternateMessage )
 {
 	local bool bResult;
 
 	bResult = false;
 
-	if(CheckLoginAndError(ControllerId, TRUE))
+	if(CheckLinkConnectionAndError())
 	{
-		if(CheckLinkConnectionAndError())
+		if(CanPlayOnline(ControllerId))
 		{
-			if(CanPlayOnline(ControllerId))
+			bResult = true;
+		}
+		else
+		{
+			if ( AlternateTitle == "" )
 			{
-				bResult = true;
+				AlternateTitle = "<Strings:UTGameUI.Errors.OnlineRequired_Title>";
 			}
-			else
+			if ( AlternateMessage == "" )
 			{
-				if ( AlternateTitle == "" )
-				{
-					AlternateTitle = "<Strings:UTGameUI.Errors.OnlineRequired_Title>";
-				}
-				if ( AlternateMessage == "" )
-				{
-					AlternateMessage = "<Strings:UTGameUI.Errors.OnlineRequired_Message>";
-				}
-				DisplayMessageBox(AlternateMessage,AlternateTitle);
+				AlternateMessage = "<Strings:UTGameUI.Errors.OnlineRequired_Message>";
 			}
+			DisplayMessageBox(AlternateMessage,AlternateTitle);
+		}
+	}
+
+	return bResult;
+}
+
+
+/** @return Checks to see if the specified player can play online games, if not an error message is shown and FALSE is returned. */
+function bool CheckContentPrivilegeAndError(int ControllerId=GetBestControllerId(),  optional string AlternateTitle, optional string AlternateMessage )
+{
+	local bool bResult;
+	local OnlinePlayerInterface PlayerInt;
+
+	bResult = false;
+	PlayerInt = GetPlayerInterface();
+
+	if(PlayerInt != None)
+	{
+		if(PlayerInt.CanDownloadUserContent(ControllerId)!=FPL_Disabled)
+		{
+			bResult = true;
+		}
+		else
+		{
+			if ( AlternateTitle == "" )
+			{
+				AlternateTitle = "<Strings:UTGameUI.Errors.ContentRequired_Title>";
+			}
+			if ( AlternateMessage == "" )
+			{
+				AlternateMessage = "<Strings:UTGameUI.Errors.ContentRequired_Message>";
+			}
+			DisplayMessageBox(AlternateMessage,AlternateTitle);
+		}
+	}
+
+	return bResult;
+}
+
+
+/** @return Checks to see if the specified player can play online games, if not an error message is shown and FALSE is returned. */
+function bool CheckCommunicationPrivilegeAndError(int ControllerId=GetBestControllerId(),  optional string AlternateTitle, optional string AlternateMessage )
+{
+	local bool bResult;
+	local OnlinePlayerInterface PlayerInt;
+
+	bResult = false;
+	PlayerInt = GetPlayerInterface();
+
+	if(PlayerInt != None)
+	{
+		if(PlayerInt.CanCommunicate(ControllerId)!=FPL_Disabled)
+		{
+			bResult = true;
+		}
+		else
+		{
+			if ( AlternateTitle == "" )
+			{
+				AlternateTitle = "<Strings:UTGameUI.Errors.CommunicationRequired_Title>";
+			}
+			if ( AlternateMessage == "" )
+			{
+				AlternateMessage = "<Strings:UTGameUI.Errors.CommunicationRequired_Message>";
+			}
+			DisplayMessageBox(AlternateMessage,AlternateTitle);
+		}
+	}
+
+	return bResult;
+}
+
+
+/**
+ * Verifies that the player's NAT configuration allows them to host matches, and displays an error message if not.
+ */
+function bool CheckNatTypeAndDisplayError( int ControllerId=GetBestControllerId(), optional string AlternateTitle, optional string AlternateMessage )
+{
+	local bool bResult;
+
+	if ( CheckLinkConnectionAndError() )
+	{
+		if ( GetNATType() < NAT_Strict )
+		{
+			bResult = true;
+		}
+		else
+		{
+			if ( AlternateTitle == "" )
+			{
+				AlternateTitle = "<Strings:UTGameUI.Errors.Error_Title>";
+			}
+			if ( AlternateMessage == "" )
+			{
+				AlternateMessage = "<Strings:UTGameUI.Errors.StrictNAT_Message>";
+			}
+
+			DisplayMessageBox(AlternateMessage,AlternateTitle);
 		}
 	}
 
@@ -898,8 +988,6 @@ function string GetCommonOptionsURL()
 	local string TeamName;
 	local UTUIDataStore_StringList StringListDataStore;
 	local string URL;
-	local UTProfileSettings Profile;
-	local int OutValueInt;
 	local string OutStringValue;
 
 	StringListDataStore = UTUIDataStore_StringList(FindDataStore('UTStringList'));
@@ -920,21 +1008,6 @@ function string GetCommonOptionsURL()
 			URL $= "?demo=" $ GenerateDemoFileName();
 		}
 	}
-
-	// Whether or not to use custom characters
-	Profile = GetPlayerProfile();
-
-	if(Profile != None)
-	{
-		if(Profile.GetProfileSettingValueId(class'UTProfileSettings'.const.UTPID_AllowCustomCharacters, OutValueInt))
-		{
-			if(OutValueInt==UTPID_VALUE_NO)
-			{
-				URL $= "?nocustomchars=1";
-			}
-		}
-	}
-
 
 	// Set player name using the OnlinePlayerData
 	// @todo: Need to add support for setting 2nd player nick.
@@ -1037,9 +1110,10 @@ static function OnlineAccountInterface GetAccountInterface()
 }
 
 /** Displays the login interface using the online subsystem. */
-function ShowLoginUI(optional bool bOnlineOnly=false)
+function bool ShowLoginUI(optional bool bOnlineOnly=false)
 {
 	local OnlinePlayerInterface PlayerInt;
+	local bool bResult;
 
 	PlayerInt = GetPlayerInterface();
 
@@ -1050,7 +1124,8 @@ function ShowLoginUI(optional bool bOnlineOnly=false)
 		PlayerInt.AddLoginChangeDelegate(OnLoginUI_LoginChange, GetPlayerOwner().ControllerId);
 		PlayerInt.AddLoginFailedDelegate(GetPlayerOwner().ControllerId, OnLoginUI_LoginFailed);
 
-		if (PlayerInt.ShowLoginUI(bOnlineOnly) == false)
+		bResult = PlayerInt.ShowLoginUI(bOnlineOnly);
+		if ( !bResult )
 		{
 			`Log("UTUIScene::ShowLoginUI() - Failed to show login UI!");
 			UTGameUISceneClient(GetSceneClient()).bDimScreen=false;
@@ -1058,6 +1133,8 @@ function ShowLoginUI(optional bool bOnlineOnly=false)
 			PlayerInt.ClearLoginFailedDelegate(GetPlayerOwner().ControllerId, OnLoginUI_LoginFailed);
 		}
 	}
+
+	return bResult;
 }
 
 /** Callback for when the login changes after showing the login UI. */
@@ -1142,6 +1219,37 @@ static function HideOnlineToast()
 		UTGameUISceneClient(GetSceneClient()).FinishToast();
 	}
 }
+
+
+/**
+ * Displays a screen warning message.  This message will be displayed prominently centered in the viewport and
+ * will persist until you call ClearScreenWarningMessage().  It's useful for important modal warnings, such
+ * as when the controller is disconnected on a console platform.
+ *
+ * @param Message Message to display
+ */
+static function ShowScreenWarningMessage( string Message )
+{
+	// NOTE: Currently we don't bother drawing these on Xbox since they automatically display things like
+	//   'please reconnect controller', etc.
+	if( !IsConsole( CONSOLE_Xbox360 ) )
+	{
+		UTGameUISceneClient( GetSceneClient() ).ShowScreenWarningMessage( Message );
+	}
+}
+
+
+/**
+ * Clears the screen warning message if one was set.  It will no longer be rendered.
+ */
+static function ClearScreenWarningMessage()
+{
+	if( !IsConsole( CONSOLE_Xbox360 ) )
+	{
+		UTGameUISceneClient( GetSceneClient() ).ClearScreenWarningMessage();
+	}
+}
+
 
 
 /**
@@ -1243,6 +1351,8 @@ native function ViewportDeProject(LocalPlayer LocalPlayerOwner, vector ScreenLoc
 
 /** Function that sets up a buttonbar for this scene, automatically routes the call to the currently selected tab of the scene as well. */
 function SetupButtonBar();
+
+native function DeleteDemo(string DemoName);
 
 defaultproperties
 {

@@ -10,12 +10,6 @@ class MaterialInterface extends Surface
 /** The mesh used by the material editor to preview the material.*/
 var() editoronly string PreviewMesh;
 
-/**
- * A fence to track when the MaterialInstance will become unreferenced in the rendering thread,
- * and safe for the game thread to finish destroying.
- */
-var private native const RenderCommandFence DestroyFence;
-
 native final noexport function Material GetMaterial();
 
 /**

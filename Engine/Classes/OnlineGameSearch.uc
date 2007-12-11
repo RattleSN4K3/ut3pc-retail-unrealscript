@@ -65,13 +65,32 @@ var class<OnlineGameSettings> GameSettingsClass;
 /** The list of servers and their settings that match the search */
 var const array<OnlineGameSearchResult> Results;
 
+/**
+ * Used to search for named properties on game setting objects
+ */
+struct native NamedObjectProperty
+{
+	/** The name of the property to search with */
+	var name ObjectPropertyName;
+	/** The string value to compare against */
+	var string ObjectPropertyValue;
+};
+
+/** The list of named properties to search on */
+var array<NamedObjectProperty> NamedProperties;
+
+/** String that is tacked onto the end of the search query */
+var string AdditionalSearchCriteria;
+
 /** The type of data to use to fill out an online parameter */
 enum EOnlineGameSearchEntryType
 {
 	/** A property is used to filter with */
 	OGSET_Property,
 	/** A localized setting is used to filter with */
-	OGSET_LocalizedSetting
+	OGSET_LocalizedSetting,
+	/** A property on the game settings object to filter with */
+	OGSET_ObjectProperty
 };
 
 /** The type of comparison to perform on the search entry */
@@ -90,6 +109,8 @@ struct native OnlineGameSearchParameter
 {
 	/** The Id of the property or localized string */
 	var int EntryId;
+	/** The name of the property to search with */
+	var name ObjectPropertyName;
 	/** Whether this parameter to compare against comes from a property or a localized setting */
 	var EOnlineGameSearchEntryType EntryType;
 	/** The type of comparison to perform */
@@ -108,6 +129,8 @@ struct native OnlineGameSearchSortClause
 {
 	/** The Id of the property or localized string */
 	var int EntryId;
+	/** The name of the property to search with */
+	var name ObjectPropertyName;
 	/** Whether this parameter to compare against comes from a property or a localized setting */
 	var EOnlineGameSearchEntryType EntryType;
 	/** The type of comparison to perform */

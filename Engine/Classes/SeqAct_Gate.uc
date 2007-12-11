@@ -38,6 +38,4 @@ defaultproperties
 	InputLinks(3)=(LinkDesc="Toggle")
 
 	VariableLinks.Empty
-
-	bSuppressAutoComment=false
 }

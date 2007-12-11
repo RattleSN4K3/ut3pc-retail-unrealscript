@@ -17,11 +17,19 @@ var transient UTUITabPage_Options HUDTab;
 /** Whether or not we have been fully initialized. */
 var transient bool bFullyInitialized;
 
+/**
+ * Delegate for when the profile has been modified by something other than the user changing the value of an option.
+ */
+delegate OnMarkProfileDirty( optional bool bDirty=true );
+
+/** Delegate for when the user changes one of the options an option list. */
+delegate OnNotifyOptionChanged(UIScreenObject InObject, name OptionName, int PlayerIndex);
+
 /** PostInitialize event - Sets delegates for the scene. */
 event PostInitialize()
 {
 	Super.PostInitialize();
-	
+
 	// Player Settings - @todo: as of right now we dont need this.
 	/*PlayerTab = UTUITabPage_Options(FindChild('pnlPlayer', true));
 	if(PlayerTab != none)
@@ -80,6 +88,40 @@ event PostInitialize()
 	}
 }
 
+/**
+ * Handler for the tab control's OnPageActivated delegate.  Sets the flag indicating that the player has viewed the network page
+ * when the network tab is activated.
+ *
+ * @param	Sender			the tab control that activated the page
+ * @param	NewlyActivePage	the page that was just activated
+ * @param	PlayerIndex		the index [into the Engine.GamePlayers array] for the player that generated this event.
+ */
+function OnPageActivated( UITabControl Sender, UITabPage NewlyActivePage, int PlayerIndex )
+{
+	local UTProfileSettings Profile;
+	local int CurrentValue;
+
+	Super.OnPageActivated(Sender, NewlyActivePage, PlayerIndex);
+
+	if ( NewlyActivePage == NetworkTab )
+	{
+		Profile = GetPlayerProfile();
+		if (!Profile.GetProfileSettingValueInt(class'UTProfileSettings'.const.UTPID_FirstTimeMultiplayer, CurrentValue)
+		||	CurrentValue != 1 )
+		{
+			Profile.SetProfileSettingValueInt(class'UTProfileSettings'.const.UTPID_FirstTimeMultiplayer, 1);
+			OnMarkProfileDirty(true);
+		}
+	}
+}
+
+/** Handler for the OnOptionChanged delegate of each panel; called when the user changes the value for an option in any panel */
+function OnOptionChanged(UIScreenObject InObject, name OptionName, int PlayerIndex)
+{
+	// propagate the notification upwards
+	OnNotifyOptionChanged(InObject, OptionName, PlayerIndex);
+}
+
 /** Scene activation event, always sets focus to current tab page if activating the page for a second time. */
 event SceneActivated(bool bInitialActivation)
 {
@@ -110,58 +152,17 @@ function SetupButtonBar()
 	}
 }
 
-/** Delegate for when the user changes one of the options an option list. */
-function OnOptionChanged(UIScreenObject InObject, name OptionName, int PlayerIndex)
-{
-	
-}
-
 
 /** On back handler, saves profile settings. */
 function OnBack()
 {
-	local UIDataStore_OnlinePlayerData	PlayerDataStore;
-	local UTUIScene_SaveProfile SaveProfileScene;
-	// Force the widgets to save their subscriber values.
-	SaveSceneDataValues(FALSE);
-
-	ConsoleCommand("RetrieveSettingsFromProfile");
-
-	// Save profile
-	PlayerDataStore = UIDataStore_OnlinePlayerData(FindDataStore('OnlinePlayerData', GetPlayerOwner()));
-
-	if(PlayerDataStore != none)
-	{
-		`Log("UTUIFrontEnd_SettingsPanels::OnBack() - Saving player profile.");
-		SaveProfileScene = UTGameUISceneClient(GetSceneClient()).ShowSaveProfileScene(GetUTPlayerOwner());
-
-		if(SaveProfileScene != None)
-		{
-			SaveProfileScene.OnSaveFinished = OnSaveProfileCompleted;
-		}
-		else
-		{
-			OnSaveProfileCompleted();
-		}
-	}
-	else
-	{
-		`Log("UTUIFrontEnd_SettingsPanels::OnBack() - Unable to locate OnlinePlayerData datastore for saving out profile.");
-		OnSaveProfileCompleted();
-	}
-}
-
-/** Callback for when the profile save has completed. */
-function OnSaveProfileCompleted()
-{
-	CloseScene(self);
+	CloseScene(Self);
 }
 
 /** Button bar callback. */
 function bool OnButtonBar_Back(UIScreenObject InButton, int PlayerIndex)
 {
 	OnBack();
-
 	return true;
 }
 
@@ -205,5 +206,6 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 
 defaultproperties
 {
-
+	// actually, we do save scene values on close, but only if we're marked dirty
+	bSaveSceneValuesOnClose=false
 }

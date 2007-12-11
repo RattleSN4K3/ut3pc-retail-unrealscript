@@ -72,6 +72,8 @@ var int LastSeeMessageIndex;
 
 var LinearColor RedColor, BlueColor, GoldColor;
 
+var ForceFeedbackWaveform PickUpWaveForm;
+
 
 
 replication
@@ -229,6 +231,8 @@ function SetHolder(Controller C)
 	if (PC != None)
 	{
 		PC.CheckAutoObjective(true);
+
+		PC.ClientPlayForceFeedbackWaveform(PickUpWaveForm);
 	}
 	foreach WorldInfo.AllControllers(class'Controller', OtherC)
 	{
@@ -886,4 +890,9 @@ defaultproperties
 	BlueColor=(B=1.0,A=1.0)
 	GoldColor=(R=1.0,G=1.0,A=1.0)
 	IconTexture=Texture2D'UI_HUD.HUD.UI_HUD_BaseA'
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformPickUp
+		Samples(0)=(LeftAmplitude=80,RightAmplitude=80,LeftFunction=WF_LinearIncreasing,RightFunction=WF_LinearIncreasing,Duration=0.2)
+	End Object
+	PickUpWaveForm=ForceFeedbackWaveformPickUp
 }

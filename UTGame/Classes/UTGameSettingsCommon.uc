@@ -137,6 +137,7 @@ function BuildURL(out string OutURL)
 			case CONTEXT_MAPNAME:		// index of map - but we go by mapname
 			case CONTEXT_FULLSERVER:	// calculated on the server as players login
 			case CONTEXT_EMPTYSERVER:	// calculated on the server as players login
+			case CONTEXT_DEDICATEDSERVER:	// calculated on server based on the databinding property bIsDedicated
 				break;
 
 				// GameInfo.UpdateGameSettingsCounts() won't be called until a player logs in, so pass IsEmptyServer=1
@@ -172,8 +173,10 @@ function BuildURL(out string OutURL)
 				OutURL $= "?ServerDescription=" $ BlobToString(Description);
 				break;
 
+			// skip this property because we assemble the mask on the server side based on the mutator class names
 			case PROPERTY_EPICMUTATORS:
-				// skip this property because we assemble the mask on the server side based on the mutator class names
+			// skip this property because we assemble the list of friendly names based on the active mutators
+			case PROPERTY_CUSTOMMUTATORS:
 				break;
 
 			default:
@@ -189,15 +192,20 @@ function BuildURL(out string OutURL)
  *
  * @param URL the URL to parse for settings
  */
-function UpdateFromURL(const out string URL)
+function UpdateFromURL(const out string URL, GameInfo Game)
 {
 	local string Description;
 	local string RealDescription;
+	local string BotSkillString, BotCountString;
 
-	Super.UpdateFromURL(URL);
+	Super.UpdateFromURL(URL, Game);
 
 	// Put back the question marks in the server description
 	Description = GetPropertyAsString(PROPERTY_SERVERDESCRIPTION);
+
+	// Make sure that we don't exceed our max allowing player counts for this game type!  Usually this is 32.
+	NumPublicConnections = Clamp( NumPublicConnections, 0, Game.MaxPlayers );
+	NumPrivateConnections = Clamp( NumPrivateConnections, 0, Game.MaxPlayers - NumPublicConnections );
 
 	// Unblob the string
 	if(StringToBlob(Description, RealDescription))
@@ -205,20 +213,36 @@ function UpdateFromURL(const out string URL)
 		SetStringProperty(PROPERTY_SERVERDESCRIPTION, RealDescription);
 	}
 
-	SetOfficialMutatorBitmask(GenerateMutatorBitmaskFromURL(URL));
+	SetMutators(URL);
+
+	BotSkillString = class'GameInfo'.static.ParseOption(URL, "Difficulty");
+	if ( BotSkillString != "" )
+	{
+		SetStringSettingValueByName('BotSkill', int(BotSkillString), true);
+	}
+
+	BotCountString = class'GameInfo'.static.ParseOption(URL, "NumPlay");
+	if ( BotCountString != "" )
+	{
+		SetIntProperty(PROPERTY_NUMBOTS, int(BotCountString) - 1);
+	}
+
+	if (Game.WorldInfo.NetMode == NM_DedicatedServer || class'GameInfo'.static.HasOption(URL, "Dedicated"))
+	{
+		bIsDedicated = true;
+	}
+
+	if ( bIsDedicated )
+	{
+		SetStringSettingValue(CONTEXT_DEDICATEDSERVER,CONTEXT_DEDICATEDSERVER_YES,true);
+	}
 }
 
-/**
- * Generates a bitmask of active mutators which were created by epic.  The bits are derived by left-shifting by
- * the mutator's index into the UTUIDataStore_MenuItems' list of UTUIDataProvider_Mutators.
- *
- * @return	a bitmask which has bits on for any enabled official mutators.
- */
-function int GenerateMutatorBitmaskFromURL( const out string URL )
+
+function SetMutators( const out string URL )
 {
 	local DataStoreClient DSClient;
 	local UTUIDataStore_MenuItems MenuDataStore;
-	local int Idx, MutatorIdx, EnabledMutatorBitmask;
 	local string MutatorURLValue;
 	local array<string> MutatorClassNames;
 
@@ -234,27 +258,91 @@ function int GenerateMutatorBitmaskFromURL( const out string URL )
 			{
 				// separate into an array of strings
 				ParseStringIntoArray(MutatorURLValue, MutatorClassNames, ",", true);
-				for ( Idx = 0; Idx < MutatorClassNames.Length; Idx++ )
-				{
-					MutatorIdx = MenuDataStore.FindValueInProviderSet('OfficialMutators', 'ClassName', MutatorClassNames[Idx]);
-					if ( MutatorIdx != INDEX_NONE )
-					{
-						EnabledMutatorBitmask = EnabledMutatorBitmask | (1 << MutatorIdx);
-					}
-				}
 			}
 		}
 	}
 
+	SetOfficialMutatorBitmask(GenerateMutatorBitmaskFromURL(MenuDataStore, MutatorClassNames));
+
+	// now do the custom mutators
+	SetCustomMutators(MenuDataStore, MutatorClassNames);
+}
+
+/**
+ * Generates a bitmask of active mutators which were created by epic.  The bits are derived by left-shifting by
+ * the mutator's index into the UTUIDataStore_MenuItems' list of UTUIDataProvider_Mutators.
+ *
+ * @return	a bitmask which has bits on for any enabled official mutators.
+ */
+function int GenerateMutatorBitmaskFromURL( UTUIDataStore_MenuItems MenuDataStore, out array<string> MutatorClassNames )
+{
+	local int Idx, MutatorIdx, EnabledMutatorBitmask;
+	local string GameModeString;
+
+	// Some mutators are filtered out based on the currently selected gametype, so in order to guarantee
+	// that our bitmasks always match up (i.e. between a client and server), clear the setting that mutators
+	// use for filtering so that we always get the complete list.  We'll restore it once we're done.
+	class'UIRoot'.static.GetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
+	class'UIRoot'.static.SetDataStoreStringValue("<Registry:SelectedGameMode>", "");
+
+	for ( Idx = 0; Idx < MutatorClassNames.Length; Idx++ )
+	{
+		MutatorIdx = MenuDataStore.FindValueInProviderSet('OfficialMutators', 'ClassName', MutatorClassNames[Idx]);
+		if ( MutatorIdx != INDEX_NONE )
+		{
+			EnabledMutatorBitmask = EnabledMutatorBitmask | (1 << MutatorIdx);
+			MutatorClassNames.Remove(Idx--, 1);
+		}
+	}
+
+	class'UIRoot'.static.SetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
+
 	return EnabledMutatorBitmask;
+}
+
+/**
+ * Sets the custom mutators property with a delimited string containing the friendly names for all active custom (non-epic) mutators.
+ *
+ * @param	MenuDataStore		the data store which contains the UI data for all game resources (mutators, maps, gametypes, etc.)
+ * @param	MutatorClassNames	the array of pathnames for all mutators currently active in the game
+ */
+function SetCustomMutators( UTUIDataStore_MenuItems MenuDataStore, const out array<string> MutatorClassNames )
+{
+	local int Idx, MutatorIdx;
+	local string MutatorName, CustomMutators, CustomMutatorDelimiter;
+
+	// just cache the delimiter so we don't have to evaluate each time
+	CustomMutatorDelimiter = Chr(28);
+	for ( Idx = 0; Idx < MutatorClassNames.Length; Idx++ )
+	{
+		// find the index of the UTUIDataProvider_Mutator with the specified classname
+		MutatorIdx = MenuDataStore.FindValueInProviderSet('Mutators', 'ClassName', MutatorClassNames[Idx]);
+		if ( MutatorIdx != INDEX_NONE )
+		{
+			// get the value of the FriendlyName property for this UTUIDataProvider_Mutator
+			if ( MenuDataStore.GetValueFromProviderSet('Mutators', 'FriendlyName', MutatorIdx, MutatorName) )
+			{
+				// append it to the string that will be set as the value for CustomMutators
+				if ( CustomMutators != "" )
+				{
+					CustomMutators $= CustomMutatorDelimiter;
+				}
+
+				CustomMutators $= MutatorName;
+			}
+		}
+	}
+
+	//@note - CustomMutators might be blank
+	SetStringProperty(PROPERTY_CUSTOMMUTATORS, CustomMutators);
 }
 
 defaultproperties
 {
 	// Default to 32 public and no private (user sets)
 	// NOTE: UI will have to enforce proper numbers on consoles
-	MaxPlayers=24
-	NumPublicConnections=24
+	MaxPlayers=16
+	NumPublicConnections=16
 	NumPrivateConnections=0
 
 	// Contexts and their mappings
@@ -293,6 +381,9 @@ defaultproperties
 	LocalizedSettings(10)=(Id=CONTEXT_EMPTYSERVER,ValueIndex=CONTEXT_EMPTYSERVER_YES,AdvertisementType=ODAT_OnlineService)
 	LocalizedSettingsMappings(10)=(Id=CONTEXT_EMPTYSERVER,Name="IsEmptyServer",ValueMappings=((Id=CONTEXT_EMPTYSERVER_NO),(Id=CONTEXT_EMPTYSERVER_YES)))
 
+	LocalizedSettings(11)=(Id=CONTEXT_DEDICATEDSERVER,ValueIndex=CONTEXT_DEDICATEDSERVER_NO,AdvertisementType=ODAT_OnlineService)
+	LocalizedSettingsMappings(11)=(Id=CONTEXT_DEDICATEDSERVER,Name="IsDedicated",ValueMappings=((Id=CONTEXT_DEDICATEDSERVER_NO),(Id=CONTEXT_DEDICATEDSERVER_YES)))
+
 	// Properties and their mappings
 	Properties(0)=(PropertyId=PROPERTY_CUSTOMMAPNAME,Data=(Type=SDT_String),AdvertisementType=ODAT_QoS)
 	PropertyMappings(0)=(Id=PROPERTY_CUSTOMMAPNAME,Name="CustomMapName")
@@ -315,4 +406,6 @@ defaultproperties
 	Properties(6)=(PropertyId=PROPERTY_EPICMUTATORS,Data=(Type=SDT_Int32),AdvertisementType=ODAT_OnlineService)
 	PropertyMappings(6)=(Id=PROPERTY_EPICMUTATORS,Name="OfficialMutators",MappingType=PVMT_RawValue)
 
+	Properties(7)=(PropertyId=PROPERTY_CUSTOMMUTATORS,Data=(Type=SDT_String),AdvertisementType=ODAT_QoS)
+	PropertyMappings(7)=(Id=PROPERTY_CUSTOMMUTATORS,Name="CustomMutators")
 }

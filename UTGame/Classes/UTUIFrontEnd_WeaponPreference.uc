@@ -42,6 +42,8 @@ var transient UIButton ShiftDownButton;
 var transient UILabel ShiftUpLabel;
 var transient UILabel ShiftDownLabel;
 
+delegate MarkDirty();
+
 /** Post initialize callback. */
 event PostInitialize()
 {
@@ -291,6 +293,8 @@ function OnShiftWeapon(bool bShiftUp)
 		WeaponList.RefreshSubscriberValue();
 		WeaponList.SetIndex(NewIndex);
 	}
+
+	MarkDirty();
 }
 
 /** Initializes the weapon list. */
@@ -352,6 +356,8 @@ function OnResetToDefaults()
 {
 	LoadINIDefaults();
 	InitializeWeaponList();
+
+	MarkDirty();
 }
 
 /** Button bar callbacks. */

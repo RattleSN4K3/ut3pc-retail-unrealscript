@@ -28,6 +28,7 @@ event PostInitialize( )
 	UserNameEditBox.SetDataStoreBinding("");
 	UserNameEditBox.SetValue("");
 	UserNameEditBox.MaxCharacters = GS_USERNAME_MAXLENGTH;
+	UserNameEditBox.StringRenderComponent.bIgnoreMarkup = true;
 
 	PasswordEditBox = UIEditBox(FindChild('txtPassword',true));
 	PasswordEditBox.NotifyActiveStateChanged = OnNotifyActiveStateChanged;
@@ -35,6 +36,7 @@ event PostInitialize( )
 	PasswordEditBox.SetDataStoreBinding("");
 	PasswordEditBox.SetValue("");
 	PasswordEditBox.MaxCharacters = GS_PASSWORD_MAXLENGTH;
+	PasswordEditbox.StringRenderComponent.bIgnoreMarkup = true;
 
 	PasswordConfirmEditBox = UIEditBox(FindChild('txtPasswordConfirm',true));
 	PasswordConfirmEditBox.NotifyActiveStateChanged = OnNotifyActiveStateChanged;
@@ -42,6 +44,7 @@ event PostInitialize( )
 	PasswordConfirmEditBox.SetDataStoreBinding("");
 	PasswordConfirmEditBox.SetValue("");
 	PasswordConfirmEditBox.MaxCharacters = GS_PASSWORD_MAXLENGTH;
+	PasswordConfirmEditBox.StringRenderComponent.bIgnoreMarkup = true;
 
 	EMailEditBox = UIEditBox(FindChild('txtEMail',true));
 	EMailEditBox.NotifyActiveStateChanged = OnNotifyActiveStateChanged;
@@ -49,16 +52,18 @@ event PostInitialize( )
 	EMailEditBox.SetDataStoreBinding("");
 	EMailEditBox.SetValue("");
 	EMailEditBox.MaxCharacters = GS_EMAIL_MAXLENGTH;
+	EMailEditBox.StringRenderComponent.bIgnoreMarkup = true;
 
 
 	for(EditboxIdx=0; EditboxIdx<4; EditboxIdx++)
-	{	
+	{
 		CDKeyEditbox[EditboxIdx] = UIEditBox(FindChild(name("txtKey"$(EditboxIdx+1)),true));
 		CDKeyEditbox[EditboxIdx].NotifyActiveStateChanged = OnNotifyActiveStateChanged;
 		CDKeyEditbox[EditboxIdx].OnSubmitText=OnSubmitText;
 		CDKeyEditbox[EditboxIdx].SetDataStoreBinding("");
 		CDKeyEditbox[EditboxIdx].SetValue("");
 		CDKeyEditbox[EditboxIdx].MaxCharacters = GS_CDKEY_PART_MAXLENGTH;
+		CDKeyEditbox[EditboxIdx].StringRenderComponent.bIgnoreMarkup = true;
 	}
 
 
@@ -97,14 +102,13 @@ function OnCreateProfile()
 
 	// @todo: Retrieve CD Key
 	CDKey = "";
-
-	UserName = TrimWhitespace(UserNameEditBox.GetValue());
+	UserName = UserNameEditBox.GetValue();
 	Password = PasswordEditBox.GetValue();
 	PasswordConfirm = PasswordConfirmEditBox.GetValue();
 	EMailAddress = EMailEditBox.GetValue();
 
 	// Verify contents of user name box
-	if(Len(UserName) > 0)
+	if(ValidateUserName(UserName))
 	{
 		if(Len(Password) > 0)
 		{
@@ -116,11 +120,12 @@ function OnCreateProfile()
 
 					if(AccountInterface != None)
 					{
+						UserName = TrimWhitespace(UserName);
 						MessageBoxReference = GetMessageBoxScene();
 						MessageBoxReference.DisplayModalBox("<Strings:UTGameUI.Generic.CreatingProfile>","");
 
 						AccountInterface.AddCreateOnlineAccountCompletedDelegate(OnCreateOnlineAccountCompleted);
-						if(AccountInterface.CreateOnlineAccount(UserName, Password, EMailAddress, CDKey)==false)
+						if(AccountInterface.CreateOnlineAccount(StripInvalidUsernameCharacters(UserName), Password, EMailAddress, CDKey)==false)
 						{
 							OnCreateOnlineAccountCompleted(OACS_UnknownError);
 						}
@@ -145,12 +150,56 @@ function OnCreateProfile()
 			DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidPassword_Message>","<Strings:UTGameUI.Errors.InvalidPassword_Title>");
 		}
 	}
-	else
-	{
-		DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidUserName_Message>","<Strings:UTGameUI.Errors.InvalidUserName_Title>");
-	}
 }
 
+/**
+ * Validates the user name and displays an error message if the name is invalid.
+ *
+ * @param UserName	Name to validate
+ *
+ * @return 	TRUE if the name is valid, FALSE otherwise.
+ */
+function bool ValidateUserName(string UserName)
+{
+	local bool bResult;
+	local string FirstChar;
+
+	bResult = false;
+
+	if(Len(UserName) >= 3 && Len(UserName) <= GS_USERNAME_MAXLENGTH)
+	{
+		FirstChar = Mid(UserName, 0, 1);
+
+			// Check for invalid characters
+		if(   FirstChar != " "
+		   && FirstChar != "+" 
+		   && FirstChar != "#" 
+		   && FirstChar != "@"  
+		   && FirstChar != "0" 
+		   && FirstChar != "1" 
+		   && FirstChar != "2" 
+		   && FirstChar != "3"
+		   && FirstChar != "4"
+		   && FirstChar != "5"
+		   && FirstChar != "6"
+		   && FirstChar != "7"
+		   && FirstChar != "8"
+		   && FirstChar != "9")
+		{
+			bResult=true;
+		}
+		else
+		{
+			DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidUserNameFirstChar_Message>","<Strings:UTGameUI.Errors.InvalidUserName_Title>");
+		}
+	}
+	else
+	{
+		DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidUserNameCreateProfile_Message>","<Strings:UTGameUI.Errors.InvalidUserName_Title>");
+	}
+
+	return bResult;
+}
 
 /**
  * Delegate used in notifying the UI/game that the account creation completed
@@ -181,16 +230,27 @@ function OnCreateOnlineAccount_Closed()
 		MessageBoxReference = DisplayMessageBox("<Strings:UTGameUI.MessageBox.ProfileCreated_Message>","<Strings:UTGameUI.MessageBox.ProfileCreated_Title>");
 		MessageBoxReference.OnClosed = OnProfileCreatedMessage_Closed;
 		break;
+
+//@todo ut3merge
+//	case OACS_ServiceUnavailable:
+//		DisplayMessageBox("<Strings:UTGameUI.Errors.ServiceUnavailable_Message>","<Strings:UTGameUI.Errors.ServiceUnavailable_Title>");
+//		break;
+
 	case OACS_InvalidUserName:
+	case OACS_InvalidUniqueUserName:
 		DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidUserName_Message>","<Strings:UTGameUI.Errors.InvalidUserName_Title>");
 		break;
+
 	case OACS_InvalidPassword:
 		DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidPasswordForEmail_Message>","<Strings:UTGameUI.Errors.InvalidPasswordForEmail_Title>");
 		break;
-	case OACS_UniqueUserNameInUse: case OACS_InvalidUniqueUserName:
+
+	case OACS_UniqueUserNameInUse:
 		DisplayMessageBox("<Strings:UTGameUI.Errors.NameInUse_Message>","<Strings:UTGameUI.Errors.NameInUse_Title>");
 		break;
-	case OACS_UnknownError: default:
+
+	case OACS_UnknownError:
+	default:
 		// Display default failure message
 		DisplayMessageBox("<Strings:UTGameUI.Errors.ProfileCreationFailed_Message>","<Strings:UTGameUI.Errors.ProfileCreationFailed_Title>");
 		break;
@@ -202,15 +262,19 @@ function OnProfileCreatedMessage_Closed()
 {
 	local UTUIFrontEnd_LoginScreen LoginScreen;
 
+	// Log the user in
+	LoginScreen = UTUIFrontEnd_LoginScreen(GetSceneClient().FindSceneByTag('LoginScreen'));
+	LoginScreen.LocalLoginCheckBox.SetValue(false);
+	LoginScreen.SavePasswordCheckBox.SetValue(true);
+	LoginScreen.UserNameEditBox.SetValue(UserNameEditBox.GetValue());
+	LoginScreen.UserNameEditBox.SetDatastoreBinding(UserNameEditBox.GetValue());
+	LoginScreen.PasswordEditBox.SetValue(PasswordEditBox.GetValue());
+	LoginScreen.PasswordEditBox.SetDatastoreBinding(PasswordEditBox.GetValue());
+	LoginScreen.bLoginOnShow = true;
+
 	MessageBoxReference.OnClosed = None;
 	MessageBoxReference = None;
 	CloseScene(self);
-
-	// Log the user in
-	LoginScreen = UTUIFrontEnd_LoginScreen(GetSceneClient().FindSceneByTag('LoginScreen'));
-	LoginScreen.UserNameEditBox.SetValue(UserNameEditBox.GetValue());
-	LoginScreen.PasswordEditBox.SetValue(PasswordEditBox.GetValue());
-	LoginScreen.bLoginOnShow = true;
 }
 
 /** Shows the online keyboard. */

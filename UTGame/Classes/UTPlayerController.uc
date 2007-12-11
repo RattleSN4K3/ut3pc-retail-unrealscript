@@ -11,7 +11,6 @@ class UTPlayerController extends GamePlayerController
 	config(Game)
 	native;
 
-`include(Core/Globals.uci)
 `include(UTOnlineConstants.uci)
 
 var					bool	bLateComer;
@@ -69,8 +68,6 @@ var bool bUsePhysicsRotation;
 
 var bool bFreeCamera;
 
-/** Channel the player is associated with regardless of their state */
-var int VoiceChannel;
 
 
 enum EWeaponHand
@@ -99,6 +96,9 @@ var CameraAnimInst CameraAnimPlayer;
 var bool bCurrentCamAnimIsDamageShake;
 /** set if camera anim modifies FOV - don't do any FOV interpolation while camera anim is playing */
 var bool bCurrentCamAnimAffectsFOV;
+/** Vibration  */
+var ForceFeedbackWaveform CameraShakeShortWaveForm, CameraShakeLongWaveForm;
+
 /** stores post processing settings applied by the camera animation
  * applied additively to the default post processing whenever a camera anim is playing
  */
@@ -281,6 +281,12 @@ var bool bAlreadyReset;
 
 var float NextAdminCmdTime;
 
+/** If true, the server has muted all text chat from this player */
+var bool bServerMutedText;
+
+/** indicates whether this player is a dedicated server spectator (so disable rendering and don't allow it to participate at all) */
+var bool bDedicatedServerSpectator;
+
 
 
 /**
@@ -332,6 +338,40 @@ event InitInputSystem()
 		PlayerReplicationInfo.IsInvalidName();
 	}
 
+	if (bDedicatedServerSpectator)
+	{
+		LocalPlayer(Player).ViewportClient.bDisableWorldRendering = true;
+	}
+	else
+	{
+		SaveServerToHistory();
+	}
+}
+
+/**
+ * Saves the UniqueNetId for the current server to the player's list of recently visited servers (server history).
+ */
+function SaveServerToHistory()
+{
+	local LocalPlayer LP;
+	local OnlineGameSettings CurrentGameSettings;
+	local UTDataStore_GameSearchHistory HistoryDataStore;
+
+	LP = LocalPlayer(Player);
+
+	// we've successfully joined an online match - add this server's unique PlayerId to the list of recently joined matches
+	if ( WorldInfo.NetMode == NM_Client && LP != None && OnlineSub != None && OnlineSub.GameInterface != None && OnlineSub.PlayerInterface != None )
+	{
+		CurrentGameSettings = OnlineSub.GameInterface.GetGameSettings();
+		if ( CurrentGameSettings != None )
+		{
+			HistoryDataStore = UTDataStore_GameSearchHistory(class'UTUIScene'.static.FindDataStore('UTGameHistory', LP));
+			if ( HistoryDataStore != None )
+			{
+				HistoryDataStore.AddServer(LP.ControllerId, CurrentGameSettings.OwningPlayerId);
+			}
+		}
+	}
 }
 
 event PlayerTick( float DeltaTime )
@@ -376,7 +416,7 @@ reliable server function ServerSetCharacterData(CustomCharData CharData)
 	}
 
 	// force bots on player's team to be same faction
-	if (WorldInfo.NetMode == NM_Standalone)
+	if ((WorldInfo.NetMode == NM_Standalone || WorldInfo.NetMode == NM_ListenServer) && IsLocalPlayerController())
 	{
 		Team = UTTeamInfo(PlayerReplicationInfo.Team);
 		if (Team != None)
@@ -559,13 +599,16 @@ function AddOnlineDelegates(bool bRegisterVoice)
 }
 
 /** Clears previously set online delegates. */
-function ClearOnlineDelegates()
+event ClearOnlineDelegates()
 {
 	local LocalPlayer LP;
 
-	if (OnlineSub != None)
+	Super.ClearOnlineDelegates();
+
+	LP = LocalPlayer(Player);
+	if ( OnlineSub != None
+	&&	(Role < ROLE_Authority || LP != None))
 	{
-		LP = LocalPlayer(Player);
 		if (LP != None)
 		{
 			if (VoiceInterface != None)
@@ -712,7 +755,7 @@ reliable client function ClientSetOnlineStatus()
 		SceneClient.NotifyOnlineServiceStatusChanged(ConnectionStatus);
 	}
 
-	`log(`location@`showenum(EOnlineServerConnectionStatus,ConnectionStatus)@`showvar(bInvalidConnectionStatus),,'RONDEBUG');
+	`log(`location@`showenum(EOnlineServerConnectionStatus,ConnectionStatus)@`showvar(bInvalidConnectionStatus),,'DevOnline');
 	if ( bInvalidConnectionStatus )
 	{
 		QuitToMainMenu();
@@ -728,7 +771,7 @@ reliable client function ClientSetOnlineStatus()
 	local GameUISceneClient SceneClient;
 	local string ErrorDisplay;
 
-	`log(`location@`showvar(bConnected),,'RONDEBUG');
+	`log(`location@`showvar(bConnected),,'DevNet');
 
 	// notify the UI scene client, which will propagate the notification to all scenes.  Any scenes
 	// which require a valid network connection will close themselves.
@@ -767,8 +810,11 @@ function OnReadProfileSettingsComplete(bool bWasSuccessful)
 `if(`notdefined(FINAL_RELEASE))
 	local int ControllerId;
 
-	ControllerId = LocalPlayer(Player).ControllerId;
-	`Log("UTPlayerController::OnReadProfileSettingsComplete() - bWasSuccessful: " $ bWasSuccessful $ ", ControllerId: " $ ControllerId);
+	if (LocalPlayer(Player) != None)
+	{
+		ControllerId = LocalPlayer(Player).ControllerId;
+		`Log("UTPlayerController::OnReadProfileSettingsComplete() - bWasSuccessful: " $ bWasSuccessful $ ", ControllerId: " $ ControllerId);
+	}
 `endif
 
 	if (bWasSuccessful)
@@ -903,6 +949,7 @@ function UTUIScene_ConnectionStatus FindProgressMessageScene()
 function UTUIScene_ConnectionStatus OpenProgressMessageScene()
 {
 	local class<UTUIScene_ConnectionStatus> SceneClass;
+	local UIScene InstancedScene;
 	local UTUIScene_ConnectionStatus ProgressMessageScene;
 	local GameUISceneClient SceneClient;
 
@@ -928,7 +975,8 @@ function UTUIScene_ConnectionStatus OpenProgressMessageScene()
 			if ( ProgressMessageScene != None
 			&&	!SceneClient.IsSceneInitialized(ProgressMessageScene) )
 			{
-				SceneClient.OpenScene(ProgressMessageScene, LocalPlayer(Player));
+				SceneClient.OpenScene(ProgressMessageScene, LocalPlayer(Player), InstancedScene);
+				ProgressMessageScene = UTUIScene_ConnectionStatus(InstancedScene);
 			}
 		}
 	}
@@ -991,7 +1039,15 @@ reliable client function ClientSetProgressMessage( EProgressMessageType MessageT
 		ProgressMessageScene = OpenProgressMessageScene();
 		if ( ProgressMessageScene != None )
 		{
-			ProgressMessageScene.DisplayCancelBox(Message, Title, CancelPendingCOnnection);
+			ProgressMessageScene.DisplayCancelBox(Message, Title, CancelPendingConnection);
+		}
+		break;
+
+	case PMT_RedrawDownloadProgress:
+		ProgressMessageScene = FindProgressMessageScene();
+		if ( ProgressMessageScene != None )
+		{
+			ProgressMessageScene.ForceImmediateSceneUpdate();
 		}
 		break;
 
@@ -1092,7 +1148,7 @@ function QuitToMainMenu()
 function FinishQuitToMainMenu()
 {
 	// stop any movies currently playing before we quit out
-	class'Engine'.static.StopMovie();
+	class'Engine'.static.StopMovie(true);
 
 	// Call disconnect to force us back to the menu level
 	ConsoleCommand("Disconnect");
@@ -1699,15 +1755,15 @@ exec function Taunt(int TauntIndex)
 		switch(TauntIndex)
 		{
 		case 0:
-			UTP.PlayEmote('TauntA', 0);
+			UTP.PlayEmote('TauntA', -1);
 			break;
 
 		case 1:
-			UTP.PlayEmote('TauntB', 0);
+			UTP.PlayEmote('TauntB', -1);
 			break;
 
 		case 2:
-			UTP.PlayEmote('TauntC', 0);
+			UTP.PlayEmote('TauntC', -1);
 			break;
 		}
 	}
@@ -1722,6 +1778,11 @@ function Typing( bool bTyping )
 
 simulated event Destroyed()
 {
+	if (LocalPlayer(Player) != None)
+	{
+		LocalPlayer(Player).ViewportClient.bDisableWorldRendering = false;
+	}
+
 	Super.Destroyed();
 
 	if (Announcer != None)
@@ -1732,8 +1793,6 @@ simulated event Destroyed()
 	{
 		MusicManager.Destroy();
 	}
-
-	ClearOnlineDelegates();
 }
 
 
@@ -1755,25 +1814,22 @@ function OnControllerChanged(int ControllerId,bool bIsConnected)
 	// Don't worry about remote players
 	LocPlayer = LocalPlayer(Player);
 
-	if( WorldInfo.Game != None && WorldInfo.Game.bAutomatedPerfTesting == TRUE )
-	{
-		// do nothing
-	}
-	else
+	if (WorldInfo.IsConsoleBuild() && (WorldInfo.Game == None || !WorldInfo.Game.bAutomatedPerfTesting))
 	{
 		// If the controller that changed, is attached to the this playercontroller
 		if (LocPlayer != None && LocPlayer.ControllerId == ControllerId)
 		{
 			bIsControllerConnected = bIsConnected;
 
-			if(bIsConnected)
-			{
-				class'UTUIScene'.static.HideOnlineToast();
-			}
-			else
-			{
-				class'UTUIScene'.static.ShowOnlineToast(Localize("ToastMessages","ReconnectController","UTGameUI")$" ("$(ControllerId+1)$")", -1);	// Time of -1 to make the toast stay up until we hide it.
-			}
+			//@todo fix this to work again once UI changes are merged back into main
+// 			if(bIsConnected)
+// 			{
+// 				class'UTUIScene'.static.ClearScreenWarningMessage();
+// 			}
+// 			else
+// 			{
+// 				class'UTUIScene'.static.ShowScreenWarningMessage(Localize("ToastMessages","ReconnectController","UTGameUI")$" ("$(ControllerId+1)$")");
+// 			}
 		}
 	}
 }
@@ -1791,6 +1847,12 @@ event SoakPause(Pawn P)
 
 function DrawHUD( HUD H )
 {
+	// force scoreboard on if dedicated server spectator
+	if (bDedicatedServerSpectator && !H.bShowScores)
+	{
+		H.ShowScores();
+	}
+
 	if( (Pawn != None) && (Pawn.Weapon != None) )
 	{
 		Pawn.Weapon.ActiveRenderOverlays(H);
@@ -1848,7 +1910,7 @@ reliable client function ClientRestart(Pawn NewPawn)
 	local UTVehicle V;
 
 	Super.ClientRestart(NewPawn);
-	ServerPlayerPreferences(WeaponHandPreference, bAutoTaunt, bCenteredWeaponFire, AutoObjectivePreference);
+	ServerPlayerPreferences(WeaponHandPreference, bAutoTaunt, bCenteredWeaponFire, AutoObjectivePreference, VehicleControlType);
 
 	if (NewPawn != None)
 	{
@@ -2040,7 +2102,7 @@ function AcknowledgePossession(Pawn P)
 			NewViewRotation.Roll = 0;
 			SetRotation(NewViewRotation);
 		}
-		ServerPlayerPreferences(WeaponHandPreference, bAutoTaunt, bCenteredWeaponFire, AutoObjectivePreference);
+		ServerPlayerPreferences(WeaponHandPreference, bAutoTaunt, bCenteredWeaponFire, AutoObjectivePreference, VehicleControlType);
 
 		if ( (PlayerReplicationInfo != None)
 			&& (PlayerReplicationInfo.Team != None)
@@ -2062,7 +2124,7 @@ simulated event ReceivedPlayer()
 
 	if (LocalPlayer(Player) != None)
 	{
-		ServerPlayerPreferences(WeaponHandPreference, bAutoTaunt, bCenteredWeaponFire, AutoObjectivePreference);
+		ServerPlayerPreferences(WeaponHandPreference, bAutoTaunt, bCenteredWeaponFire, AutoObjectivePreference, VehicleControlType);
 	}
 	else
 	{
@@ -2072,12 +2134,13 @@ simulated event ReceivedPlayer()
 	}
 }
 
-reliable server function ServerPlayerPreferences(EWeaponHand NewWeaponHand, bool bNewAutoTaunt, bool bNewCenteredWeaponFire, EAutoObjectivePreference NewAutoObjectivePreference)
+reliable server function ServerPlayerPreferences(EWeaponHand NewWeaponHand, bool bNewAutoTaunt, bool bNewCenteredWeaponFire, EAutoObjectivePreference NewAutoObjectivePreference, EUTVehicleControls NewVehicleControls)
 {
 	ServerSetHand(NewWeaponHand);
 	ServerSetAutoTaunt(bNewAutoTaunt);
 
 	bCenteredWeaponFire = bNewCenteredWeaponFire;
+	VehicleControlType = NewVehicleControls;
 
 	if (AutoObjectivePreference != NewAutoObjectivePreference)
 	{
@@ -2377,11 +2440,11 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 		}
 
 		GRI = UTGameReplicationInfo(WorldInfo.GRI);
-		if (GRI.bMatchIsOver && !GRI.bStoryMode)
+		if (GRI != None && GRI.bMatchIsOver && !GRI.bStoryMode)
 		{
 			ShowMidGameMenu('ScoreTab',true);
 		}
-		else
+		else if (myHUD != None)
 		{
 			myHUD.SetShowScores(true);
 		}
@@ -2394,9 +2457,9 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 		if (Role == ROLE_Authority && UTGame(WorldInfo.Game).bAutoContinueToNextRound)
 		{
 			myHUD.SetShowScores(false);
-			StartFire( 0 );
+				StartFire( 0 );
+			}
 		}
-	}
 
 	function BeginState(Name PreviousStateName)
 	{
@@ -3015,6 +3078,20 @@ function PlayCameraAnim( CameraAnim AnimToPlay, optional float Scale=1.f, option
 		CamOverridePostProcess = class'CameraActor'.default.CamOverridePostProcess;
 		CameraAnimPlayer.Play(AnimToPlay, self, Rate, Scale, BlendInTime, BlendOutTime, bLoop, false);
 	}
+
+	// Play controller vibration - don't do this if damage, as that has its own handling
+	if( !bIsDamageShake && !bLoop && WorldInfo.NetMode != NM_DedicatedServer )
+	{
+		if( AnimToPlay.AnimLength <= 1 )
+		{
+			ClientPlayForceFeedbackWaveform(CameraShakeShortWaveForm);
+		}
+		else
+		{
+			ClientPlayForceFeedbackWaveform(CameraShakeLongWaveForm);
+		}
+	}
+
 	bCurrentCamAnimIsDamageShake = bIsDamageShake;
 }
 
@@ -3030,7 +3107,10 @@ function StopCameraAnim(optional bool bImmediate)
 /** Allows changing camera anim strength on the fly */
 function SetCameraAnimStrength(float NewStrength)
 {
-	CameraAnimPlayer.PlayScale = NewStrength;
+	if ( CameraAnimPlayer != None )
+	{
+		CameraAnimPlayer.PlayScale = NewStrength;
+	}
 }
 
 reliable client function ClientPlayCameraAnim( CameraAnim AnimToPlay, optional float Scale=1.f, optional float Rate=1.f,
@@ -3088,7 +3168,7 @@ simulated exec function ToggleMelee()
 
 simulated exec function ToggleTranslocator()
 {
-	if ( Pawn != None )
+	if ( (Pawn != None) && !IsMoveInputIgnored() )
 	{
 		if ( UTWeap_Translocator(Pawn.Weapon) != None )
 		{
@@ -3503,14 +3583,15 @@ state InQueue extends Spectating
 {
 	function BeginState(Name PreviousStateName)
 	{
-		super.BeginState(PreviousStateName);
+		Super.BeginState(PreviousStateName);
 		PlayerReplicationInfo.bIsSpectator = true;
 	}
 
 	function EndState(Name NextStateName)
 	{
-		super.EndState(NextStateName);
-		ServerViewSelf();
+		Super.EndState(NextStateName);
+
+		SetBehindView(false);
 	}
 }
 
@@ -3537,11 +3618,11 @@ simulated private function bool CanCommunicate()
 {
 	if ( (OnlineSub != None) && (OnlineSub.PlayerInterface != None) && (LocalPlayer(Player) != None) )
 	{
-		return ( OnlineSub.PlayerInterface.CanCommunicate(LocalPlayer(Player).ControllerId) != FPL_Disabled );
+		return ( OnlineSub.PlayerInterface.CanCommunicate(LocalPlayer(Player).ControllerId) != FPL_Disabled && !bServerMutedText );
 	}
 
 	// assume we are allowed to talk unless the online layer specifically says we cannot
-	return TRUE;
+	return !bServerMutedText;
 }
 
 exec function Talk()
@@ -3617,22 +3698,26 @@ exec function ShowMenu()
 	if ( Role == ROLE_Authority && WorldInfo.GRI.bMatchHasBegun && UTGame(WorldInfo.Game) != None &&
 		(WorldInfo.IsPlayInEditor() || UTCinematicGame(WorldInfo.Game) != None || UTGame(WorldInfo.Game).SinglePlayerMissionID != INDEX_NONE) )
 	{
-		GameSequence = WorldInfo.GetGameSequence();
-		if (GameSequence != None)
+		//@HACK: Sinkhole's Kismet script has a bug that breaks things if you skip the tutorial less than a second in
+		if (!(string(WorldInfo.GetPackageName()) ~= "WAR-Sinkhole") || WorldInfo.GRI.ElapsedTime >= 2)
 		{
-			GameSequence.FindSeqObjectsByClass(class'UTSeqEvent_SkipCinematic', true, SkipEvents);
-			for (i = 0; i < SkipEvents.length; i++)
+			GameSequence = WorldInfo.GetGameSequence();
+			if (GameSequence != None)
 			{
-				if ( UTSeqEvent_SkipCinematic(SkipEvents[i]).bEnabled &&
-					UTSeqEvent_SkipCinematic(SkipEvents[i]).CheckActivate(self, self) )
+				GameSequence.FindSeqObjectsByClass(class'UTSeqEvent_SkipCinematic', true, SkipEvents);
+				for (i = 0; i < SkipEvents.length; i++)
 				{
-					// if we skipped something, don't show the menu
-					return;
+					if ( UTSeqEvent_SkipCinematic(SkipEvents[i]).bEnabled &&
+						UTSeqEvent_SkipCinematic(SkipEvents[i]).CheckActivate(self, self) )
+					{
+						// if we skipped something, don't show the menu
+						return;
+					}
 				}
 			}
 		}
 	}
-	ShowMidGameMenu('GameTab',true);
+	ShowMidGameMenu('',true);
 }
 
 function UTUIScene_MidGameMenu ShowMidGameMenu(optional name TabTag,optional bool bEnableInput)
@@ -3677,14 +3762,14 @@ reliable client function ClientGameEnded(optional Actor EndGameFocus, optional b
 		SetViewTarget(EndGameFocus);
 	}
 
-	SetBehindView(true);
-
 	if ( !PlayerReplicationInfo.bOnlySpectator )
 		PlayWinMessage( bIsWinner );
 
 	ClientEndZoom();
 
 	GotoState('RoundEnded');
+
+	SetBehindView(true);
 }
 
 /* epic ===============================================
@@ -3714,10 +3799,11 @@ reliable client function ClientRoundEnded(Actor EndRoundFocus)
 	{
 		SetViewTarget(EndRoundFocus);
 	}
-	SetBehindView(true);
 	ClientEndZoom();
 
 	GotoState('RoundEnded');
+
+	SetBehindView(true);
 }
 
 /* epic ===============================================
@@ -4143,13 +4229,14 @@ function CharacterProcessingComplete()
 	local UTUIScene_MidGameMenu Menu;
 	local UTGameReplicationInfo GRI;
 	local string LastMovie;
+	local LocalPlayer LP;
 
 	LastMovie = class'Engine'.Static.GetLastMovieName();
 
 	if(InStr(LastMovie, "UT_loadmovie") != -1)
 	{
 		// stop the loading movie that was up during precaching
-		class'Engine'.static.StopMovie();
+		class'Engine'.static.StopMovie(true);
 	}
 
 	SetPawnConstructionScene(false);
@@ -4168,6 +4255,19 @@ function CharacterProcessingComplete()
 		if ( Menu != none )
 		{
 			Menu.Reset();
+		}
+	}
+
+	// if the controller was yanked while we were loading, we couldn't pause the game because that would cause character construction
+	// to never complete, so check for a missing controller now
+
+	// don't check for None so that we know if we don't have a valid OnlineSub at this point.
+	LP = LocalPlayer(Player);
+	if ( LP != None )
+	{
+		if ( !OnlineSub.SystemInterface.IsControllerConnected(LP.ControllerId) )
+		{
+			OnControllerChanged(LP.ControllerId, false);
 		}
 	}
 }
@@ -4391,15 +4491,25 @@ function UpdateVolumeAndBrightness()
 
 function LoadSettingsFromProfile(bool bLoadCharacter)
 {
-	local int PlayerIndex, OutIntValue, NewNetSpeed;
+	local int PlayerIndex, OutIntValue, NewNetSpeed, WeapInstIdx, WeapClassIdx;
 	local float OutFloatValue;
 	local string OutStringValue;
 	local UTProfileSettings Profile;
 	local UTHUD MyUTHUD;
 	local UTWeapon W;
+	local class<UTWeapon> WeapClass;
+
+	// get a list of all existing weapon instances
+	local array<class<UTWeapon> > WeaponClasses;
+	local array<UTWeapon> WeaponInstances;
+
+	if (LocalPlayer(Player) == None)
+	{
+		return;
+	}
 
 	// If we are NOT epic internal, then do not set any settings.
-	if(IsEpicInternal()==false)
+	if (!IsEpicInternal())
 	{
 		`Log("UTPlayerController::LoadSettingsFromProfile() - Not an Epic internal build, skipping setting profile settings.");
 		return;
@@ -4424,6 +4534,16 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 		///////////////////////////////////////////////////////////////////////////
 		// Player Custom Character
 		///////////////////////////////////////////////////////////////////////////
+
+		if(Profile.GetProfileSettingValueId(class'UTProfileSettings'.const.UTPID_AllowCustomCharacters, OutIntValue))
+		{
+			class'UTGameReplicationInfo'.default.bForceDefaultCharacter = (OutIntValue == UTPID_VALUE_NO);
+			if (UTGameReplicationInfo(WorldInfo.GRI) != None)
+			{
+				UTGameReplicationInfo(WorldInfo.GRI).bForceDefaultCharacter = class'UTGameReplicationInfo'.default.bForceDefaultCharacter;
+			}
+		}
+
 		if (bLoadCharacter)
 		{
 			LoadCharacterFromProfile(Profile);
@@ -4510,6 +4630,25 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 		}
 		*/
 
+		// MuteVoice
+		if( Profile.GetProfileSettingValueIdByName( 'MuteVoice', OutIntValue ) )
+		{
+			if( VoiceInterface != None )
+			{
+				// Is muting enabled?
+				if( OutIntValue == 1 )
+				{
+					// Prevent us from hearing anyone
+					VoiceInterface.MuteAll( PlayerIndex, false );		// Allow friends?
+				}
+				else
+				{
+					// Allow us to hear everyone
+					VoiceInterface.UnmuteAll( PlayerIndex );
+				}
+			}
+		}
+
 		// TextToSpeechMode
 		if(Profile.GetProfileSettingValueIdByName('TextToSpeechMode', OutIntValue))
 		{
@@ -4533,63 +4672,74 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 		// Input Options
 		///////////////////////////////////////////////////////////////////////////
 
-		// Invert Y
-		if(Profile.GetProfileSettingValueIdByName('InvertY', OutIntValue))
+		if ( PlayerInput != none )
 		{
-			PlayerInput.bInvertMouse = (OutIntValue==PYIO_On);
-		}
+			// Invert Y
+			if(Profile.GetProfileSettingValueIdByName('InvertY', OutIntValue))
+			{
+				PlayerInput.bInvertMouse = (OutIntValue==PYIO_On);
+			}
 
-		// Invert X
-		if(Profile.GetProfileSettingValueIdByName('InvertX', OutIntValue))
-		{
-			PlayerInput.bInvertTurn = (OutIntValue==PXIO_On);
-		}
+			// Invert X
+			if(Profile.GetProfileSettingValueIdByName('InvertX', OutIntValue))
+			{
+				PlayerInput.bInvertTurn = (OutIntValue==PXIO_On);
+			}
 
-		// Mouse Smoothing
-		if(Profile.GetProfileSettingValueIdByName('MouseSmoothing', OutIntValue))
-		{
-			PlayerInput.bEnableMouseSmoothing = (OutIntValue==UTPID_VALUE_YES);
-		}
+			// Mouse Smoothing
+			if(Profile.GetProfileSettingValueIdByName('MouseSmoothing', OutIntValue))
+			{
+				PlayerInput.bEnableMouseSmoothing = (OutIntValue==UTPID_VALUE_YES);
+			}
 
-		// Mouse Sensitivity (Game)
-		if(Profile.GetProfileSettingValueIntByName('MouseSensitivityGame', OutIntValue))
-		{
-			PlayerInput.MouseSensitivity = OutIntValue * 5.0f;	// Mouse sensitivity is between 0-100
-		}
+			// Mouse Sensitivity (Game)
+			if(Profile.GetProfileSettingValueIntByName('MouseSensitivityGame', OutIntValue))
+			{
+				// Fix up non-patch values
+				if ( OutIntValue < 11 )
+				{
+					OutIntValue = 5 * OutIntValue * 100;
+					Profile.SetProfileSettingValueInt(423, OutIntValue); // UTPID_MouseSensitivityGame = 423
+				}
+				PlayerInput.MouseSensitivity = OutIntValue / 100.0;	// Mouse sensitivity is between 0-100
+			}
 
 
-		// MouseSmoothingStrength
-		if(Profile.GetProfileSettingValueIntByName('MouseSmoothingStrength', OutIntValue))
-		{
-			// @todo: Hookup
-			//PlayerInput.MouseSmoothingStrength = OutIntValue / 10.0f;
-		}
+			// MouseSmoothingStrength
+			if(Profile.GetProfileSettingValueIntByName('MouseSmoothingStrength', OutIntValue))
+			{
+				// @todo: Hookup
+				//PlayerInput.MouseSmoothingStrength = OutIntValue / 10.0f;
+			}
 
-		// MouseAccelTreshold
-		if(Profile.GetProfileSettingValueIntByName('MouseAccelTreshold', OutIntValue))
-		{
-			// @todo: Hookup
-			//PlayerInput.MouseAccelTreshold = OutIntValue / 10.0f;
-		}
+			// MouseAccelTreshold
+			if(Profile.GetProfileSettingValueIntByName('MouseAccelTreshold', OutIntValue))
+			{
+				// @todo: Hookup
+				//PlayerInput.MouseAccelTreshold = OutIntValue / 10.0f;
+			}
 
-		// ReduceMouseLag
-		if(Profile.GetProfileSettingValueIdByName('ReduceMouseLag', OutIntValue))
-		{
-			// @todo: Hookup
-			//PlayerInput.ReduceMouseLag = (OutIntValue==UTPID_VALUE_YES);
-		}
+			// ReduceMouseLag
+			if(Profile.GetProfileSettingValueIdByName('ReduceMouseLag', OutIntValue))
+			{
+				// @todo: Hookup
+				//PlayerInput.ReduceMouseLag = (OutIntValue==UTPID_VALUE_YES);
+			}
 
-		// Enable Joystick
-		if(Profile.GetProfileSettingValueIdByName('EnableJoystick', OutIntValue))
-		{
-			// @todo: Hookup
-			//PlayerInput.bUsingGamepad = (OutIntValue==UTPID_VALUE_YES);
+			// Enable Joystick
+			if(Profile.GetProfileSettingValueIdByName('EnableJoystick', OutIntValue))
+			{
+				// @todo: Hookup
+				//PlayerInput.bUsingGamepad = (OutIntValue==UTPID_VALUE_YES);
+			}
 		}
 
 		// Vehicle control type
 		if(Profile.GetProfileSettingValueIdByName('VehicleControls', OutIntValue))
 		{
 			VehicleControlType = EUTVehicleControls(OutIntValue);
+			// Send to server
+			ServerPlayerPreferences(WeaponHandPreference, bAutoTaunt, bCenteredWeaponFire, AutoObjectivePreference, VehicleControlType);
 		}
 
 		/* - Disabled
@@ -4693,29 +4843,19 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 			bDynamicNetSpeed = (OutIntValue==UTPID_VALUE_YES);
 		}
 
-		// Alias
+		// Set the player's name to their profile id.
+		SetName(OnlinePlayerData.PlayerNick);
+		ServerSetAlias(OnlinePlayerData.PlayerNick);
+
+		// Save the profile playernick to the profile's alias value if it hasn't already.
 		if(Profile.GetProfileSettingValueByName('Alias', OutStringValue))
 		{
-			if(Len(OutStringValue)>0)
+			if (OutStringValue != OnlinePlayerData.PlayerNick)
 			{
-				ServerSetAlias(OutStringValue);
-			}
-			else
-			{
-				SetName(OnlinePlayerData.PlayerNick);
 				Profile.SetProfileSettingValueByName('Alias', OnlinePlayerData.PlayerNick);
 				SaveProfile();
-				ServerSetAlias(OnlinePlayerData.PlayerNick);
 			}
-
 		}
-		else
-		{
-			SetName(OnlinePlayerData.PlayerNick);
-			Profile.SetProfileSettingValueByName('Alias', OnlinePlayerData.PlayerNick);
-			SaveProfile();
-		}
-
 
 		// ClanTag
 		if(Profile.GetProfileSettingValueByName('ClanTag', OutStringValue))
@@ -4741,12 +4881,17 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 			SetHand(EWeaponHand(OutIntValue));
 		}
 
+		foreach DynamicActors(class'UTWeapon', W)
+		{
+			WeaponInstances.AddItem(W);
+		}
 		// SmallWeapons
 		if(Profile.GetProfileSettingValueIdByName('SmallWeapons', OutIntValue))
 		{
 			class'UTWeapon'.default.bSmallWeapons = (OutIntValue==UTPID_VALUE_YES);
-			foreach DynamicActors(class'UTWeapon', W)
+			for ( WeapInstIdx = 0; WeapInstIdx < WeaponInstances.Length; WeapInstIdx++ )
 			{
+				W = WeaponInstances[WeapInstIdx];
 				W.bSmallWeapons = class'UTWeapon'.default.bSmallWeapons;
 			}
 		}
@@ -4769,64 +4914,92 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 			}
 		}
 
-		// RocketLauncherPriority
-		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_RocketLauncherPriority, OutFloatValue))
-		{
-			class'UTWeap_RocketLauncher'.default.Priority=OutFloatValue;
-		}
-
-		// BioRiflePriority
-		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_BioRiflePriority, OutFloatValue))
-		{
-			class'UTWeap_BioRifle'.default.Priority=OutFloatValue;
-		}
-
-		// FlakCannonPriority
-		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_FlakCannonPriority, OutFloatValue))
-		{
-			class'UTWeap_FlakCannon'.default.Priority=OutFloatValue;
-		}
-
-		// SniperRiflePriority
-		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_SniperRiflePriority, OutFloatValue))
-		{
-			class'UTWeap_SniperRifle'.default.Priority=OutFloatValue;
-		}
-
-		// LinkGunPriority
-		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_LinkGunPriority, OutFloatValue))
-		{
-			class'UTWeap_LinkGun'.default.Priority=OutFloatValue;
-		}
-
-		// EnforcerPriority
-		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_EnforcerPriority, OutFloatValue))
-		{
-			class'UTWeap_Enforcer'.default.Priority=OutFloatValue;
-		}
-
-		// ShockRiflePriority
-		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_ShockRiflePriority, OutFloatValue))
-		{
-			class'UTWeap_ShockRifle'.default.Priority=OutFloatValue;
-		}
-
-		// StingerMinigunPriority
-		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_StingerPriority, OutFloatValue))
-		{
-			class'UTWeap_Stinger'.default.Priority=OutFloatValue;
-		}
-
 		// LongbowAVRILPriority
+		WeaponClasses.AddItem(class'UTWeap_Avril');
 		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_AVRILPriority, OutFloatValue))
 		{
 			class'UTWeap_Avril'.default.Priority=OutFloatValue;
 		}
 
+		// BioRiflePriority
+		WeaponClasses.AddItem(class'UTWeap_BioRifle');
+		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_BioRiflePriority, OutFloatValue))
+		{
+			class'UTWeap_BioRifle'.default.Priority=OutFloatValue;
+		}
+
+		// EnforcerPriority
+		WeaponClasses.AddItem(class'UTWeap_Enforcer');
+		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_EnforcerPriority, OutFloatValue))
+		{
+			class'UTWeap_Enforcer'.default.Priority=OutFloatValue;
+		}
+
+		// FlakCannonPriority
+		WeaponClasses.AddItem(class'UTWeap_FlakCannon');
+		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_FlakCannonPriority, OutFloatValue))
+		{
+			class'UTWeap_FlakCannon'.default.Priority=OutFloatValue;
+		}
+
+		// LinkGunPriority
+		WeaponClasses.AddItem(class'UTWeap_LinkGun');
+		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_LinkGunPriority, OutFloatValue))
+		{
+			class'UTWeap_LinkGun'.default.Priority=OutFloatValue;
+		}
+
 		// RedeemerPriority
+		WeaponClasses.AddItem(class'UTWeap_Redeemer');
 		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_RedeemerPriority, OutFloatValue))
 		{
 			class'UTWeap_Redeemer'.default.Priority=OutFloatValue;
+		}
+
+		// RocketLauncherPriority
+		WeaponClasses.AddItem(class'UTWeap_RocketLauncher');
+		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_RocketLauncherPriority, OutFloatValue))
+		{
+			class'UTWeap_RocketLauncher'.default.Priority=OutFloatValue;
+		}
+
+		// ShockRiflePriority
+		WeaponClasses.AddItem(class'UTWeap_ShockRifle');
+		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_ShockRiflePriority, OutFloatValue))
+		{
+			class'UTWeap_ShockRifle'.default.Priority=OutFloatValue;
+		}
+
+		// SniperRiflePriority
+		WeaponClasses.AddItem(class'UTWeap_SniperRifle');
+		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_SniperRiflePriority, OutFloatValue))
+		{
+			class'UTWeap_SniperRifle'.default.Priority=OutFloatValue;
+		}
+
+		// StingerMinigunPriority
+		WeaponClasses.AddItem(class'UTWeap_Stinger');
+		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_StingerPriority, OutFloatValue))
+		{
+			class'UTWeap_Stinger'.default.Priority=OutFloatValue;
+		}
+
+		// now propagate the new priority values to all instances and child classes
+		for ( WeapClassIdx = 0; WeapClassIdx < WeaponClasses.Length; WeapClassIdx++ )
+		{
+			WeapClass = WeaponClasses[WeapClassIdx];
+			for ( WeapInstIdx = 0; WeapInstIdx < WeaponInstances.Length; WeapInstIdx++ )
+			{
+				W = WeaponInstances[WeapInstIdx];
+				if ( ClassIsChildof(W.Class, WeapClass) )
+				{
+					W.Priority = WeapClass.default.Priority;
+
+					// this might seem a little redundant, but it the easiest way to propagate default values down
+					// to content child classes (i.e. WeapClass is UTWeap_Avril, but W is an instance of UTWeap_Avril_Content)
+					W.default.Priority = W.Priority;
+				}
+			}
 		}
 
 		///////////////////////////////////////////////////////////////////////////
@@ -4957,8 +5130,8 @@ function ClearCameraEffect()
  */
 simulated function UIScene OpenUIScene(UIScene Template)
 {
-
 	local UTGameReplicationInfo GRI;
+
 	GRI = UTGameReplicationInfo(WorldInfo.GRI);
 	if ( GRI != none )
 	{
@@ -4971,7 +5144,7 @@ simulated function UIScene OpenUIScene(UIScene Template)
 /**
  * Saves the current profile complete with UI scene
  */
-function SaveProfile(optional Int PlayerIndex)
+function UTUIScene_SaveProfile SaveProfile(optional Int PlayerIndex)
 {
 	local UTGameUISCeneClient SC;
 	local UTUIScene_SaveProfile SP;
@@ -4985,6 +5158,8 @@ function SaveProfile(optional Int PlayerIndex)
 			SP.PlayerIndexToSave = PlayerIndex;
 		}
 	}
+
+	return SP;
 }
 exec function ShowCommandMenu()
 {
@@ -5023,6 +5198,9 @@ function AdjustPersistentKey(UTSeqAct_AdjustPersistentKey InAction)
 	{
 		Profile.AddPersistentKey(InAction.TargetKey);
 	}
+
+	SaveProfile();
+
 }
 
 function bool HasPersistentKey(ESinglePlayerPersistentKeys SearchKey)
@@ -5065,7 +5243,7 @@ function AddModifierCard(name Card)
 	}
 	else
 	{
-		`log("[SinglePlayer] Attempted to Add a modifier card to a Player Controller ("$Self$") without a profile!");
+//		`log("[SinglePlayer] Attempted to Add a modifier card to a Player Controller ("$Self$") without a profile!");
 	}
 }
 
@@ -5206,6 +5384,8 @@ reliable server function ServerChangeTeam(int N)
 
 event GetSeamlessTravelActorList(bool bToEntry, out array<Actor> ActorList)
 {
+	local UTProcessedCharacterCache CharacterCache;
+
 	if (!UTGameReplicationInfo(WorldInfo.GRI).bStoryMode)
 	{
 		ShowMidGameMenu('ChatTab',true);
@@ -5215,6 +5395,15 @@ event GetSeamlessTravelActorList(bool bToEntry, out array<Actor> ActorList)
 		ShowScoreboard();
 	}
 	Super.GetSeamlessTravelActorList(bToEntry, ActorList);
+
+	if (!bToEntry)
+	{
+		// keep any cached character data
+		foreach DynamicActors(class'UTProcessedCharacterCache', CharacterCache)
+		{
+			ActorList[ActorList.length] = CharacterCache;
+		}
+	}
 }
 
 /** Allows the local player or admin to kick a player */
@@ -5324,15 +5513,23 @@ simulated private function bool AllowTTSMessageFrom(PlayerReplicationInfo PRI)
 /** Overloaded to implement TTS. */
 reliable client event TeamMessage( PlayerReplicationInfo PRI, coerce string S, name Type, optional float MsgLifeTime )
 {
-	if ( ((Type == 'Say') || (Type == 'TeamSay')) && (PRI != None) && AllowTTSMessageFrom(PRI) )
+	if (CanCommunicate())
 	{
-		if (CanViewUserCreatedContent())
+		if ( ((Type == 'Say') || (Type == 'TeamSay')) && (PRI != None) && AllowTTSMessageFrom(PRI) )
 		{
-			SpeakTTS(S, PRI);
+			if (CanViewUserCreatedContent())
+			{
+				SpeakTTS(S, PRI);
+			}
 		}
-	}
 
-	super.TeamMessage(PRI, S, Type, MsgLifeTime);
+		super.TeamMessage(PRI, S, Type, MsgLifeTime);
+	}
+}
+
+function bool AllowTextMessage(string Msg)
+{
+	return (CanCommunicate() && Super.AllowTextMessage(Msg));
 }
 
 reliable server function ServerSetAlias(string NewAlias)
@@ -5438,10 +5635,10 @@ exec function AdminPlayerList()
 
 	if (PlayerReplicationInfo.bAdmin)
 	{
-		`log("Player List:");
-		ForEach DynamicActors(class'PlayerReplicationInfo', PRI)
+		ClientMessage("Player List:");
+		foreach DynamicActors(class'PlayerReplicationInfo', PRI)
 		{
-			`log(PRI.GetPlayerAlias()$"("$PRI.PlayerName$")"@"( ping"@PRI.Ping$")");
+			ClientMessage(PRI.PlayerID$"."@PRI.PlayerName @ "Ping:" @ INT((float(PRI.Ping) / 250.0 * 1000.0)) $ "ms)");
 		}
 	}
 }
@@ -5458,7 +5655,7 @@ reliable server function ServerRestartMap()
 {
 	if ( PlayerReplicationInfo.bAdmin )
 	{
-		ClientTravel( "?restart", TRAVEL_Relative );
+		WorldInfo.ServerTravel("?restart", false);
 	}
 }
 
@@ -5478,6 +5675,106 @@ reliable server function ServerChangeMap(string URL)
 	}
 }
 
+exec function AdminForceVoiceMute(string TargetPlayer)
+{
+	if ( PlayerReplicationInfo.bAdmin )
+	{
+		ServerForceVoiceMute(TargetPlayer);
+	}
+}
+
+reliable server function ServerForceVoiceMute(string TargetPlayer)
+{
+	local PlayerController PC;
+	local PlayerController TargetPlayerPC;
+
+	if ( PlayerReplicationInfo.bAdmin )
+	{
+		TargetPlayerPC = UTPlayerController(WorldInfo.Game.AccessControl.GetControllerFromString(TargetPlayer));
+		if ( TargetPlayerPC != none )
+		{
+			ClientMessage("Muting (Voice):"@TargetPlayerPC.PlayerReplicationInfo.PlayerName);
+			foreach WorldInfo.AllControllers(class'PlayerController', PC)
+			{
+				PC.ServerMutePlayer(TargetPlayerPC.PlayerReplicationInfo.UniqueId);
+			}
+		}
+	}
+}
+
+exec function AdminForceVoiceUnMute(string TargetPlayer)
+{
+	if ( PlayerReplicationInfo.bAdmin )
+	{
+		ServerForceVoiceUnMute(TargetPlayer);
+	}
+}
+
+reliable server function ServerForceVoiceUnMute(string TargetPlayer)
+{
+	local PlayerController PC;
+	local PlayerController TargetPlayerPC;
+
+	if ( PlayerReplicationInfo.bAdmin )
+	{
+		TargetPlayerPC = UTPlayerController(WorldInfo.Game.AccessControl.GetControllerFromString(TargetPlayer));
+		ClientMessage("UnMuting (Voice):"@TargetPlayerPC.PlayerReplicationInfo.PlayerName);
+		if ( TargetPlayerPC != none )
+		{
+			foreach WorldInfo.AllControllers(class'PlayerController', PC)
+			{
+				PC.ServerUnMutePlayer(TargetPlayerPC.PlayerReplicationInfo.UniqueId);
+			}
+		}
+	}
+}
+
+
+exec function AdminForceTextMute(string TargetPlayer)
+{
+	if ( PlayerReplicationInfo.bAdmin )
+	{
+		ServerForceTextMute(TargetPlayer);
+	}
+}
+
+reliable server function ServerForceTextMute(string TargetPlayer)
+{
+	local UTPlayerController TargetPlayerPC;
+
+	if ( PlayerReplicationInfo.bAdmin )
+	{
+		TargetPlayerPC = UTPlayerController(WorldInfo.Game.AccessControl.GetControllerFromString(TargetPlayer));
+		if ( TargetPlayerPC != none )
+		{
+			ClientMessage("Muting (Text):"@TargetPlayerPC.PlayerReplicationInfo.PlayerName);
+			TargetPlayerPC.bServerMutedText = true;
+		}
+	}
+}
+
+exec function AdminForceTextUnMute(string TargetPlayer)
+{
+	if ( PlayerReplicationInfo.bAdmin )
+	{
+		ServerForceTextMute(TargetPlayer);
+	}
+}
+
+reliable server function ServerForceTextUnMute(string TargetPlayer)
+{
+	local UTPlayerController TargetPlayerPC;
+
+	if ( PlayerReplicationInfo.bAdmin )
+	{
+		TargetPlayerPC = UTPlayerController(WorldInfo.Game.AccessControl.GetControllerFromString(TargetPlayer));
+		if ( TargetPlayerPC != none )
+		{
+			ClientMessage("UnMuting (Text):"@TargetPlayerPC.PlayerReplicationInfo.PlayerName);
+			TargetPlayerPC.bServerMutedText = false;
+		}
+	}
+}
 
 defaultproperties
 {
@@ -5512,4 +5809,14 @@ defaultproperties
 	IdentifiedTeam=255
 	OldMessageTime=-100.0
 	PopupWaitTime=5.0
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform7
+		Samples(0)=(LeftAmplitude=60,RightAmplitude=50,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.200)
+	End Object
+	CameraShakeShortWaveForm=ForceFeedbackWaveform7
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform8
+		Samples(0)=(LeftAmplitude=60,RightAmplitude=50,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.400)
+	End Object
+	CameraShakeLongWaveForm=ForceFeedbackWaveform8
 }

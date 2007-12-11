@@ -4,15 +4,12 @@
 class ParticleModuleMeshMaterial extends ParticleModuleMaterialBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
 //=============================================================================
 //	Properties
 //=============================================================================
-/**
- *	The array of materials to apply to the mesh particles.
- */
+/** The array of materials to apply to the mesh particles. */
 var(MeshMaterials)	array<MaterialInterface>		MeshMaterials;
 
 //=============================================================================

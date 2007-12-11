@@ -27,7 +27,7 @@ var bool bCanTeleportVehicles;
  */
 native final function bool TransformActor(Actor A);
 /** transform the given movement vector to be relative to SisterPortal */
-native final function vector TransformVector(vector V);
+native final function vector TransformVectorDir(vector V);
 /** transform the given location to be relative to SisterPortal */
 native final function vector TransformHitLocation(vector HitLocation);
 /** creates and initializes a TextureRenderTarget2D with size equal to our TextureResolutionX and TextureResolutionY properties */

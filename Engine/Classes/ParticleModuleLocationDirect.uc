@@ -9,13 +9,24 @@
 class ParticleModuleLocationDirect extends ParticleModuleLocationBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
-/** */
+/** 
+ *	The location of the particle at a give time. Retrieved using the particle RelativeTime. 
+ *	IMPORTANT: the particle location is set to this value, thereby over-writing any previous module impacts.
+ */
 var(Location) rawdistributionvector	Location;
+/**
+ *	An offset to apply to the position retrieved from the Location calculation. 
+ *	The offset is retrieved using the EmitterTime. 
+ *	The offset will remain constant over the life of the particle.
+ */
 var(Location) rawdistributionvector	LocationOffset;
+/**
+ *	Scales the velocity of the object at a given point in the time-line.
+ */
 var(Location) rawdistributionvector	ScaleFactor;
+/** Currently unused. */
 var(Location) rawdistributionvector	Direction;
 
 

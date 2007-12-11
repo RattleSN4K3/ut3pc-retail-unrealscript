@@ -67,6 +67,21 @@ function OnServerOptionFocused(UIScreenObject InObject, UIDataProvider OptionPro
 }
 
 /**
+ * Removes any characters which are not valid to be passed on the URL.
+ */
+static function string StripInvalidPasswordCharacters( string PasswordString, optional string InvalidChars=" \"/:?,=" )
+{
+	local int i;
+
+	for ( i = 0; i < Len(InvalidChars); i++ )
+	{
+		PasswordString = Repl(PasswordString, Mid(InvalidChars, i, 1), "");
+	}
+
+	return PasswordString;
+}
+
+/**
  * Enables / disables the "server type" control based on whether we are signed in online.
  */
 function ValidateServerType()
@@ -74,16 +89,16 @@ function ValidateServerType()
 	local int PlayerIndex, ValueIndex, PlayerControllerID;
 	local UIObject ServerTypeOption;
 	local name MatchTypeName;
-	local string OnlineProfileRequiredMessage;
 
-	OnlineProfileRequiredMessage = "<Strings:UTGameUI.Errors.OnlineRequiredForInternet_Message>";
 	MatchTypeName = IsConsole(CONSOLE_XBox360) ? 'ServerType360' : 'ServerType';
 
 	// find the "MatchType" control (contains the "LAN" and "Internet" options);  if we aren't signed in online,
 	// don't have a link connection, or not allowed to play online, don't allow them to select one.
 	PlayerIndex = GetPlayerIndex();
 	PlayerControllerID = GetPlayerControllerId( PlayerIndex );
-	if ( !CheckLoginAndError( PlayerControllerID,true,,OnlineProfileRequiredMessage) || !CheckOnlinePrivilegeAndError( PlayerControllerID ) )
+	if (!IsLoggedIn(PlayerControllerId, true)
+	||	!CheckOnlinePrivilegeAndError( PlayerControllerID )
+	||	!CheckNatTypeAndDisplayError(PlayerControllerID) )
 	{
 		ServerTypeOption = FindChild('ServerType', true);
 		if ( ServerTypeOption != None )
@@ -97,23 +112,17 @@ function ValidateServerType()
 			}
 
 			// now disable the widget so it can't be changed.
-			ServerTypeOption.DisableWidget(PlayerIndex);
+			UTUIOptionList(ServerTypeOption.GetOwner()).EnableItem(PlayerIndex, ServerTypeOption, false);
 		}
 	}
 }
 
-/**
- * Generates a bitmask of active mutators which were created by epic.  The bits are derived by left-shifting by
- * the mutator's index into the UTUIDataStore_MenuItems' list of UTUIDataProvider_Mutators.
- *
- * @return	a bitmask which has bits on for any enabled official mutators.
- */
-function int GenerateMutatorBitmask()
+function string GenerateMutatorURLString()
 {
 	local DataStoreClient DSClient;
 	local UTUIDataStore_MenuItems MenuDataStore;
-	local int Idx, MutatorIdx, EnabledMutatorBitmask;
-	local string OfficialMutatorString;
+	local int Idx, MutatorIdx;
+	local string MutatorClassName, GameModeString, MutatorURLString;
 
 	DSClient = class'UIInteraction'.static.GetDataStoreClient();
 	if ( DSClient != None )
@@ -121,25 +130,41 @@ function int GenerateMutatorBitmask()
 		MenuDataStore = UTUIDataStore_MenuItems(DSClient.FindDataStore('UTMenuItems'));
 		if ( MenuDataStore != None )
 		{
+			// Some mutators are filtered out based on the currently selected gametype, so in order to guarantee
+			// that our bitmasks always match up (i.e. between a client and server), clear the setting that mutators
+			// use for filtering so that we always get the complete list.  We'll restore it once we're done.
+			class'UIRoot'.static.GetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
+			class'UIRoot'.static.SetDataStoreStringValue("<Registry:SelectedGameMode>", "");
+
 			// EnabledMutators should have already been set by UTUITabPage_Mutators
 			for ( Idx=0; Idx < MenuDataStore.EnabledMutators.Length; Idx++ )
 			{
 				MutatorIdx = MenuDataStore.EnabledMutators[Idx];
 
-				// get the value of the bOfficialMutator property for the UTUIDataProvider_Mutator instance at Idx in the
+				// get the class name for the UTUIDataProvider_Mutator instance at Idx in the
 				// UTUIDataStore_MenuItems's list of mutator data providers.
-				if ( MenuDataStore.GetValueFromProviderSet('Mutators', 'bOfficialMutator', MutatorIdx, OfficialMutatorString) )
+				if ( MenuDataStore.GetValueFromProviderSet('Mutators', 'ClassName', MutatorIdx, MutatorClassName)
+				&&	MutatorClassName != "" )
 				{
-					if ( bool(OfficialMutatorString) )
+					if ( MutatorURLString != "" )
 					{
-						EnabledMutatorBitmask = EnabledMutatorBitmask | (1 << MutatorIdx);
+						MutatorURLString $= ",";
 					}
+
+					MutatorURLString $= MutatorClassName;
 				}
 			}
+
+			class'UIRoot'.static.SetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
 		}
 	}
 
-	return EnabledMutatorBitmask;
+	if ( MutatorURLString != "" )
+	{
+		MutatorURLString = "?Mutator=" $ MutatorURLString;
+	}
+
+	return MutatorURLString;
 }
 
 /** Called when one of our options changes. */
@@ -167,8 +192,11 @@ function OnServerOptionChanged(UIScreenObject InObject, name OptionName, int Pla
 		}
 
 		ItemIdx = ServerSettingsTab.OptionList.GetObjectInfoIndexFromName('PrivateSlots');
-		UTUISlider(ServerSettingsTab.OptionList.GeneratedObjects[ItemIdx].OptionObj).SliderValue.MaxValue=GameSettings.MaxPlayers;
-		UTUISlider(ServerSettingsTab.OptionList.GeneratedObjects[ItemIdx].OptionObj).RefreshSubscriberValue();
+		if ( ItemIdx != INDEX_NONE )
+		{
+			UTUISlider(ServerSettingsTab.OptionList.GeneratedObjects[ItemIdx].OptionObj).SliderValue.MaxValue=GameSettings.MaxPlayers;
+			UTUISlider(ServerSettingsTab.OptionList.GeneratedObjects[ItemIdx].OptionObj).RefreshSubscriberValue();
+		}
 
 		ItemIdx = ServerSettingsTab.OptionList.GetObjectInfoIndexFromName('MinNumPlayers_PC');
 		if(ItemIdx != INDEX_NONE)
@@ -183,6 +211,10 @@ function OnServerOptionChanged(UIScreenObject InObject, name OptionName, int Pla
 			UTUISlider(ServerSettingsTab.OptionList.GeneratedObjects[ItemIdx].OptionObj).SliderValue.MaxValue=GameSettings.MaxPlayers;
 			UTUISlider(ServerSettingsTab.OptionList.GeneratedObjects[ItemIdx].OptionObj).RefreshSubscriberValue();
 		}
+	}
+	else if ( OptionName == 'DedicatedServer' || OptionName == 'DedicatedServerPS3' )
+	{
+		UIDataStorePublisher(InObject).SaveSubscriberValue(OutDataStores);
 	}
 
 	SetupButtonBar();
@@ -202,7 +234,7 @@ function SetupGameSettings()
 {
 	local int ValueIndex;
 	local UTGameSettingsCommon GameSettings;
-	local string ServerDescription;
+	local string ServerDescription, MutatorURLString;
 
 	// Setup server options based on server type.
 	GameSettings = UTGameSettingsCommon(SettingsDataStore.GetCurrentGameSettings());
@@ -244,8 +276,9 @@ function SetupGameSettings()
 	GameSettings.NumOpenPublicConnections = GameSettings.NumPublicConnections;
 	GameSettings.NumOpenPrivateConnections = GameSettings.NumPrivateConnections;
 
-	// generate a bitmask of the epic mutators that were selected and apply it to the settings object.
-	GameSettings.SetOfficialMutatorBitmask(GenerateMutatorBitmask());
+	// apply the selected mutators to the game settings object
+	MutatorURLString = GenerateMutatorURLString();
+	GameSettings.SetMutators(MutatorURLString);
 
 	// Set the map name we are playing on.
 	SetDataStoreStringValue("<UTGameSettings:CustomMapName>", MapTab.GetFirstMap());
@@ -338,13 +371,27 @@ function OnGameCreated(bool bWasSuccessful)
 				// Setup server options based on server type.
 				GameSettings = SettingsDataStore.GetCurrentGameSettings();
 
+				GameSettings.bIsDedicated = StringListDataStore.GetCurrentValueIndex('DedicatedServer') == 1;
+
 				// append options from the OnlineGameSettings class
 				GameSettings.BuildURL(TravelURL);
+				if ( IsConsole(CONSOLE_PS3) && GameSettings.bIsDedicated )
+				{
+					TravelURL $= "?Dedicated";
+				}
+
+				if(IsConsole(CONSOLE_Ps3))
+				{
+					if(StringListDataStore.GetCurrentValueIndex('DedicatedServer')==1)
+					{
+						TravelURL $= "?Dedicated";
+					}
+				}
 
 				// Append server password if we have one
 				if(GetDataStoreStringValue("<Registry:ServerPassword>", OutStringValue) && Len(OutStringValue)>0)
 				{
-					TravelURL $= "?GamePassword=" $ OutStringValue;
+					TravelURL $= "?GamePassword=" $ StripInvalidPasswordCharacters(OutStringValue);
 					GameSettings.SetStringSettingValue(CONTEXT_LOCKEDSERVER, CONTEXT_LOCKEDSERVER_YES, false);
 				}
 				else
@@ -400,6 +447,7 @@ function OnAcceptServerSettings(UIScreenObject InObject, int PlayerIndex)
 	ShowNextTab();
 }
 
+
 /** Attempts to start a dedicated server. */
 function OnStartDedicated()
 {
@@ -450,19 +498,19 @@ function FinishStartDedicated()
 	// Setup the game settings object with basic settings
 	SetupGameSettings();
 
+	// @todo: Is this the correct URL to use?
+	GameSettings.BuildURL(TravelURL);
+
 	// Append server password if we have one
 	if(GetDataStoreStringValue("<Registry:ServerPassword>", Password) && Len(Password)>0)
 	{
-		TravelURL $= "?GamePassword=" $ Password;
+		TravelURL $= "?GamePassword=" $ StripInvalidPasswordCharacters(Password);
 		GameSettings.SetStringSettingValue(CONTEXT_LOCKEDSERVER, CONTEXT_LOCKEDSERVER_YES, false);
 	}
 	else
 	{
 		GameSettings.SetStringSettingValue(CONTEXT_LOCKEDSERVER, CONTEXT_LOCKEDSERVER_NO, false);
 	}
-
-	// @todo: Is this the correct URL to use?
-	GameSettings.BuildURL(TravelURL);
 
 	// Num play needs to be the number of bots + 1 (the player).
 	if(GameSettings.GetIntProperty(PROPERTY_NUMBOTS, OutValue))
@@ -492,7 +540,7 @@ function OnStartGame()
 	// Make sure the user wants to start the game.
 	local OnlineGameSettings GameSettings;
 	local UTUIScene_MessageBox MessageBoxReference;
-	local array<string> MessageBoxOptions;
+//	local array<string> MessageBoxOptions;
 
 	if(MapTab.CanBeginMatch())
 	{
@@ -500,14 +548,15 @@ function OnStartGame()
 		SaveSceneDataValues(FALSE);
 
 		GameSettings = SettingsDataStore.GetCurrentGameSettings();
-		if ( GameSettings.bIsDedicated )
+		if ( GameSettings.bIsDedicated && !IsConsole() )
 		{
 			OnStartDedicated();
 		}
 		else if(ConditionallyCheckNumControllers())
 		{
 			MessageBoxReference = GetMessageBoxScene();
-
+			OnStartGame_Confirm(MessageBoxReference, 0, 0);
+			/*
 			if(MessageBoxReference != none)
 			{
 				MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.StartGame>");
@@ -516,6 +565,7 @@ function OnStartGame()
 				MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
 				MessageBoxReference.Display("<Strings:UTGameUI.MessageBox.StartGame_Message>", "<Strings:UTGameUI.MessageBox.StartGame_Title>", OnStartGame_Confirm);
 			}
+			*/
 		}
 	}
 }

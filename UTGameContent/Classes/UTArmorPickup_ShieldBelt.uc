@@ -44,6 +44,7 @@ defaultproperties
 	bIsSuperItem=true
 	RespawnTime=60.000000
 	MaxDesireability=1.500000
+	PickupStatName=PICKUPS_SHIELDBELT
 	PickupSound=SoundCue'A_Pickups.Shieldbelt.Cue.A_Pickups_Shieldbelt_Activate_Cue'
 
 	Begin Object Name=ArmorPickUpComp

@@ -6,8 +6,6 @@
 class UTUIScene_MessageBox extends UTUIScene
 	native(UI);
 
-`include(Core/Globals.uci)
-
 const MESSAGEBOX_MAX_POSSIBLE_OPTIONS = 4;
 
 const CANCEL_BUTTON_MARKUP_STRING = "<Strings:UTGameUI.Generic.Cancel>";
@@ -150,6 +148,14 @@ function SetMessage(string NewMessage)
 }
 
 /**
+ * Wrapper for setting the OnSelection delegate.
+ */
+function SetSelectionDelegate( delegate<OnSelection> InSelectionDelegate )
+{
+	OnSelection = InSelectionDelegate;
+}
+
+/**
  * Closes the message box, used for modal message boxes.
  *
  * @param	bSimulateCancel		specify TRUE to generate a cancel button press event; otherwise, whichever button is in
@@ -195,15 +201,37 @@ function DisplayAcceptBox(string Message, optional string Title="", optional del
  */
 function DisplayCancelBox(string Message, optional string Title="", optional delegate<OnSelection> InSelectionDelegate)
 {
-	PotentialOptions.length = 1;
-	PotentialOptions[0]=CANCEL_BUTTON_MARKUP_STRING;
+	if ( !bFullyVisible )
+	{
+		PotentialOptions.length = 1;
+		PotentialOptions[0]=CANCEL_BUTTON_MARKUP_STRING;
 
-	PotentialOptionKeyMappings.length = 1;
-	PotentialOptionKeyMappings[0].Keys.length=2;
-	PotentialOptionKeyMappings[0].Keys[0]='XboxTypeS_B';
-	PotentialOptionKeyMappings[0].Keys[1]='Escape';
+		PotentialOptionKeyMappings.length = 1;
+		PotentialOptionKeyMappings[0].Keys.length=2;
+		PotentialOptionKeyMappings[0].Keys[0]='XboxTypeS_B';
+		PotentialOptionKeyMappings[0].Keys[1]='Escape';
 
-	Display(Message,Title,InSelectionDelegate);
+		Display(Message,Title,InSelectionDelegate);
+	}
+	else
+	{
+		if ( PotentialOptions.Length != 1
+		||	PotentialOptions[0] != CANCEL_BUTTON_MARKUP_STRING )
+		{
+			PotentialOptions.length = 1;
+			PotentialOptions[0]=CANCEL_BUTTON_MARKUP_STRING;
+
+			PotentialOptionKeyMappings.length = 1;
+			PotentialOptionKeyMappings[0].Keys.length=2;
+			PotentialOptionKeyMappings[0].Keys[0]='XboxTypeS_B';
+			PotentialOptionKeyMappings[0].Keys[1]='Escape';
+			SetupButtonBar();
+		}
+
+		SetTitle(Title);
+		SetMessage(Message);
+		SetSelectionDelegate(InSelectionDelegate);
+	}
 }
 
 /**
@@ -246,8 +274,19 @@ function DisplayModalBox(string Message, optional string Title="", optional floa
 	}
 	else
 	{
+		DefaultOptionIdx = INDEX_NONE;
+		SetSelectionDelegate(None);
+
 		SetTitle(Title);
 		SetMessage(Message);
+
+		if ( PotentialOptions.Length > 0 )
+		{
+			PotentialOptions.Length = 0;
+			PotentialOptionKeyMappings.Length = 0;
+			ButtonBar.SetVisibility(false);
+			SetupButtonBar();
+		}
 	}
 }
 
@@ -267,16 +306,10 @@ function Display(string Message, optional string Title="", optional delegate<OnS
 
 	SetTitle(Title);
 	SetMessage(Message);
-	OnSelection=InSelectionDelegate;
+	SetSelectionDelegate(InSelectionDelegate);
 	DefaultOptionIdx = InDefaultOptionIdx;
 
-	// Setup buttons.  We only show enough buttons to cover each of the options the user specified.
-	ButtonBar.Clear();
-	for(OptionIdx=0;  OptionIdx<MESSAGEBOX_MAX_POSSIBLE_OPTIONS && OptionIdx<PotentialOptions.length; OptionIdx++)
-	{
-		// Reverse the index when displaying buttons so cancel is always shown to the far left.
-		ButtonBar.AppendButton(PotentialOptions[PotentialOptions.length-OptionIdx-1], OnOptionButton_Clicked);
-	}
+	SetupButtonBar();
 
 	// Set focus to the default option
 	if(PotentialOptions.length > 0)
@@ -297,6 +330,21 @@ function Display(string Message, optional string Title="", optional delegate<OnS
 	BeginShow();
 }
 
+/**
+ * Sets up the buttons that should be visible in the bar across the bottom of the scene.
+ */
+function SetupButtonBar()
+{
+	local int OptionIdx;
+
+	// Setup buttons.  We only show enough buttons to cover each of the options the user specified.
+	ButtonBar.Clear();
+	for(OptionIdx=0;  OptionIdx<MESSAGEBOX_MAX_POSSIBLE_OPTIONS && OptionIdx<PotentialOptions.length; OptionIdx++)
+	{
+		// Reverse the index when displaying buttons so cancel is always shown to the far left.
+		ButtonBar.AppendButton(PotentialOptions[PotentialOptions.length-OptionIdx-1], OnOptionButton_Clicked);
+	}
+}
 
 /**
  * Provides a hook for unrealscript to respond to input using actual input key names (i.e. Left, Tab, etc.)
@@ -379,6 +427,9 @@ event OnHideComplete()
 	// Fire the OnClosed delegate
 	OnClosed();
 
+	// and clear it
+	OnClosed = None;
+
 	// Fire the OnSelection delegate
 	OnSelection(Self, PreviouslySelectedOption, SelectingPlayer);
 }
@@ -458,6 +509,6 @@ defaultproperties
 	End Object
 	EventProvider=WidgetEventComponent
 	SceneRenderMode=SPLITRENDER_Fullscreen
-	
+
 	bRepositionMessageToCenter=true
 }

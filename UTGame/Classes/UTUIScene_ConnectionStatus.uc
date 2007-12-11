@@ -6,9 +6,18 @@
  */
 class UTUIScene_ConnectionStatus extends UTUIScene_MessageBox;
 
-function ConnectionStatus_OptionSelected(int SelectedOption, int PlayerIndex)
+/**
+ * Called when a user has chosen one of the possible options available to them.
+ * Begins hiding the dialog and calls the On
+ *
+ * @param OptionIdx		Index of the selection option.
+ * @param PlayerIndex	Index of the player that selected the option.
+ */
+function OptionSelected(int OptionIdx, int PlayerIndex)
 {
 	local OnlineSubsystem OnlineSub;
+
+	Super.OptionSelected(OptionIdx, PlayerIndex);
 
 	// Store a reference to the game interface
 	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();

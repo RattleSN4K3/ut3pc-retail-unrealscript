@@ -524,6 +524,7 @@ event SetupSpecialPathAbilities()
 event bool NotifyHitWall(vector HitNormal, actor Wall)
 {
 	local vector JumpDir;
+	local UTCarriedObject Flag;
 
 	if ( (UTPawn(Pawn) != None) && (Pawn.Physics == PHYS_Swimming) )
 	{
@@ -532,10 +533,10 @@ event bool NotifyHitWall(vector HitNormal, actor Wall)
 		{
 			JumpDir = Movetarget.Location - Pawn.Location;
 			JumpDir.Z = 0;
-	        ImpactVelocity = vect(0,0,0);
+			ImpactVelocity = vect(0,0,0);
 			Pawn.JumpOutOfWater(Normal(JumpDir));
-	        bNotifyApex = true;
-	        bPendingDoubleJump = true;
+			bNotifyApex = true;
+			bPendingDoubleJump = true;
 		}
 	}
 
@@ -548,6 +549,14 @@ event bool NotifyHitWall(vector HitNormal, actor Wall)
 		if (UTCarriedObject(MoveTarget) != None && MoveTarget.Touching.Find(LastBlockingVehicle) != INDEX_NONE)
 		{
 			MoveTarget.Touch(Pawn, None, MoveTarget.Location, HitNormal);
+		}
+		else if (UTGameObjective(MoveTarget) != None)
+		{
+			Flag = UTGameObjective(MoveTarget).GetFlag();
+			if (Flag != None && Flag.bHome && Flag.Touching.Find(LastBlockingVehicle) != INDEX_NONE)
+			{
+				Flag.Touch(Pawn, None, Flag.Location, HitNormal);
+			}
 		}
 
 		if (Wall == RouteGoal || (Vehicle(RouteGoal) != None && Wall == Vehicle(RouteGoal).GetVehicleBase()))
@@ -1804,7 +1813,7 @@ function Possess(Pawn aPawn, bool bVehicleTransition)
 	if (aPawn.bDeleteMe)
 	{
 		`Warn(self @ GetHumanReadableName() @ "attempted to possess destroyed Pawn" @ aPawn);
-		// ScriptTrace();
+		ScriptTrace();
 		GotoState('Dead');
 	}
 	else
@@ -2503,7 +2512,7 @@ function ChooseAttackMode()
 		`log("HERE 1 Squad "$Squad$" Enemy "$Enemy$" pawn "$Pawn);
 	EnemyStrength = RelativeStrength(Enemy);
 	if ( EnemyStrength > RetreatThreshold && (PlayerReplicationInfo.Team != None) && (FRand() < 0.25)
-		&& (WorldInfo.TimeSeconds - LastInjuredVoiceMessageTime > 25.0) )
+		&& (WorldInfo.TimeSeconds - LastInjuredVoiceMessageTime > 45.0) )
 	{
 		LastInjuredVoiceMessageTime = WorldInfo.TimeSeconds;
 		SendMessage(None, 'INJURED', 25);
@@ -2522,7 +2531,7 @@ function ChooseAttackMode()
 		{
 			GoalString = "Retreat";
 			if ( (PlayerReplicationInfo.Team != None) && (FRand() < 0.05)
-				&& (WorldInfo.TimeSeconds - LastInjuredVoiceMessageTime > 25.0) )
+				&& (WorldInfo.TimeSeconds - LastInjuredVoiceMessageTime > 45.0) )
 			{
 				LastInjuredVoiceMessageTime = WorldInfo.TimeSeconds;
 				SendMessage(None, 'INJURED', 25);
@@ -3095,9 +3104,9 @@ event float AdjustAimError(float TargetDist, bool bInstantProj )
 			aimerror *= 0.75;
 
 		if ( UTWeapon(Pawn.Weapon) != None && UTWeapon(Pawn.Weapon).bSniping )
-			aimerror *= FClamp((1.5 - 0.08 * FMin(skill,7) - 0.8 * FRand())/(WorldInfo.TimeSeconds - StopStartTime + 0.4),0.3,1.0);
+			aimerror *= FClamp((2.6 - 0.15 * FMin(skill,7) - 0.8 * FRand())/(WorldInfo.TimeSeconds - StopStartTime),0.5,1.0);
 		else
-			aimerror *= FClamp((2 - 0.08 * FMin(skill,7) - FRand())/(WorldInfo.TimeSeconds - StopStartTime + 0.4),0.7,1.0);
+			aimerror *= FClamp((2.6 - 0.15 * FMin(skill,7) - FRand())/(WorldInfo.TimeSeconds - StopStartTime),0.7,1.0);
 	}
 
 	// adjust aim error based on skill
@@ -3105,27 +3114,36 @@ event float AdjustAimError(float TargetDist, bool bInstantProj )
 		aimerror *= (3.3 - 0.4 * (FClamp(skill+Accuracy,0,8) + 0.3 * FRand()));
 
 	// Bots don't aim as well if recently hit, or if they or their target is flying through the air
-	if ( ( skill < 5 + 2*FRand()) && (WorldInfo.TimeSeconds - Pawn.LastPainTime < 0.2) )
+	if ( (skill < 5 + 2*FRand()) && (WorldInfo.TimeSeconds - Pawn.LastPainTime < 0.2) )
 		aimerror *= 1.3;
 	if (Pawn.Physics == PHYS_Falling) // don't consider target physics here because native tracking covers it
 		aimerror *= (1.6 - 0.04*(Skill+Accuracy));
 
 	// Bots don't aim as well at recently acquired targets (because they haven't had a chance to lock in to the target)
-	FullAcquisitionTime = 0.5 + 0.75 * (7.0 - FMin(7.0, Skill + ReactionTime));
+	FullAcquisitionTime = 0.5 + 1.0 * (7.0 - FMin(7.0, Skill + ReactionTime));
 	if ( AcquireTime > WorldInfo.TimeSeconds - FullAcquisitionTime )
 	{
-		aimerror *= 1.5;
-		if ( bInstantProj )
+		if ( Skill < 6.0 )
+		{
+			aimerror *= 2.0;
+			if ( bInstantProj )
+				aimerror *= 1.2;
+		}
+		else
+		{
 			aimerror *= 1.5;
+			if ( bInstantProj )
+				aimerror *= 1.5;
+		}
 	}
 
 	aimerror = 2.0 * aimerror * FRand() - aimerror;
-	if (Abs(aimerror) > 700.0)
+	if (Abs(aimerror) > 900.0)
 	{
 		if ( bInstantProj )
-			DesiredDist = 100;
+			DesiredDist = 180;
 		else
-			DesiredDist = 320;
+			DesiredDist = 500;
 		GetBoundingCylinder(TargetRadius,TargetHeight);
 		DesiredDist += TargetRadius;
 		aimdist = tan(AngleConvert * aimerror) * targetdist;
@@ -4451,7 +4469,7 @@ function ForceGiveWeapon()
 		if ( (TossVel Dot LeaderVel) > 0.7 )
 				TossVel = LeaderVel;
 		TossVel = TossVel * ((Pawn.Velocity Dot TossVel) + 500) + Vect(0,0,200);
-		Pawn.TossWeapon(Pawn.Weapon, TossVel);
+		Pawn.TossInventory(Pawn.Weapon, TossVel);
 		SwitchToBestWeapon();
     }
 }
@@ -5855,6 +5873,7 @@ ignores EnemyNotVisible;
 	function BeginState(Name PreviousStateName)
 	{
 		StopStartTime = WorldInfo.TimeSeconds;
+		StopMovement();
 		Pawn.Acceleration = vect(0,0,0);
 		Pawn.bCanJump = false;
 		//SetAlertness(0.5);
@@ -5988,7 +6007,7 @@ ignores SeePlayer, HearNoise, Bump;
 
 	function NotifyKilled(Controller Killer, Controller Killed, Pawn KilledPawn)
 	{
-		if (Focus == KilledPawn)
+		if (Focus == KilledPawn && Killed != self)
 		{
 			WhatToDoNext();
 		}
@@ -6031,7 +6050,7 @@ ignores SeePlayer, HearNoise, Bump;
 		local NavigationPoint Nav;
 		local UTWeapon UTWeap;
 
-		if (!Pawn.bCanStrafe || Pawn.Weapon == None || Skill + StrafingAbility < 1.0 + 3.0 * FRand())
+		if (!Pawn.bCanStrafe || Pawn.Weapon == None || Skill + StrafingAbility < 1.5 + 3.5 * FRand())
 		{
 			// can't strafe, no weapon to check distance with or not skilled enough
 			return false;

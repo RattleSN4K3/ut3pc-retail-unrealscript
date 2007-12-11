@@ -55,7 +55,7 @@ defaultproperties
 	Damage=26
 	DamageRadius=0
 	MomentumTransfer=0
-	CheckRadius=30.0
+	CheckRadius=28.0
 
 	MyDamageType=class'UTDmgType_LinkPlasma'
 	LifeSpan=3.0

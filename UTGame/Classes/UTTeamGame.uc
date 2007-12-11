@@ -884,11 +884,11 @@ function ScoreKill(Controller Killer, Controller Other)
 			Killer.PlayerReplicationInfo.Team.Score -= 1;
 			Killer.PlayerReplicationInfo.Team.bForceNetUpdate = TRUE;
 		}
-		if ( UTGameReplicationInfo(GameReplicationInfo).bStoryMode && (killer.IsA('PlayerController') || Other.IsA('PlayerController')) )
+		if ( UTGameReplicationInfo(GameReplicationInfo).bStoryMode && ((PlayerController(Killer) != None) || (PlayerController(Other) != None)) )
 		{
-			if ( killer.IsA('AIController') )
+			if ( AIController(Killer) != None )
 				AdjustSkill(AIController(killer), PlayerController(Other), false);
-			if ( Other.IsA('AIController') )
+			if ( AIController(Other) != None )
 				AdjustSkill(AIController(Other), PlayerController(Killer), true);
 		}
 	}
@@ -943,7 +943,7 @@ function AdjustSkill(AIController B, PlayerController P, bool bWinner)
     if ( bWinner )
     {
 		PlayerKills += 1;
-		if ( (Teams[1-P.PlayerReplicationInfo.Team.TeamIndex].Score > Teams[P.PlayerReplicationInfo.Team.TeamIndex].Score + 1)
+		if ( (Teams[1-P.PlayerReplicationInfo.Team.TeamIndex].Score > Teams[P.PlayerReplicationInfo.Team.TeamIndex].Score)
 			&& (Teams[1-P.PlayerReplicationInfo.Team.TeamIndex].Size > 1) )
 		{
 			// don't adjust up if AI team already winning
@@ -951,8 +951,8 @@ function AdjustSkill(AIController B, PlayerController P, bool bWinner)
 		}
  		AdjustedDifficulty = FMin(7.0,AdjustedDifficulty + AdjustmentFactor);
    }
-    else
-    {
+   else
+   {
 		PlayerDeaths += 1;
 		if ( Teams[1-P.PlayerReplicationInfo.Team.TeamIndex].Score <= Teams[P.PlayerReplicationInfo.Team.TeamIndex].Score )
 		{
@@ -1115,9 +1115,9 @@ function OverridePRI(PlayerController PC, PlayerReplicationInfo OldPRI)
 	if (DesiredTeam != PC.PlayerReplicationInfo.Team && DesiredTeam != None)
 	{
 		ActualTeamIndex = PickTeam(DesiredTeam.TeamIndex, PC);
-		if (ActualTeamIndex == DesiredTeam.TeamIndex)
+		if ( PC.PlayerReplicationInfo.Team != Teams[ActualTeamIndex] )
 		{
-			SetTeam(PC, DesiredTeam, true);
+			SetTeam(PC, Teams[ActualTeamIndex], true);
 		}
 	}
 }
@@ -1153,10 +1153,48 @@ function ShowPathTo(PlayerController P, int TeamNum)
 
 event GetSeamlessTravelActorList(bool bToEntry, out array<Actor> ActorList)
 {
+	local int i;
+
 	Super.GetSeamlessTravelActorList(bToEntry, ActorList);
 
-	ActorList[ActorList.length] = WorldInfo.GRI.Teams[0];
-	ActorList[ActorList.length] = WorldInfo.GRI.Teams[1];
+	// keep TeamInfos around so we can keep players' team
+	for (i = 0; i < WorldInfo.GRI.Teams.length; i++)
+	{
+		if (WorldInfo.GRI.Teams[i] != None && (bToEntry || WorldInfo.GRI.Teams[i].Size > 0))
+		{
+			ActorList[ActorList.length] = WorldInfo.GRI.Teams[i];
+		}
+	}
+}
+
+function Logout(Controller Exiting)
+{
+	local TeamInfo OldTeam;
+	local int i;
+	local bool bFound;
+
+	if (!WorldInfo.IsInSeamlessTravel() && Exiting.PlayerReplicationInfo.bFromPreviousLevel)
+	{
+		OldTeam = Exiting.PlayerReplicationInfo.Team;
+	}
+	Super.Logout(Exiting);
+	// clean up team from old level if necessary
+	//@warning: assumes RemoveFromTeam() call is *after* Logout() in Controller::Destroyed()
+	if (OldTeam != None && OldTeam.Size <= 1)
+	{
+		for (i = 0; i < ArrayCount(Teams); i++)
+		{
+			if (Teams[i] == OldTeam)
+			{
+				bFound = true;
+				break;
+			}
+		}
+		if (!bFound)
+		{
+			OldTeam.Destroy();
+		}
+	}
 }
 
 event HandleSeamlessTravelPlayer(out Controller C)
@@ -1333,6 +1371,7 @@ defaultproperties
 
 	// Class used to write stats to the leaderboard
 	OnlineStatsWriteClass=class'UTGame.UTLeaderboardWriteTDM'
+	OnlineGameSettingsClass=class'UTGameSettingsTDM'
 	MidgameScorePanelTag=TDMPanel
 
 	// We don't want players on opposing teams to be able to hear each other

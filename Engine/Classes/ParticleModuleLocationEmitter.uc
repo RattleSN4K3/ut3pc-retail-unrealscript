@@ -9,7 +9,6 @@
 class ParticleModuleLocationEmitter extends ParticleModuleLocationBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
 //=============================================================================
@@ -17,20 +16,29 @@ class ParticleModuleLocationEmitter extends ParticleModuleLocationBase
 //=============================================================================
 // LocationEmitter
 
-// The source emitter for spawn locations
+/** The name of the emitter to use that the source location for particle. */
 var(Location)						export		noclear	name					EmitterName;
 
-// The method to use when selecting a spawn target particle from the emitter
 enum ELocationEmitterSelectionMethod
 {
 	ELESM_Random,
 	ELESM_Sequential
 };
+/** 
+ *	The method to use when selecting a spawn target particle from the emitter.
+ *	Can be one of the following:
+ *		ELESM_Random		Randomly select a particle from the source emitter.
+ *		ELESM_Sequential	Step through each particle from the source emitter in order.
+ */
 var(Location)	ELocationEmitterSelectionMethod									SelectionMethod;
 
+/** If TRUE, the spawned particle should inherit the velocity of the source particle. */
 var(Location)	bool															InheritSourceVelocity;
+/** Amount to scale the source velocity by when inheriting it. */
 var(Location)	float															InheritSourceVelocityScale;
+/** If TRUE, the spawned particle should inherit the rotation of the source particle. */
 var(Location)	bool															bInheritSourceRotation;
+/** Amount to scale the source rotation by when inheriting it. */
 var(Location)	float															InheritSourceRotationScale;
 
 //=============================================================================

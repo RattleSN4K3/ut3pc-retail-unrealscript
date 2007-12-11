@@ -54,6 +54,7 @@ var						bool					bRequestedBlockOnAsyncLoading;
 var(Editor)				BookMark				BookMarks[10];			// Level bookmarks
 var(Editor)	editinline	array<ClipPadEntry>		ClipPadEntries;			// Clip pad entries
 var						float					TimeDilation;			// Normally 1 - scales real time passage.
+var						float					DemoPlayTimeDilation;		// additional TimeDilation applied only during demo playback
 var						float					TimeSeconds;			// Time in seconds since level began play, but IS paused when the game is paused, and IS dilated/clamped.
 var						float					RealTimeSeconds;		// Time in seconds since level began play, but is NOT paused when the game is paused, and is NOT dilated/clamped.
 var                     float                   AudioTimeSeconds;		// Time in seconds since level began play, but IS paused when the game is paused, and is NOT dilated/clamped.
@@ -331,7 +332,7 @@ native simulated static final function bool IsConsoleBuild(optional EConsoleType
 /** Returns whether script is executing within the editor. */
 native simulated static final function bool IsPlayInEditor() const;
 
-native simulated final function ForceGarbageCollection();
+native simulated final function ForceGarbageCollection( optional bool bFullPurge );
 
 native simulated final function VerifyNavList();
 
@@ -537,9 +538,12 @@ native final function CommitMapChange(optional bool bShouldSkipLevelStartupEvent
  * that should be maintained (player teams, etc)
  * This codepath is designed for worlds that use little or no level streaming and gametypes where the game state
  * is reset/reloaded when transitioning. (like UT)
- * @param URL the URL to travel to; must be relative to the current URL (same server)
+ * @param URL - the URL to travel to; must be on the same server as the current URL
+ * @param bAbsolute (opt) - if true, URL is absolute, otherwise relative
+ * @param MapPackageGuid (opt) - the GUID of the map package to travel to - this is used to find the file when it has been autodownloaded,
+ * 				so it is only needed for clients
  */
-native final function SeamlessTravel(string URL, optional bool bAbsolute);
+native final function SeamlessTravel(string URL, optional bool bAbsolute, optional init Guid MapPackageGuid);
 
 /** @return whether we're currently in a seamless transition */
 native final function bool IsInSeamlessTravel();
@@ -571,6 +575,16 @@ native final function EDetailMode GetDetailMode();
 
 /** @return whether a demo is being recorded */
 native final function bool IsRecordingDemo();
+/** @return whether a demo is being played back */
+native final function bool IsPlayingDemo();
+
+
+/**
+ * This function will do what ever memory tracking we have enabled.  Basically there are a myriad of memory tracking/leak detection
+ * methods and this function abstracts all of that.
+ **/
+native function DoMemoryTracking();
+
 
 defaultproperties
 {
@@ -579,6 +593,7 @@ defaultproperties
 	RemoteRole=ROLE_SimulatedProxy
 	bAlwaysRelevant=true
 	TimeDilation=1.0
+	DemoPlayTimeDilation=1.0
 	bHiddenEd=True
 	DefaultTexture=Texture2D'EngineResources.DefaultTexture'
 	WhiteSquareTexture=WhiteSquareTexture

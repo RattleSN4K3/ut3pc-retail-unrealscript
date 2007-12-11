@@ -1197,6 +1197,14 @@ simulated state WeaponLoadAmmo
 		Super.BeginState(PreviousStateName);
 	}
 
+
+	/** You can run around loading up rockets ready to fire them! **/
+	simulated function bool CanViewAccelerationWhenFiring()
+	{
+		return TRUE;
+	}
+
+
 Begin:
 	AddProjectile();
 }
@@ -1266,6 +1274,16 @@ simulated state WeaponWaitingForFire
 		WeaponFireLoad();
 	}
 
+	simulated function bool IsFiring()
+	{
+		return true;
+	}
+
+	simulated function bool TryPutdown()
+	{
+		bWeaponPutDown = true;
+		return true;
+	}
 }
 
 /*********************************************************************************************
@@ -1529,4 +1547,9 @@ defaultproperties
 	WeaponAltFireLaunchEnd[0]=WeaponAltFireLaunch1End
 	WeaponAltFireLaunchEnd[1]=WeaponAltFireLaunch2End
 	WeaponAltFireLaunchEnd[2]=WeaponAltFireLaunch3End
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=90,RightAmplitude=50,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.200)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

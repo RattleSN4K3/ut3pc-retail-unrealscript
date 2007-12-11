@@ -27,7 +27,7 @@ function bool InputKey( int ControllerId, name Key, EInputEvent Event, float Amo
     UTSceneClient = UTGameUISceneClient(class'UIRoot'.static.GetSceneClient());
 	if ( UTSceneClient != none && UTSceneClient.IsInSeamlessTravel() )
 	{
-		return true;
+		return false;
 	}
 
 	if ( Event == IE_Pressed )

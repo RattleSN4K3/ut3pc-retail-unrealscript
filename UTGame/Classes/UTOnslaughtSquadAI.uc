@@ -238,7 +238,8 @@ function bool CheckVehicle(UTBot B)
 			}
 
 			if ( Team.Size == DeployableVehicle.NumPassengers() ||
-					( VSize(B.Pawn.Location - SquadObjective.Location) > DeployableVehicle.ObjectiveGetOutDist &&
+					( SquadObjective != None &&
+						VSize(B.Pawn.Location - SquadObjective.Location) > DeployableVehicle.ObjectiveGetOutDist &&
 						DeployableVehicle.NoPassengerObjective != SquadObjective &&
 						!SquadObjective.ReachedParkingSpot(B.Pawn) && !B.Pawn.CanAttack(SquadObjective) ) )
 			{

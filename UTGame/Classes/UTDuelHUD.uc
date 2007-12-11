@@ -4,14 +4,14 @@
  */
 class UTDuelHUD extends UTTeamHUD;
 
-function DrawGameHUD()
+function DrawLivingHUD()
 {
 	local int i, TeamIndex;
 	local float XL, YL;
 
-	Super.DrawGameHUD();
+	Super.DrawLivingHUD();
 
-	if (bShowHUD && !bShowScores && WorldInfo.GRI != None && (!bIsSplitScreen || bIsFirstPlayer) )
+	if (bShowHUD && bShowScoring && !bShowScores && WorldInfo.GRI != None && (!bIsSplitScreen || bIsFirstPlayer) )
 	{
 		TeamIndex = UTPlayerOwner.GetTeamNum();
 		if (TeamIndex == 255 || bIsSplitScreen)
@@ -33,6 +33,9 @@ function DrawGameHUD()
 		}
 	}
 }
+
+function DisplayFragCount(vector2d POS) {}
+function DisplayLeaderBoard(vector2d POS) {}
 
 defaultproperties
 {

@@ -48,6 +48,11 @@ function InitPlayerReplicationInfo()
 	PlayerReplicationInfo.bWaitingPlayer = false;
 }
 
+exec function SloMo(float NewTimeDilation)
+{
+	WorldInfo.DemoPlayTimeDilation = NewTimeDilation;
+}
+
 exec function ViewClass( class<actor> aClass, optional bool bQuiet, optional bool bCheat )
 {
 	local actor other, first;
@@ -70,10 +75,7 @@ exec function ViewClass( class<actor> aClass, optional bool bQuiet, optional boo
 	if ( first != None )
 	{
 		SetViewTarget(first);
-		bBehindView = ( ViewTarget != self );
-
-		if ( bBehindView )
-			ViewTarget.BecomeViewTarget(self);
+		SetBehindView(ViewTarget != self);
 	}
 	else
 		SetViewTarget(self);
@@ -110,16 +112,23 @@ exec function DemoViewNextPlayer()
 	SetViewTarget(Pick);
 }
 
-exec function BehindView()
-{
-	SetBehindView(!bBehindView);
-}
-
 function SetViewTarget(Actor NewViewTarget, optional ViewTargetTransitionParams TransitionParams)
 {
 	Super.SetViewTarget(NewViewTarget, TransitionParams);
 
-	MyRealViewTarget = RealViewTarget;
+	// this check is so that a Pawn getting gibbed doesn't break finding that player again
+	// must manually clear MyRealViewTarget when player controlled switch back to viewing self
+	if (NewViewTarget != self)
+	{
+		MyRealViewTarget = RealViewTarget;
+	}
+}
+
+unreliable server function ServerViewSelf()
+{
+	Super.ServerViewSelf();
+
+	MyRealViewTarget = None;
 }
 
 reliable client function ClientSetRealViewTarget(PlayerReplicationInfo NewTarget)
@@ -144,7 +153,7 @@ auto state Spectating
 
 	exec function StartFire(optional byte FireModeNum)
 	{
-		bBehindView = false;
+		SetBehindView(true);
 		DemoViewNextPlayer();
 	}
 
@@ -163,6 +172,16 @@ auto state Spectating
 		}
 		// send None so demo playback knows it should just pick the first Pawn it can find
 		ClientSetRealViewTarget(None);
+	}
+
+	simulated event GetPlayerViewPoint(out vector CameraLocation, out rotator CameraRotation)
+	{
+		Global.GetPlayerViewPoint(CameraLocation, CameraRotation);
+	}
+
+	exec function BehindView()
+	{
+		SetBehindView(!bBehindView);
 	}
 
 	event PlayerTick( float DeltaTime )
@@ -202,6 +221,12 @@ auto state Spectating
 						}
 					}
 				}
+			}
+
+			if (Pawn(ViewTarget) != None)
+			{
+				TargetViewRotation = ViewTarget.Rotation;
+				TargetViewRotation.Pitch = Pawn(ViewTarget).RemoteViewPitch << 8;
 			}
 		}
 	}
@@ -247,5 +272,6 @@ defaultproperties
 {
 	RemoteRole=ROLE_AutonomousProxy
 	bDemoOwner=1
+	bBehindView=true
 }
 

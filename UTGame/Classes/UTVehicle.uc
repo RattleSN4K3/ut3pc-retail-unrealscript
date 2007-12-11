@@ -2746,7 +2746,7 @@ simulated function bool CanEnterVehicle(Pawn P)
 	local PlayerReplicationInfo SeatPRI;
 
 	if ( P.bIsCrouched || (P.DrivenVehicle != None) || (P.Controller == None) || !P.Controller.bIsPlayer
-	     || Health <= 0 )
+	     || Health <= 0 || bDeleteMe )
 	{
 		return false;
 	}
@@ -3085,7 +3085,8 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 			bShowUseable = true;
 			if ( bRequestedEntryWithFlag && UTPlayerReplicationInfo(PC.PlayerReplicationInfo).bHasFlag )
 			{
-				if(UTOnslaughtFlag(UTPlayerReplicationInfo(PC.PlayerReplicationInfo).GetFlag()) == None)
+				//Show a flag for CTF/VCTF, an orb for WAR
+				if(ClassIsChildOf(WorldInfo.GRI.GameClass, class'UTOnslaughtGame') == False)
 				{
 					HUD.DrawToolTip(Canvas, PC, "GBA_Use", Canvas.ClipX * 0.5, Canvas.ClipY * 0.6, DropFlagIconCoords.U, DropFlagIconCoords.V, DropFlagIconCoords.UL, DropFlagIconCoords.VL, Canvas.ClipY / 768);
 				}
@@ -4588,7 +4589,7 @@ function rotator GetWeaponAim(UTVehicleWeapon VWeapon)
 		if ( DiffAngle >= MaxAdjust )
 		{
 			// bit of a hack here to make bot aiming and single player autoaim work
-			ControllerAim = C.Rotation;
+			ControllerAim = (C != None) ? C.Rotation : Rotation;
 			AdjustedAim = VWeapon.GetAdjustedAim(SocketLocation);
 			if (AdjustedAim == VWeapon.Instigator.GetBaseAimRotation() || AdjustedAim == ControllerAim)
 			{
@@ -5829,6 +5830,7 @@ simulated function SitDriver( UTPawn UTP, int SeatIndex)
 		UTP.SetRelativeLocation( Seats[SeatIndex].SeatOffset );
 		UTP.SetRelativeRotation( Seats[SeatIndex].SeatRotation );
 		UTP.Mesh.SetCullDistance(5000);
+		UTP.Mesh.SetTranslation(UTP.default.Mesh.Translation);
 		UTP.SetHidden(false);
 	}
 	else

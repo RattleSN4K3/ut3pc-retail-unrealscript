@@ -8,8 +8,6 @@ class UTEntryPlayerController extends UTPlayerController
 	config(Game)
 	native;
 
-`include(Core/Globals.uci)
-
 var PostProcessChain EntryPostProcessChain;
 var array<PostProcessChain> OldPostProcessChain;
 var LocalPlayer OldPlayer;
@@ -78,18 +76,19 @@ function OnControllerChanged(int ControllerId,bool bIsConnected)
 	// Don't worry about remote players
 	LocPlayer = LocalPlayer(Player);
 	// If the controller that changed, is attached to the this playercontroller
-	if (LocPlayer != None && LocPlayer.ControllerId == ControllerId)
+	if (WorldInfo.IsConsoleBuild() && LocPlayer != None && LocPlayer.ControllerId == ControllerId)
 	{
 		bIsControllerConnected = bIsConnected;
 
-		if(bIsConnected)
-		{
-			class'UTUIScene'.static.HideOnlineToast();
-		}
-		else
-		{
-			class'UTUIScene'.static.ShowOnlineToast(Localize("ToastMessages","ReconnectController","UTGameUI")$" ("$(ControllerId+1)$")", -1);	// Time of -1 to make the toast stay up until we hide it.
-		}
+		//@todo fix this to work again once UI changes are merged back into main
+// 		if(bIsConnected)
+// 		{
+// 			class'UTUIScene'.static.ClearScreenWarningMessage();
+// 		}
+// 		else
+// 		{
+// 			class'UTUIScene'.static.ShowScreenWarningMessage(Localize("ToastMessages","ReconnectController","UTGameUI")$" ("$(ControllerId+1)$")");
+// 		}
 	}
 }
 
@@ -181,51 +180,56 @@ event OnCharacterUnlocked()
 {
 	local GameUISceneClient SceneClient;
 	local bool bInvalidConnectionStatus;
+	local string OutValue;
 
-	// Determine whether the connection status change requires us to drop and go to the menu
-	switch (ConnectionStatus)
+	// Only handle the error if we arent currently creating a profile.
+	if(class'UIRoot'.static.GetDataStoreStringValue("<Registry:CreatingProfile>",OutValue)==false || OutValue!="1")
 	{
-	case OSCS_DuplicateLoginDetected:
-		// Two people can't play or badness will happen
-		`Log("Detected another user logging-in with this profile.");
+		// Determine whether the connection status change requires us to drop and go to the menu
+		switch (ConnectionStatus)
+		{
+		case OSCS_DuplicateLoginDetected:
+			// Two people can't play or badness will happen
+			`Log("Detected another user logging-in with this profile.");
 
-		// now set an error message to be displayed to the user
-		SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.DuplicateLogin_Title>",
-			"<Strings:UTGameUI.Errors.DuplicateLogin_Message>");
+			// now set an error message to be displayed to the user
+			SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.DuplicateLogin_Title>",
+				"<Strings:UTGameUI.Errors.DuplicateLogin_Message>");
 
-		bInvalidConnectionStatus = true;
-		break;
+			bInvalidConnectionStatus = true;
+			break;
 
-	case OSCS_ConnectionDropped:
-	case OSCS_NoNetworkConnection:
-	case OSCS_UpdateRequired:
-	case OSCS_ServersTooBusy:
-		// set an error message to be displayed to the user
-		SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.ConnectionLost_Title>",
-			"<Strings:UTGameUI.Errors.ConnectionLost_Message>");
+		case OSCS_ConnectionDropped:
+		case OSCS_NoNetworkConnection:
+		case OSCS_UpdateRequired:
+		case OSCS_ServersTooBusy:
+			// set an error message to be displayed to the user
+			SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.ConnectionLost_Title>",
+				"<Strings:UTGameUI.Errors.ConnectionLost_Message>");
 
-		bInvalidConnectionStatus = true;
-		break;
+			bInvalidConnectionStatus = true;
+			break;
 
-	case OSCS_ServiceUnavailable:
-		SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.ServiceUnavailable_Title>", "<Strings:UTGameUI.Errors.ServiceUnavailable_Message>");
-		bInvalidConnectionStatus = true;
-		break;
-	}
+		case OSCS_ServiceUnavailable:
+			SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.ServiceUnavailable_Title>", "<Strings:UTGameUI.Errors.ServiceUnavailable_Message>");
+			bInvalidConnectionStatus = true;
+			break;
+		}
 
-	// notify the UI scene client, which will propagate the notification to all scenes.  Any scenes
-	// which require a valid online service will close themselves.
-	SceneClient = class'UIRoot'.static.GetSceneClient();
-	if ( SceneClient != None )
-	{
-		SceneClient.NotifyOnlineServiceStatusChanged(ConnectionStatus);
-	}
+		// notify the UI scene client, which will propagate the notification to all scenes.  Any scenes
+		// which require a valid online service will close themselves.
+		SceneClient = class'UIRoot'.static.GetSceneClient();
+		if ( SceneClient != None )
+		{
+			SceneClient.NotifyOnlineServiceStatusChanged(ConnectionStatus);
+		}
 
-	`log(`location@`showenum(EOnlineServerConnectionStatus,ConnectionStatus)@`showvar(bInvalidConnectionStatus),,'RONDEBUG');
-	if ( bInvalidConnectionStatus )
-	{
-		// finalize
-		QuitToMainMenu();
+		`log(`location@`showenum(EOnlineServerConnectionStatus,ConnectionStatus)@`showvar(bInvalidConnectionStatus),,'DevOnline');
+		if ( bInvalidConnectionStatus )
+		{
+			// finalize
+			QuitToMainMenu();
+		}
 	}
 }
 
@@ -238,7 +242,7 @@ event OnCharacterUnlocked()
 	local GameUISceneClient SceneClient;
 	local string ErrorDisplay;
 
-	`log(`location@`showvar(bConnected),,'RONDEBUG');
+	`log(`location@`showvar(bConnected),,'DevNet');
 
 	// notify the UI scene client, which will propagate the notification to all scenes.  Any scenes
 	// which require a valid network connection will close themselves.
@@ -299,6 +303,21 @@ function LoadCharacterFromProfile(UTProfileSettings Profile);	// Do nothing
 function SetPawnConstructionScene(bool bShow);	// Do nothing
 function UTUIScene_MidGameMenu ShowMidGameMenu(optional name TabTag,optional bool bEnableInput);
 function ShowScoreboard();
+
+exec function UnlockChapter(int ChapterIndex)
+{
+	local UTProfileSettings Profile;
+	Profile = UTProfileSettings(OnlinePlayerData.ProfileProvider.Profile);
+	if (Profile != none)
+	{
+		Profile.UnlockChapter(ChapterIndex);
+	}
+}
+
+// do nothing
+exec function ShowCommandMenu()
+{
+}
 
 defaultproperties
 {

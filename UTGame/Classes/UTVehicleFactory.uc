@@ -61,6 +61,8 @@ var() enum ETeamSpawning
 
 /** If set, vehicles from this factory will be key vehicles (for AI) and show up on minimap */
 var() bool bKeyVehicle;
+/** if set, force bAvoidReversing to true on the vehicle for the AI */
+var() bool bForceAvoidReversing;
 
 /** if set, vehicle factory doesn't do anything on PS3 */
 var() bool bIgnoreOnPS3;
@@ -332,6 +334,10 @@ state Active
 					ChildVehicle.AIPurpose = AIP_Offensive;
 					UTMapInfo(WorldInfo.GetMapInfo()).AddKeyVehicle(ChildVehicle);
 				}
+				if (bForceAvoidReversing)
+				{
+					ChildVehicle.bAvoidReversing = true;
+				}
 				ChildVehicle.Mesh.WakeRigidBody();
 
 				for (i=0; i<ChildVehicle.Seats.Length;i++)
@@ -456,4 +462,3 @@ defaultproperties
 
 	SupportedEvents.Add(class'UTSeqEvent_VehicleFactory')
 }
-

@@ -187,7 +187,7 @@ function bool ScrollVertical( UIScrollbar Sender, float PositionChange, optional
 }
 
 /** Selects the next item in the list. */
-function SelectNextItem(optional bool bWrap=false)
+function bool SelectNextItem(optional bool bWrap=false, optional int PlayerIndex=GetBestPlayerIndex())
 {
 	local int TargetIndex;
 
@@ -198,11 +198,11 @@ function SelectNextItem(optional bool bWrap=false)
 		TargetIndex = TargetIndex%(GeneratedObjects.length);
 	}
 
-	SelectItem(TargetIndex);
+	return SelectItem(TargetIndex, PlayerIndex);
 }
 
 /** Selects the previous item in the list. */
-function SelectPreviousItem(optional bool bWrap=false)
+function bool SelectPreviousItem(optional bool bWrap=false, optional int PlayerIndex=GetBestPlayerIndex())
 {
 	local int TargetIndex;
 
@@ -213,7 +213,7 @@ function SelectPreviousItem(optional bool bWrap=false)
 		TargetIndex=GeneratedObjects.length-1;
 	}
 
-	SelectItem(TargetIndex);
+	return SelectItem(TargetIndex, PlayerIndex);
 }
 
 /** Returns the index in the CrucialBindValues array of the first crucial bind not bound. Returns -1 if all is good. */
@@ -266,7 +266,7 @@ function bool IsAlreadyBound(Name KeyName)
 			}
 		}
 	}
-	
+
 	return false;
 }
 
@@ -418,6 +418,7 @@ function bool OnClicked( UIScreenObject Sender, int PlayerIndex )
 	local UILabelButton BindingButton;
 	local string FinalMsg;
 	local int ObjectIdx;
+	local UIObject MessageBoxChild;
 
 	// Cancel the object we were previously binding.
 	if(CurrentlyBindingObject==None && MessageBoxReference==None)
@@ -443,6 +444,16 @@ function bool OnClicked( UIScreenObject Sender, int PlayerIndex )
 				FinalMsg = Repl(FinalMsg, "`Binding`", UILabel(GeneratedObjects[ObjectIdx].LabelObj).GetDataStoreBinding());
 
 				MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene(NonIntrusiveMessageBoxScene);
+
+				MessageBoxChild = MessageBoxReference.FindChild('pnlScrollFrame', true);
+				MessageBoxChild.KillFocus(None, PlayerIndex);
+				MessageBoxChild.SetPrivateBehavior(PRIVATE_NotFocusable, true);
+
+				MessageBoxChild = MessageBoxReference.FindChild('pnlSafeRegionLong', true);
+				MessageBoxChild.KillFocus(None, PlayerIndex);
+				MessageBoxChild.SetPrivateBehavior(PRIVATE_NotFocusable, true);
+
+				MessageBoxReference.SetFocus(None, PlayerIndex);
 				MessageBoxReference.OnMBInputKey = OnBindKey_InputKey;
 				MessageBoxReference.FadeDuration = 0.125f;
 				MessageBoxReference.DisplayModalBox(FinalMsg,"<Strings:UTGameUI.MessageBox.BindKey_Title>",0.0f);

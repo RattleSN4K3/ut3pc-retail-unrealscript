@@ -411,6 +411,18 @@ function SetTabCaption(string NewButtonMarkup)
 	TabButton.SetDataStoreBinding(NewButtonMarkup);
 }
 
+/**
+ * Wrapper for determining whether this is the currently active page.
+ *
+ * @return	TRUE if this is the tab control's currently active page.
+ */
+function bool IsActivePage()
+{
+	local UITabControl TCOwner;
+
+	TCOwner = GetOwnerTabControl();
+	return TCOwner != None && TCOwner.ActivePage == Self;
+}
 
 DefaultProperties
 {

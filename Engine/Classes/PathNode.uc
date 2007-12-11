@@ -13,4 +13,6 @@ defaultproperties
 	Begin Object NAME=Sprite
 		Sprite=Texture2D'EngineResources.S_Pickup'
 	End Object
+
+	Abbrev="PN"
 }

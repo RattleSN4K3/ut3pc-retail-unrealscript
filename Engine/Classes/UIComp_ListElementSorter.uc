@@ -24,6 +24,14 @@ struct native transient UIListSortingParameters
 	/** indicates that sorting should be case sensitive */
 	var		bool	bCaseSensitive;
 
+	/** indicates that the strings should be converted into integers for sorting purposes */
+	var		bool	bIntSortPrimary;
+	var		bool	bIntSortSecondary;
+
+	/** indicates that the strings should be converted into floats for sorting purposes */
+	var		bool	bFloatSortPrimary;
+	var		bool	bFloatSortSecondary;
+
 
 };
 
@@ -36,7 +44,6 @@ var()										int		InitialSortColumn;
 /** the index of the column (or row) to use for performing the initial secondary sorting of the list's elements when SecondarySortColumn is INDEX_NONE */
 var()										int		InitialSecondarySortColumn;
 
-
 /** the index of the column (or row) being used for sorting the list's items */
 var()		editconst	transient	const	int		PrimarySortColumn;
 
@@ -44,10 +51,13 @@ var()		editconst	transient	const	int		PrimarySortColumn;
 var()		editconst	transient	const	int		SecondarySortColumn;
 
 /** indicates that the primary sort column should be sorted in reverse order */
-var()		editconst	transient	const	bool	bReversePrimarySorting;
+var()										bool	bReversePrimarySorting;
 
 /** indicates that the secondary sort column should be sorted in reverse order */
-var()		editconst	transient	const	bool	bReverseSecondarySorting;
+var()										bool	bReverseSecondarySorting;
+
+
+
 
 /**
  * Resets the PrimarySortColumn and SecondarySortColumn to the Initial* values.

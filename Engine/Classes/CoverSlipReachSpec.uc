@@ -6,6 +6,9 @@ class CoverSlipReachSpec extends ForcedReachSpec
 
 
 
+// Value CoverLink.ECoverDirection for movement direction along this spec
+var() editconst Byte SpecDirection;
+
 defaultproperties
 {
 	ForcedPathSizeName=Common

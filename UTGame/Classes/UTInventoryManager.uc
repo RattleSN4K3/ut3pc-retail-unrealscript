@@ -151,6 +151,11 @@ simulated function AdjustWeapon(int NewOffset)
 	}
 
    	GetWeaponList(WeaponList,,, true);
+   	if (WeaponList.length == 0)
+   	{
+   		return;
+   	}
+
 	for (i = 0; i < WeaponList.Length; i++)
 	{
 		if (WeaponList[i] == CurrentWeapon)
@@ -275,6 +280,11 @@ simulated function SetPendingWeapon( Weapon DesiredWeapon )
 {
 	local UTWeapon PrevWeapon, CurrentPending;
 	local UTPawn UTP;
+
+	if (Instigator == None)
+	{
+		return;
+	}
 
 	PrevWeapon = UTWeapon( Instigator.Weapon );
 	CurrentPending = UTWeapon(PendingWeapon);

@@ -60,9 +60,7 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 	if(MessageList.GetCurrentItem()!=INDEX_NONE)
 	{
 		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ViewMessage>", OnButtonBar_ViewMessage);
-		/* - Disabled because messages don't persist after closing the game.
 		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.DeleteMessage>", OnButtonBar_DeleteMessage);
-		*/
 	}
 }
 
@@ -180,11 +178,15 @@ function OnDeleteMessage()
 /** Confirmation for the delete message dialog. */
 function OnDeleteMessage_Confirm(UTUIScene_MessageBox MessageBox, int SelectedItem, int PlayerIndex)
 {
+	local int CurrentMessageIdx;
+	CurrentMessageIdx = MessageList.GetCurrentItem();
+
 	MessageBoxReference = None;
 
 	if(SelectedItem==0)
 	{
-		PlayerMessages.Messages.Remove(MessageList.GetCurrentItem(),1);
+		PlayerInt.DeleteMessage(GetPlayerOwner().ControllerId,CurrentMessageIdx);
+		PlayerMessages.Messages.Remove(CurrentMessageIdx,1);
 		OnMessageListChanged();
 	}
 }
@@ -245,7 +247,6 @@ function OnSendFriendRequest_Opened(UIScene OpenedScene, bool bInitialActivation
 	}
 }
 
-
 /** Confirmation for the accept game invite dialog. */
 function OnGameInvite_Confirm(UTUIScene_MessageBox MessageBox, int SelectedItem, int PlayerIndex)
 {
@@ -257,21 +258,9 @@ function OnGameInvite_Confirm(UTUIScene_MessageBox MessageBox, int SelectedItem,
 	switch(SelectedItem)
 	{
 	case 0:
-		//MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene();
-		//MessageBoxReference.DisplayModalBox("<Strings:UTGameUI.MessageBox.JoinFriend_Message>", "");
-
-		//GameInt.AddGameInviteAcceptedDelegate(GetPlayerOwner().ControllerId,OnGameInviteAccepted);
-		PlayerInt.JoinFriendGame(GetPlayerOwner().ControllerId,GetNetIdFromIndex(CurrentMessageIdx));
-		//{
-		//	OnGameInviteAccepted(None);
-		//}
-
-		// Remove invite from list
-		PlayerInt.DeleteMessage(GetPlayerOwner().ControllerId,CurrentMessageIdx);
-		PlayerMessages.Messages.Remove(CurrentMessageIdx,1);
-		OnMessageListChanged();
-
+		ProcessGameInvite(CurrentMessageIdx);
 		break;
+
 	case 1:
 		// Remove invite from list
 		PlayerInt.DeleteMessage(GetPlayerOwner().ControllerId,CurrentMessageIdx);
@@ -281,6 +270,101 @@ function OnGameInvite_Confirm(UTUIScene_MessageBox MessageBox, int SelectedItem,
 	default:
 		// Do nothing for the default case
 	}
+}
+
+/**
+ * Displays a dialog to the user which allows him to enter the password for the currently selected server.
+ */
+private function PromptForServerPassword()
+{
+	local UTUIScene UTSceneOwner;
+	local UTUIScene_InputBox PasswordInputScene;
+
+	UTSceneOwner = UTUIScene(GetScene());
+	if ( UTSceneOwner != None )
+	{
+		PasswordInputScene = UTSceneOwner.GetInputBoxScene();
+		if ( PasswordInputScene != None )
+		{
+			PasswordInputScene.SetPasswordMode(true);
+			PasswordInputScene.DisplayAcceptCancelBox(
+				"<Strings:UTGameUI.MessageBox.EnterServerPassword_Message>",
+				"<Strings:UTGameUI.MessageBox.EnterServerPassword_Title>",
+				OnPasswordDialog_Closed
+				);
+		}
+		else
+		{
+			`log("Failed to open the input box scene (" $ UTSceneOwner.InputBoxScene $ ")");
+		}
+	}
+}
+
+/**
+ * The user has made a selection of the choices available to them.
+ */
+private function OnPasswordDialog_Closed(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
+{
+	local UTUIScene_InputBox PasswordInputScene;
+	local string ServerPassword;
+
+	PasswordInputScene = UTUIScene_InputBox(MessageBox);
+	if ( PasswordInputScene != None && SelectedOption == 0 )
+	{
+		// strip out all
+		ServerPassword = class'UTUIFrontEnd_HostGame'.static.StripInvalidPasswordCharacters(PasswordInputScene.GetValue());
+		ProcessGameInvite(MessageList.GetCurrentItem(), ServerPassword);
+	}
+}
+
+/**
+ * Wrapper function which displays a prompt dialog if the server we're about to join has a password.
+ *
+ * @param	SelectedMessageItem		the value of the index for the message corresponding to the game invite (i.e. MessageList.Items[MessageList.Index])
+ * @param	ServerPassword			the password to use when connecting to the game
+ */
+function ProcessGameInvite( int SelectedMessageItem, optional string ServerPassword )
+{
+	local OnlineSubsystem.UniqueNetId FriendNetId;
+	local UTPlayerController OwnerPC;
+	local UTUIScene OwnerUTScene;
+
+	// check to see if we need to supply a password
+	OwnerUTScene = UTUIScene(GetScene());
+	OwnerPC = OwnerUTScene.GetUTPlayerOwner();
+	FriendNetId = GetNetIdFromIndex(SelectedMessageItem);
+
+	if (class'UTUIScene_PlayerCard'.static.FollowRequiresPassword(OwnerPC, FriendNetId)
+	&&	ServerPassword == ""  )
+	{
+		PromptForServerPassword();
+	}
+	else
+	{
+		SetDataStoreStringValue("<Registry:ConnectPassword>", ServerPassword, GetScene(), GetPlayerOwner());
+		ProcessFollow(SelectedMessageItem);
+	}
+}
+
+/**
+ * Final function in the "join game invite" process - interacts with the online subsystem to initiate the join.  At this
+ * point, we've made sure that all conditions for a successful join are met, including prompting the user for the password (if required).
+ */
+private function ProcessFollow( int SelectedMessageItem )
+{
+	//MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene();
+	//MessageBoxReference.DisplayModalBox("<Strings:UTGameUI.MessageBox.JoinFriend_Message>", "");
+
+	//GameInt.AddGameInviteAcceptedDelegate(GetPlayerOwner().ControllerId,OnGameInviteAccepted);
+	PlayerInt.JoinFriendGame(GetPlayerOwner().ControllerId,GetNetIdFromIndex(SelectedMessageItem));
+	//{
+	//	OnGameInviteAccepted(None);
+	//}
+
+	// Remove invite from list
+	PlayerInt.DeleteMessage(GetPlayerOwner().ControllerId,SelectedMessageItem);
+	PlayerMessages.Messages.Remove(SelectedMessageItem,1);
+	OnMessageListChanged();
 }
 
 /** Callback for when the game invite accepted operation has completed. */

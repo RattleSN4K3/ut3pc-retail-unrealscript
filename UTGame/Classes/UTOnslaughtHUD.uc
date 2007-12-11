@@ -58,7 +58,7 @@ simulated function Timer()
 			{
 				for (i = 0; i < NumNodes; i++)
 				{
-					if ( (PowerNodes[i].DefenderTeamIndex == PawnOwnerPRI.Team.TeamIndex) )
+					if ( (PowerNodes[i] != None) && (PowerNodes[i].DefenderTeamIndex == PawnOwnerPRI.Team.TeamIndex) )
 					{
 						if ( VSize(PowerNodes[i].Location - EnemyFlag.Location) < PowerNodes[i].MaxSensorRange
 							 && VSize(PowerNodes[i].Location - PawnOwner.Location) < PowerNodes[i].MaxSensorRange

@@ -594,7 +594,7 @@ defaultproperties
 
 	bLightArmor=true
 
-	Health=200
+	Health=160
 	MeleeRange=-100.0
 	ExitRadius=160.0
 	bTakeWaterDamageWhileDriving=false

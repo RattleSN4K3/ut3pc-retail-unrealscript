@@ -231,7 +231,7 @@ simulated function PlayImpactEffect(byte FiringMode, ImpactInfo Impact)
 				HitPawn = None;
 			}
 		}
-		if ( (HitPawn != None) && !WorldInfo.GRI.OnSameTeam(HitPawn, Instigator) )
+		if ( (HitPawn != None) && !WorldInfo.GRI.OnSameTeam(HitPawn, Instigator) && !class'GameInfo'.static.UseLowGore(WorldInfo) )
 		{
 			BloodMIC.GetScalarParameterValue('Damage1',Damage1);
 			BloodMIC.GetScalarParameterValue('Damage2',Damage2);
@@ -320,7 +320,7 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact )
 					P.TakeDamage(Damage, Instigator.Controller, Impact.HitLocation, Force * Impact.RayDir, InstantHitDamageTypes[0], Impact.HitInfo, self);
 
 					PC = UTPlayerController(Instigator.Controller);
-					if (P.Health <= 0 && PC != None)
+					if (P.Health <= 0 && PC != None && !class'GameInfo'.static.UseLowGore(WorldInfo) )
 					{
 						UTDT = class<UTDamageType>(InstantHitDamageTypes[0]);
 						if (UTDT != None)
@@ -348,13 +348,16 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact )
 				// EMP pulse
 				if ( P != None )
 				{
-					UTInvManager = UTInventoryManager(UTPawn(Impact.HitActor).InvManager);
-					if(UTInvManager != none)
+					if ( !WorldInfo.GRI.OnSameTeam(P, Instigator) )
 					{
-						if (UTInvManager.DisruptInventory())
+						UTInvManager = UTInventoryManager(UTPawn(Impact.HitActor).InvManager);
+						if(UTInvManager != none)
 						{
-							Force = MinForce + Scale * (MaxForce - MinForce);
-							Impact.HitActor.TakeDamage(0,Instigator.Controller,Impact.HitLocation, Force*Impact.RayDir, InstantHitDamageTypes[1], Impact.HitInfo, self);
+							if (UTInvManager.DisruptInventory())
+							{
+								Force = MinForce + Scale * (MaxForce - MinForce);
+								Impact.HitActor.TakeDamage(0,Instigator.Controller,Impact.HitLocation, Force*Impact.RayDir, InstantHitDamageTypes[1], Impact.HitInfo, self);
+							}
 						}
 					}
 				}
@@ -595,6 +598,15 @@ simulated state WeaponRecharge
 
 simulated function StopFireEffects(byte FireModeNum);
 
+
+/** You always run around with the impact hammer hammering! **/
+simulated function bool CanViewAccelerationWhenFiring()
+{
+	return TRUE;
+}
+
+
+
 defaultproperties
 {
 	WeaponColor=(R=255,G=255,B=128,A=255)
@@ -724,4 +736,9 @@ defaultproperties
 	AltHitEffect=ParticleSystem'WP_ImpactHammer.Particles.P_WP_ImpactHammer_Secondary_Hit_Impact'
 
 	ImpactKillCameraAnim=CameraAnim'Camera_FX.Gameplay.C_Impact_CharacterGib_Near'
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=100,RightAmplitude=60,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.10)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

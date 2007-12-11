@@ -90,10 +90,18 @@ function PopupSaved( UIObject Sender, int PlayerIndex )
 
 function bool OnDrawItem(UTSimpleList SimpleList, int ItemIndex, float XPos, out float YPos)
 {
-	local float xl,yl,TextScale;
+	local float xl, yl, CellHeight, TextScale, ImgScale;
 	local string text;
+	local vector2D ViewportSize;
 
 	Text = SimpleList.List[ItemIndex].Text;
+
+	GetViewportSize(ViewportSize);
+
+	CellHeight = SimpleList.DefaultCellHeight * (ViewportSize.Y / 768);
+	SimpleList.Canvas.StrLen("Q",XL,YL);
+	TextScale = (YL > CellHeight) ? CellHeight / YL : 1.0;
+	ImgScale  = (20 > CellHeight) ? CellHeight / 20 : 1.0;
 
 	if ( ItemIndex == SimpleList.Selection )
 	{
@@ -101,7 +109,7 @@ function bool OnDrawItem(UTSimpleList SimpleList, int ItemIndex, float XPos, out
 		{
 			SimpleList.Canvas.SetPos(0,YPos);
 			SimpleList.Canvas.DrawColor = SimpleList.SelectionBarColor;
-			SimpleList.Canvas.DrawRect(SimpleList.Canvas.ClipX, SimpleList.DefaultCellHeight);
+			SimpleList.Canvas.DrawRect(SimpleList.Canvas.ClipX, CellHeight);
 		}
 
 		SimpleList.Canvas.DrawColor = SimpleList.SelectedColor;
@@ -111,21 +119,23 @@ function bool OnDrawItem(UTSimpleList SimpleList, int ItemIndex, float XPos, out
 		SimpleList.Canvas.DrawColor = SimpleList.NormalColor;
 	}
 
+	// Draw the text
+
 	SimpleList.Canvas.StrLen(Text,XL,YL);
-	TextScale =  (YL > SimpleList.DefaultCellHeight) ? SimpleList.DefaultCellHeight / YL : 1.0;
-	SimpleList.Canvas.SetPos(SimpleList.Canvas.ClipX - 22 * TextScale - XL,YPos);
+	SimpleList.Canvas.SetPos(SimpleList.Canvas.ClipX - (23 * ImgScale) - (XL * TextScale),YPos);
 	SimpleList.Canvas.DrawTextClipped(Text,,TextScale,TextScale);
 
-	TextScale = 22 / SimpleList.DefaultCellHeight;
-	SimpleList.Canvas.SetPos(SimpleList.Canvas.ClipX - 22 * TextScale, YPos);
+	// Draw the Image
+
+	SimpleList.Canvas.SetPos(SimpleList.Canvas.ClipX - (21 * ImgScale), YPos + (CellHeight - (16 * ImgScale)) * 0.5);
 
 	if ( ItemIndex == SimpleList.Selection )
 	{
-		SimpleList.Canvas.DrawTile(class'UTHud'.default.IconHudTexture, 21 * TextScale, 16* TextScale, 725,158,21,16);
+		SimpleList.Canvas.DrawTile(class'UTHud'.default.IconHudTexture, 21 * ImgScale, 16* ImgScale, 725,158,21,16);
 	}
 	else
 	{
-		SimpleList.Canvas.DrawTile(class'UTHud'.default.IconHudTexture, 21 * TextScale, 16* TextScale, 725,142,21,16);
+		SimpleList.Canvas.DrawTile(class'UTHud'.default.IconHudTexture, 21 * ImgScale, 16* ImgScale, 725,142,21,16);
 	}
 
 	SimpleList.List[ItemIndex].bWasRendered = true;

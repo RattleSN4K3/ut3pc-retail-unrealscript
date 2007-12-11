@@ -18,7 +18,7 @@ event PostInitialize()
 }
 
 
-function Initialize(UTVoteReplicationInfo NewVoteRI)
+function InitializeVRI(UTVoteReplicationInfo NewVoteRI)
 {
 	VoteRI = NewVoteRI;
 }

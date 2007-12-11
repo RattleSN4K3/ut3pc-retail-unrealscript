@@ -78,6 +78,6 @@ event Destroyed()
 
 defaultproperties
 {
-	LifeSpan=5.0
+	LifeSpan=15.0
 	bGameRelevant=true
 }

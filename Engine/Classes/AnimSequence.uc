@@ -16,7 +16,7 @@ class AnimSequence extends Object
 struct native AnimNotifyEvent
 {
 	var()	float						Time;
-	var()	editinline AnimNotify		Notify;
+	var()	instanced AnimNotify		Notify;
 	var()	name						Comment;
 };
 

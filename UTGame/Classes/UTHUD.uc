@@ -56,7 +56,7 @@ var bool bShowAllAI;
 var UTGameReplicationInfo UTGRI;
 
 /** Holds the scaling factor given the current resolution.  This is calculated in PostRender() */
-var float ResolutionScale;
+var float ResolutionScale, ResolutionScaleX;
 
 var bool bHudMessageRendered;
 
@@ -298,6 +298,9 @@ var textureCoordinates QuickPickSelCoords;
 
 var Texture2D QuickPickCircleImage;
 var TextureCoordinates QuickPickCircleCoords;
+
+/** controller rumble to play when switching weapons. */
+var ForceFeedbackWaveform QuickPickWaveForm;
 
 /******************************************************************************************
  Widget Locations / Visibility flags
@@ -699,7 +702,7 @@ exec function SetShowScores(bool bNewValue)
 {
 	local UTGameReplicationInfo GRI;
 
-	if (!bNewValue && WorldInfo.IsInSeamlessTravel() )
+	if (!bNewValue && (WorldInfo.IsInSeamlessTravel() || (UTPlayerOwner != None && UTPlayerOwner.bDedicatedServerSpectator)))
 	{
 		return;
 	}
@@ -840,6 +843,7 @@ event PostRender()
 	HUDScaleX = Canvas.ClipX/1280;
 	HUDScaleY = Canvas.ClipX/1280;
 
+	ResolutionScaleX = Canvas.ClipX/1024;
 	ResolutionScale = Canvas.ClipY / 768;
 
 	GetTeamColor(TeamIndex, TeamHUDColor, TeamTextColor);
@@ -1022,7 +1026,7 @@ function DrawGameHud()
 		}
 		else if ( UTPlayerOwner.IsDead() )
 		{
-		 	DisplayHUDMessage(DeadMessage @ (UTPlayerOwner.bFrozen) ? "" : FireToRespawnMessage);
+		 	DisplayHUDMessage( UTPlayerOwner.bFrozen ? DeadMessage : FireToRespawnMessage );
 		}
 	}
 
@@ -1197,7 +1201,7 @@ function DrawPostGameHud()
 {
 	local bool bWinner;
 
-	if (WorldInfo.GRI != None)
+	if (WorldInfo.GRI != None && PlayerOwner.PlayerReplicationInfo != None && !PlayerOwner.PlayerReplicationInfo.bOnlySpectator)
 	{
 		if ( UTPlayerReplicationInfo(WorldInfo.GRI.Winner) != none )
 		{
@@ -1211,6 +1215,8 @@ function DrawPostGameHud()
 
 		DisplayHUDMessage((bWinner ? YouHaveWon : YouHaveLost));
 	}
+
+	DisplayConsoleMessages();
 }
 
 
@@ -1304,7 +1310,7 @@ function DisplayMap()
 		// reduce font size if too big
 		if( XL > 0.0f )
 		{
-			OrdersScale = FMin(1.0, 0.315*Canvas.ClipX/XL);
+			OrdersScale = FMin(1.0, 0.3*Canvas.ClipX/XL);
 		}
 
 		// scale in initially
@@ -2247,7 +2253,7 @@ function DisplayFragCount(vector2d POS)
 
 	// Figure out if we should be pulsing
 
-	FragCount = UTOwnerPRI.Score;
+	FragCount = (UTOwnerPRI != None) ? UTOwnerPRI.Score : 0.0;
 
 	if ( FragCount > LastFragCount )
 	{
@@ -2263,12 +2269,12 @@ function DisplayLeaderBoard(vector2d POS)
 	local int i, MySpread, MyPosition;
 	local float XL,YL;
 
-	if (UTGRI == None)
+	if ( (UTGRI == None) || (UTOwnerPRI == None) )
 	{
 		return;
 	}
 
-	POS.X = Canvas.ClipX;
+	POS.X = 0.99*Canvas.ClipX;
 	POS.Y += 50 * ResolutionScale;
 
 	// Figure out your Spread
@@ -2315,7 +2321,7 @@ function DisplayLeaderBoard(vector2d POS)
 		Canvas.SetDrawColor(200,200,200,255);
 		for (i=0;i<3 && i < UTGRI.PRIArray.Length;i++)
 		{
-			if ( UTGRI.PRIArray[i] != none )
+			if ( (UTGRI.PRIArray[i] != none) && !UTGRI.PRIArray[i].bOnlySpectator )
 			{
 				Work = string(i+1) $ PlaceMarks[i] $ ":" @ UTGRI.PRIArray[i].GetPlayerAlias();
 				Canvas.StrLen(Work,XL,YL);
@@ -2425,6 +2431,10 @@ simulated function DisplayQuickPickMenu()
 			bShowQuickPick = false;
 		}
 	}
+	else
+	{
+		bShowQuickPick = false;
+	}
 }
 
 simulated function DisplayQuickPickCell(QuickPickCell Cell, float Angle, bool bSelected)
@@ -2489,6 +2499,11 @@ simulated function QuickPick(int Quad)
 		if ( QuickPickCurrentSelection != Quad )
 		{
 			PlayerOwner.ClientPlaySound(soundcue'A_interface.Menu.UT3MenuWeaponSelect01Cue');
+
+			if( UTPlayerController(PlayerOwner) != None )
+			{
+				UTPlayerController(PlayerOwner).ClientPlayForceFeedbackWaveform(QuickPickWaveForm);
+			}
 		}
 		QuickPickCurrentSelection = Quad;
 		bQuickPickMadeNewSelection = true;
@@ -2792,4 +2807,9 @@ defaultproperties
 	VehiclePosition=(X=-1,Y=-1)
 
     WeaponSwitchMessage=class'UTWeaponSwitchMessage'
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformQuickPick
+		Samples(0)=(LeftAmplitude=25,RightAmplitude=0,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.07)
+	End Object
+	QuickPickWaveForm=ForceFeedbackWaveformQuickPick
 }

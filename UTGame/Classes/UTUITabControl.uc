@@ -4,12 +4,17 @@
  * UT3 extended version of the UITabControl
  */
 class UTUITabControl extends UITabControl
-	native(UI)
-	placeable;
+	native(UI);
 
 ;
 
-var() name DefaultTabWidgetTag;
+var()		name	DefaultTabWidgetTag;
+
+var(Style)	name	CalloutLabelStyleName;
+
+/** these labels will contain button callouts for activating the PrevPage / NextPage input aliases, on consoles */
+var	transient	UILabel		PrevPageCalloutLabel;
+var	transient	UILabel		NextPageCalloutLabel;
 
 /**
  * Hide all the pages.  This allows us to not care what page was left on in the editor
@@ -104,4 +109,5 @@ function bool ProcessInputKey( const out InputEventParameters EventParms )
 defaultproperties
 {
 	TabButtonSize=(Value=0.033566,ScaleType=UIEXTENTEVAL_PercentOwner,Orientation=UIORIENT_Vertical)
+	CalloutLabelStyleName=CycleTabs
 }

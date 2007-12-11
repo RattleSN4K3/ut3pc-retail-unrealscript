@@ -65,7 +65,7 @@ struct native ParticleSysParam
 	var()	vector					Vector;
 	var()	color					Color;
 	var()	actor					Actor;
-	var()	MaterialInterface			Material;
+	var()	MaterialInterface		Material;
 };
 
 /**
@@ -150,7 +150,7 @@ var		transient			bool							bIsViewRelevanceDirty;
 delegate OnSystemFinished(ParticleSystemComponent PSystem);	// Called when the particle system is done
 
 native final function SetTemplate(ParticleSystem NewTemplate);
-native final function ActivateSystem();
+native final function ActivateSystem(bool bFlagAsJustAttached = false);
 native final function DeactivateSystem();
 native final function KillParticlesForced();
 
@@ -293,6 +293,57 @@ native final function SetVectorParameter(name ParameterName, vector Param);
 native final function SetColorParameter(name ParameterName, color Param);
 native final function SetActorParameter(name ParameterName, actor Param);
 native final function SetMaterialParameter(name ParameterName, MaterialInterface Param);
+
+/**
+ *	Retrieve the Float parameter value for the given name.
+ *
+ *	@param	InName		Name of the parameter
+ *	@param	OutFloat	The value of the parameter found
+ *
+ *	@return	TRUE		Parameter was found - OutFloat is valid
+ *			FALSE		Parameter was not found - OutFloat is invalid
+ */
+native function bool GetFloatParameter(const name InName, out float OutFloat);
+/**
+ *	Retrieve the Vector parameter value for the given name.
+ *
+ *	@param	InName		Name of the parameter
+ *	@param	OutVector	The value of the parameter found
+ *
+ *	@return	TRUE		Parameter was found - OutVector is valid
+ *			FALSE		Parameter was not found - OutVector is invalid
+ */
+native function bool GetVectorParameter(const name InName, out vector OutVector);
+/**
+ *	Retrieve the Color parameter value for the given name.
+ *
+ *	@param	InName		Name of the parameter
+ *	@param	OutColor	The value of the parameter found
+ *
+ *	@return	TRUE		Parameter was found - OutColor is valid
+ *			FALSE		Parameter was not found - OutColor is invalid
+ */
+native function bool GetColorParameter(const name InName, out color OutColor);
+/**
+ *	Retrieve the Actor parameter value for the given name.
+ *
+ *	@param	InName		Name of the parameter
+ *	@param	OutActor	The value of the parameter found
+ *
+ *	@return	TRUE		Parameter was found - OutActor is valid
+ *			FALSE		Parameter was not found - OutActor is invalid
+ */
+native function bool GetActorParameter(const name InName, out actor OutActor);
+/**
+ *	Retrieve the Material parameter value for the given name.
+ *
+ *	@param	InName		Name of the parameter
+ *	@param	OutMaterial	The value of the parameter found
+ *
+ *	@return	TRUE		Parameter was found - OutMaterial is valid
+ *			FALSE		Parameter was not found - OutMaterial is invalid
+ */
+native function bool GetMaterialParameter(const name InName, out MaterialInterface OutMaterial);
 
 /** clears the specified parameter, returning it to the default value set in the template
  * @param ParameterName name of parameter to remove

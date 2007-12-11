@@ -175,7 +175,7 @@ struct native CoverSlot
 	var duplicatetransient array<NavReference>		DangerLinks;
 
 	/** Link/slot info about where this slot can mantle to */
-	var duplicatetransient CoverReference	MantleTarget;
+	var duplicatetransient CoverReference			MantleTarget;
 
 	/** Link/slot info about where swat turn evade can move to */
 	/** @fixme: can't these be a static 2 element array and eliminate the direction parameter in CoverReference? */
@@ -194,6 +194,8 @@ struct native CoverSlot
 	var(Auto) editconst bool bCanPopUp;
 	/** Can we mantle over this cover? */
 	var(Auto) editconst bool bCanMantle;
+	/** Can we mantle up? */
+	var(Auto) editconst bool bCanClimbUp;
 	/** Can cover slip at this slot? */
 	var(Auto) editconst bool bCanCoverSlip_Left, bCanCoverSlip_Right;
 	/** Can swat turn at this slot? */
@@ -233,6 +235,7 @@ struct native CoverSlot
 		bCanCoverSlip_Right=TRUE
 		bCanSwatTurn_Left=TRUE
 		bCanSwatTurn_Right=TRUE
+		bCanClimbUp=FALSE
 
 		bAllowMantle=TRUE
 		bAllowCoverSlip=TRUE
@@ -289,11 +292,6 @@ var const float StandHeight;
 
 /** Min height for nearby geometry to categorize as mid-level cover */
 var const float MidHeight;
-
-/** Default height for Perch walls */
-var() const float	PerchWallHeight; 
-/** Allow a little error, we support walls slightly higher or lower. */
-var() const	float	PerchWallNudge;
 
 var const Vector	StandingLeanOffset;
 var const Vector	CrouchLeanOffset;
@@ -749,6 +747,7 @@ function OnToggle(SeqAct_Toggle inAction)
 
 	Super.OnToggle( inAction );
 
+	bDisabled = !bDisabled;
 	// Call OnToggle for slot markers also
 	for( SlotIdx = 0; SlotIdx < Slots.Length; SlotIdx++ )
 	{
@@ -844,10 +843,8 @@ defaultproperties
 	Slots(0)=(LocationOffset=(X=64.f))
 
 	AlignDist=34.f
-	StandHeight=130.f
+	StandHeight=160.f
 	MidHeight=70.f
-	PerchWallHeight=160.f	// default height for Perch walls
-	PerchWallNudge=4.f		// Allow a little error, we support walls slightly higher or lower.
 
 	StandingLeanOffset=(X=0,Y=78,Z=69)
 	CrouchLeanOffset=(X=0,Y=70,Z=19)
@@ -862,6 +859,8 @@ defaultproperties
 	bBuildLongPaths=FALSE
 
 	MaxFireLinkDist=2048.f
+
+	Abbrev="CL"
 
 //debug
 //	bDebug=TRUE

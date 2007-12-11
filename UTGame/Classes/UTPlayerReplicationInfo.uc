@@ -681,6 +681,7 @@ function SeamlessTravelTo(PlayerReplicationInfo NewPRI)
 		UTPRI.CharacterMesh = CharacterMesh;
 		UTPRI.CharPortrait = CharPortrait;
 		UTPRI.VoiceClass = VoiceClass;
+		UTPRI.SinglePlayerCharacterIndex = SinglePlayerCharacterIndex;
 
 		UTPRI.bUsingReplacementCharacter = bUsingReplacementCharacter;
 		UTPRI.FirstPersonArmMesh = FirstPersonArmMesh;
@@ -815,7 +816,7 @@ simulated event ReplicatedEvent(name VarName)
 
 	if ( VarName == 'Team' )
 	{
-		if (LastReceivedCharacterDataTime != WorldInfo.TimeSeconds && GetTeamNum() != CharacterMeshTeamNum)
+		if (GetTeamNum() != CharacterMeshTeamNum)
 		{
 			// try to recreate custom character mesh as they are team specific
 			UTGRI = UTGameReplicationInfo(WorldInfo.GRI);

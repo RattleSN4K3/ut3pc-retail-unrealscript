@@ -278,7 +278,7 @@ function UTSquadAI AddHumanSquad()
 	// add human squad
 	foreach WorldInfo.AllControllers(class'PlayerController', P)
 	{
-		if (P.PlayerReplicationInfo.Team == Team && !P.PlayerReplicationInfo.bOnlySpectator)
+		if (P.PlayerReplicationInfo != None && P.PlayerReplicationInfo.Team == Team && !P.PlayerReplicationInfo.bOnlySpectator)
 		{
 			return AddSquadWithLeader(P, None);
 		}

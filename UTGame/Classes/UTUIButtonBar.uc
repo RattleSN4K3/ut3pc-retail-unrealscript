@@ -14,8 +14,6 @@ const UTUIBUTTONBAR_BUTTON_SPACING = -20;
 /** Array of actual label buttons for the button bar. */
 var instanced UTUIButtonBarButton		Buttons[UTUIBUTTONBAR_MAX_BUTTONS];
 
-`include(Core/Globals.uci)
-
 event PostInitialize()
 {
 	local int ButtonIdx;
@@ -28,6 +26,7 @@ event PostInitialize()
 		// Hide all buttons by default.
 		Buttons[ButtonIdx].SetVisibility(false);
 		Buttons[ButtonIdx].TabIndex = UTUIBUTTONBAR_MAX_BUTTONS - 1 - ButtonIdx;
+		Buttons[ButtonIdx].DockTargets.bLockWidthWhenDocked = true;
 
 		// Setup docking.
 		if(ButtonIdx > 0)

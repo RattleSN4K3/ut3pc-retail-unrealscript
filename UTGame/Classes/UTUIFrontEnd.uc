@@ -4,6 +4,7 @@
  * Base class for frontend scenes, looks for buttonbar and tab control references.
  */
 class UTUIFrontEnd extends UTUIScene
+	config(Game)
 	native(UIFrontEnd)
 	dependson(UTUIScene_MessageBox);
 
@@ -24,7 +25,8 @@ enum EModImport
 	MODIMPORT_Inactive,
 	MODIMPORT_Started,
 	MODIMPORT_Unpacking,
-	MODIMPORT_Finished
+	MODIMPORT_Finished,
+	MODIMPORT_Failed
 };
 
 var transient EModImport			ImportState;
@@ -39,6 +41,10 @@ var transient bool bCancellingInstallPS3;
 
 /** Markup for the title for this scene. */
 var() string	TitleMarkupString;
+
+var localized string	VersionText;
+var vector2D			VersionPos;
+var font				VersionFont;
 
 /** Post initialize callback. */
 event PostInitialize()
@@ -141,36 +147,43 @@ function OnPageActivated( UITabControl Sender, UITabPage NewlyActivePage, int Pl
 	// Anytime the tab page is changed, update the buttonbar.
 	PreviousPageIndex = CurrentPageIndex;
 	CurrentPageIndex = Sender.FindPageIndexByPageRef(NewlyActivePage);
+	PreviousActivePage = Sender.GetPageAtIndex(PreviousPageIndex);
 
 	// Start hide animations for previous page
-	if(PreviousPageIndex != INDEX_NONE)
+	if( PreviousPageIndex != INDEX_NONE )
 	{
-		// Block input
-		GetUTInteraction().BlockUIInput(true);
-
-		NewlyActivePage.SetVisibility(false);
-
-		PreviousActivePage = Sender.GetPageAtIndex(PreviousPageIndex);
-		PreviousActivePage.SetVisibility(true);
-		PreviousActivePage.OnUIAnimEnd = OnTabPage_Hide_UIAnimEnd;
-
-		PageDiff = CurrentPageIndex-PreviousPageIndex;
-
-		if(Abs(PageDiff)>1)
+		if ( TabControl.ContainsChild(PreviousActivePage, true) )
 		{
-			PageDiff = -PageDiff;
-		}
+			// Block input
+			GetUTInteraction().BlockUIInput(true);
 
-		if(PageDiff > 0)
-		{
-			PreviousActivePage.PlayUIAnimation('TabPageExitLeft');
+			NewlyActivePage.SetVisibility(false);
+
+			PreviousActivePage.SetVisibility(true);
+			PreviousActivePage.OnUIAnimEnd = OnTabPage_Hide_UIAnimEnd;
+
+			PageDiff = CurrentPageIndex-PreviousPageIndex;
+
+			if(Abs(PageDiff)>1)
+			{
+				PageDiff = -PageDiff;
+			}
+
+			if(PageDiff > 0)
+			{
+				PreviousActivePage.PlayUIAnimation('TabPageExitLeft');
+			}
+			else
+			{
+				PreviousActivePage.PlayUIAnimation('TabPageExitRight');
+			}
+
+			ButtonBar.PlayUIAnimation('ButtonBarHide');
 		}
 		else
 		{
-			PreviousActivePage.PlayUIAnimation('TabPageExitRight');
+			OnTabPage_Hide_UIAnimEnd(PreviousActivePage, 0, None);
 		}
-
-		ButtonBar.PlayUIAnimation('ButtonBarHide');
 
 		PlayUISound('RotateTabPage');
 	}
@@ -195,6 +208,10 @@ function OnTabPage_Hide_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimatio
 	ButtonBar.PlayUIAnimation('ButtonBarShow');
 
 	NewlyActivePage = TabControl.GetPageAtIndex(CurrentPageIndex);
+	if ( NewlyActivePage == None )
+	{
+		NewlyActivePage = TabControl.ActivePage;
+	}
 
 	if(NewlyActivePage != None)
 	{
@@ -208,6 +225,7 @@ function OnTabPage_Hide_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimatio
 			PageDiff = -PageDiff;
 		}
 
+		CurrentPageIndex = TabControl.FindPageIndexByPageRef(NewlyActivePage);
 		if(PageDiff > 0)
 		{
 			NewlyActivePage.PlayUIAnimation('TabPageEnterRight');
@@ -454,6 +472,13 @@ event UpdateModState(EModImport NewState)
 		{
 			ImportingMessageBoxReference.DisplayModalBox("<Strings:UTGameUI.MessageBox.UnpackingMod_Message>");
 		}
+		else if(NewState==MODIMPORT_Failed)
+		{
+			// Display a message indicating that mod import failed.
+			ImportingMessageBoxReference = GetMessageBoxScene();
+			ImportingMessageBoxReference.DisplayAcceptBox("<Strings:UTGameUI.MessageBox.ModImportFailed_Message>");
+			OnImportModFinished();
+		}
 
 		ImportState = NewState;
 	}
@@ -493,16 +518,24 @@ function OnCancelInstallPS3(UTUIScene_MessageBox MessageBox, int SelectedItem, i
 /**
  * Updates the current install state for the PS3 Install.
  *
- * @param CurrentFileNum	Current file number installing.
- * @param TotalFileNum		Total number of files to install.
+ * @param CurrentFileNum		Current file number installing.
+ * @param TotalFileNum			Total number of files to install.
+ * @param bFinishedCanceling	TRUE if the install was canceled, and now it's done
+ * @param bHasError				TRUE if an error occurred during the install process.
  */
-event UpdatePS3InstallState(int CurrentFileNum, int TotalFileNum, bool bFinishedCancelling)
+event UpdatePS3InstallState(int CurrentFileNum, int TotalFileNum, bool bFinishedCancelling, bool bHasError)
 {
 	local string FinalString;
 
 	if(bInstallingPS3)
 	{
-		if(CurrentFileNum==TotalFileNum && TotalFileNum > 0 && !bCancellingInstallPS3)
+		if(bHasError)
+		{
+			bInstallingPS3=false;
+			ImportingMessageBoxReference = GetMessageBoxScene();
+			ImportingMessageBoxReference.DisplayAcceptBox("<Strings:UTGameUI.MessageBox.InstallingFailed_Message>");
+		}
+		else if(CurrentFileNum==TotalFileNum && TotalFileNum > 0 && !bCancellingInstallPS3)
 		{
 			bInstallingPS3=false;
 			ImportingMessageBoxReference.OnSelection=None;
@@ -580,4 +613,5 @@ defaultproperties
 	// Setup handler for input keys - do it in defaultproperties so that it doesn't get serialized in the editor
 	OnRawInputKey=HandleInputKey
 	OnTopSceneChanged=ChildSceneOpened
+	VersionPos=(X=0.0090,Y=0.0570)
 }

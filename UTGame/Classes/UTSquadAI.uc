@@ -409,7 +409,7 @@ function bool FindNewEnemyFor(UTBot B, bool bSeeEnemy)
 	}
 	for ( i=0; i<ArrayCount(Enemies); i++ )
 	{
-		if ( (Enemies[i] != None) && (Enemies[i].Health > 0) && (Enemies[i].Controller != None) )
+		if (Enemies[i] != None && Enemies[i].Health > 0 && Enemies[i].Controller != None && !WorldInfo.GRI.OnSameTeam(Enemies[i], B))
 		{
 			if ( BestEnemy == None )
 			{
@@ -1101,6 +1101,12 @@ function SetDefenseScriptFor(UTBot B)
 		{
 			return;
 		}
+	}
+
+	// make sure we don't reuse a defensepoint that is no longer valid
+	if (B.DefensePoint != None && B.DefensePoint.DefendedObjective != SquadObjective)
+	{
+		B.FreePoint();
 	}
 
 	// determine what DefenseGroups are already being defended by other bots on this team
@@ -2215,7 +2221,7 @@ function bool CheckSuperItem(UTBot B, float SuperDist)
 		Team.AI.FindSuperItems();
 	}
 
-	B.RespawnPredictionTime = (B.Skill >= 5.0) ? 2.0 : 0.0;
+	B.RespawnPredictionTime = (B.Skill > 5.0) ? 2.0 : 0.0;
 
 	if (ShouldCheckSuperVehicle(B))
 	{
@@ -2254,7 +2260,7 @@ function bool CheckSuperItem(UTBot B, float SuperDist)
 		}
 	}
 
-	if (!bFoundSomething)
+	if (!bFoundSomething && (B.Skill > 3.5) )
 	{
 		for (i = 0; i < Team.AI.NumSuperPickups; i++)
 		{
@@ -2314,7 +2320,7 @@ function bool CheckSquadObjectives(UTBot B)
 	{
 		if ( UTHoldSpot(B.DefensePoint) != None )
 		{
-			if ( UTHoldSpot(B.DefensePoint).HoldVehicle != B.Pawn )
+			if ( UTHoldSpot(B.DefensePoint).HoldVehicle != B.Pawn && UTHoldSpot(B.DefensePoint).HoldVehicle != B.Pawn.GetVehicleBase() )
 			{
 				B.LeaveVehicle(true);
 				return true;
@@ -2401,7 +2407,7 @@ function bool CheckSquadObjectives(UTBot B)
 		bInPosition = (B.Pawn == DesiredPosition) || B.Pawn.ReachedDestination(DesiredPosition);
 		if ( bInPosition && (Vehicle(DesiredPosition) != None) )
 		{
-			if (V != None && B.Pawn != DesiredPosition)
+			if (V != None && B.Pawn != DesiredPosition && B.Pawn.GetVehicleBase() != DesiredPosition)
 			{
 				B.LeaveVehicle(true);
 				return true;
@@ -2524,11 +2530,12 @@ function bool CheckSquadObjectives(UTBot B)
 
 	if ( (B.DefensePoint != None) && (DesiredPosition == B.DefensePoint) )
 	{
+		/*
 		if ( (B.Pawn.Anchor != None) && B.Pawn.ReachedDestination(B.Pawn.Anchor) )
 			`log(B.PlayerReplicationInfo.PlayerName$" had no path to "$B.DefensePoint$" from "$B.Pawn.Anchor);
 		else
 			`log(B.PlayerReplicationInfo.PlayerName$" had no path to "$B.DefensePoint);
-
+		*/
 		B.FreePoint();
 		if ( (SquadObjective != None) && (VSize(B.Pawn.Location - SquadObjective.Location) > 1200) )
 		{

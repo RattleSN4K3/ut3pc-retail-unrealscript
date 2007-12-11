@@ -68,7 +68,10 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 		bAllowBotSelection=false;
 	}
 
-	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.SelectMutators>", OnButtonBar_Mutators);
+	if(UTUIScene(GetScene()).GetWorldInfo().IsDemoBuild()==false)
+	{
+		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.SelectMutators>", OnButtonBar_Mutators);
+	}
 }
 
 /** Shows the bot configuration scene. */
@@ -160,7 +163,10 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 		}
 		else if(EventParms.InputKeyName=='XboxTypeS_X')		// Show mutator screen
 		{
-			OnShowMutators();
+			if(UTUIScene(GetScene()).GetWorldInfo().IsDemoBuild()==false)
+			{
+				OnShowMutators();
+			}
 
 			bResult=true;
 		}

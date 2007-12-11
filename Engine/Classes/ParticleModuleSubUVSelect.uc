@@ -4,9 +4,12 @@
 class ParticleModuleSubUVSelect extends ParticleModuleSubUVBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
+/**
+ *	The horizontal (X) and vertical (Y) index of the sub-image desired.
+ *	Value is retrieved using the RelativeTime of the particle.
+ */
 var(SubUV) rawdistributionvector	SubImageSelect;
 
 

@@ -6,8 +6,10 @@
 class UTUIFrontEnd_JoinGame extends UTUIFrontEnd;
 
 /** Tab page references for this scene. */
-var UTUITabPage_ServerBrowser ServerBrowserTab;
-var UTUITabPage_ServerFilter ServerFilterTab;
+var UTUITabPage_ServerBrowser	ServerBrowserTab;
+var UTUITabPage_ServerFilter 	ServerFilterTab;
+var	UTUITabPage_ServerHistory	ServerHistoryTab;
+var	UTUITabPage_ServerFavorites	ServerFavoritesTab;
 
 /** true when we're opened via the campaign menu's 'join online game' option */
 var transient	bool		bCampaignMode;
@@ -16,7 +18,7 @@ var transient	bool		bCampaignMode;
  * Tracks whether a query has been initiated.  Set to TRUE once the first query is started - this is how we catch cases
  * where the user clicked on the sb tab directly instead of clicking the Search button.
  */
-var	transient	bool		bIssuedInitialQuery;
+var	transient	bool		bIssuedInitialQuery, bIssuedInitialHistoryQuery, bIssuedInitialFavoritesQuery;
 
 /** PostInitialize event - Sets delegates for the scene. */
 event PostInitialize()
@@ -25,7 +27,6 @@ event PostInitialize()
 
 	// Grab a reference to the server filter tab.
 	ServerFilterTab = UTUITabPage_ServerFilter(FindChild('pnlServerFilter', true));
-
 	if(ServerFilterTab != none)
 	{
 		TabControl.InsertPage(ServerFilterTab, 0, INDEX_NONE, true);
@@ -40,7 +41,27 @@ event PostInitialize()
 		TabControl.InsertPage(ServerBrowserTab, 0, INDEX_NONE, false);
 		ServerBrowserTab.OnBack = OnServerBrowser_Back;
 		ServerBrowserTab.OnSwitchedGameType = ServerBrowserChangedGameType;
-		ServerBrowserTab.OnPrepareToSubmitQuery = PreSubmitQuery;
+
+		// this is no longer needed, as we call SaveSubscriberValue on each option as its changed
+		//ServerBrowserTab.OnPrepareToSubmitQuery = PreSubmitQuery;
+	}
+
+	ServerHistoryTab = UTUITabPage_ServerHistory(FindChild('pnlServerHistory', true));
+	if ( ServerHistoryTab != None )
+	{
+		TabControl.InsertPage(ServerHistoryTab, GetBestPlayerIndex(),, false);
+		ServerHistoryTab.OnBack = OnServerBrowser_Back;
+		ServerHistoryTab.OnAddToFavorite = OnServerHistory_AddToFavorite;
+
+		// this is no longer needed, as we call SaveSubscriberValue on each option as its changed
+		//ServerHistoryTab.OnPrepareToSubmitQuery = PreSubmitQuery;
+	}
+
+	ServerFavoritesTab = UTUITabPage_ServerFavorites(FindChild('pnlServerFavorites',true));
+	if ( ServerFavoritesTab != None )
+	{
+		TabControl.InsertPage(ServerFavoritesTab, GetBestPlayerIndex(), , false);
+		ServerFavoritesTab.OnBack = OnServerBrowser_Back;
 	}
 
 	// Let the currently active page setup the button bar.
@@ -57,6 +78,16 @@ event SceneDeactivated()
 	{
 		ServerBrowserTab.Cleanup();
 	}
+
+	if ( ServerHistoryTab != None )
+	{
+		ServerHistoryTab.Cleanup();
+	}
+
+	if ( ServerFavoritesTab != None )
+	{
+		ServerFavoritesTab.Cleanup();
+	}
 }
 
 /**
@@ -69,12 +100,35 @@ function OnMainRegion_Show_UIAnimEnd( UIObject AnimTarget, int AnimIndex, UIAnim
 	if ( AnimTarget.AnimStack[AnimIndex].SeqRef.SeqName == 'SceneShowInitial' )
 	{
 		// make sure we can't choose "internet" if we aren't signed in online
-		ServerFilterTab.ValidateServerType();
+		ServerFilterTab.ValidateServerType(bCampaignMode);
+	}
+}
 
-		if ( bCampaignMode )
-		{
-			OnAcceptFilterOptions(GetBestPlayerIndex());
-		}
+/** Callback for when the login changes after showing the login UI. */
+function OnLoginUI_LoginChange()
+{
+	Super.OnLoginUI_LoginChange();
+
+	if ( bCampaignMode )
+	{
+		ServerFilterTab.CampaignLoginCompleted();
+	}
+}
+
+
+/**
+ * Delegate used in notifying the UI/game that the manual login failed after showing the login UI.
+ *
+ * @param ControllerId	the controller number of the associated user
+ * @param ErrorCode		the async error code that occurred
+ */
+function OnLoginUI_LoginFailed( byte ControllerId,EOnlineServerConnectionStatus ErrorCode)
+{
+	Super.OnLoginUI_LoginFailed(ControllerId, ErrorCode);
+
+	if ( bCampaignMode )
+	{
+		ServerFilterTab.CampaignLoginCompleted();
 	}
 }
 
@@ -95,6 +149,16 @@ function OnPageActivated( UITabControl Sender, UITabPage NewlyActivePage, int Pl
 		bIssuedInitialQuery = true;
 
 		ServerBrowserTab.RefreshServerList(PlayerIndex);
+	}
+	else if ( !bIssuedInitialHistoryQuery && NewlyActivePage == ServerHistoryTab )
+	{
+		bIssuedInitialHistoryQuery = true;
+		ServerHistoryTab.RefreshServerList(PlayerIndex);
+	}
+	else if ( !bIssuedInitialFavoritesQuery && NewlyActivePage == ServerFavoritesTab )
+	{
+		bIssuedInitialFavoritesQuery = true;
+		ServerFavoritesTab.RefreshServerList(PlayerIndex);
 	}
 }
 
@@ -150,16 +214,21 @@ function PreSubmitQuery( UTUITabPage_ServerBrowser ServerBrowser )
 /** Shows the previous tab page, if we are at the first tab, then we close the scene. */
 function ShowPrevTab()
 {
-	if(TabControl.ActivatePreviousPage(0,true,false)==false)
+	if ( !TabControl.ActivatePreviousPage(0,false,false) )
 	{
-		CloseScene(self);
+		if ((ServerBrowserTab == None	|| ServerBrowserTab.AllowCloseScene())
+		&&	(ServerHistoryTab == None	|| ServerHistoryTab.AllowCloseScene())
+		&&	(ServerFavoritesTab == None	|| ServerFavoritesTab.AllowCloseScene()))
+		{
+			CloseScene(self);
+		}
 	}
 }
 
 /** Shows the next tab page, if we are at the last tab, then we start the game. */
 function ShowNextTab()
 {
-	TabControl.ActivateNextPage(0,true,false);
+	TabControl.ActivateNextPage(0,false,false);
 }
 
 /** Called when the user accepts their filter settings and wants to go to the server browser. */
@@ -186,6 +255,26 @@ function OnServerFilter_AcceptOptions(UIScreenObject InObject, int PlayerIndex)
 function OnServerBrowser_Back()
 {
 	ShowPrevTab();
+}
+
+/**
+ * Handler for when user moves a server from the server history tab to the server favorites tab; refreshes
+ * the server favorites query if the favorites tab is active; otherwise flags the server favorites to be
+ * requeried the next time that tab is shown
+ */
+function OnServerHistory_AddToFavorite()
+{
+	if (ServerFavoritesTab != None && TabControl != None )
+	{
+		if ( TabControl.ActivePage == ServerFavoritesTab )
+		{
+			ServerFavoritesTab.RefreshServerList(GetBestPlayerIndex());
+		}
+		else
+		{
+			bIssuedInitialFavoritesQuery = false;
+		}
+	}
 }
 
 /** Buttonbar Callbacks. */
@@ -247,17 +336,58 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 function UseCampaignMode()
 {
 	local int ValueIndex;
+	local OnlineGameSearch CurrentSearchSettings;
+
 	ValueIndex = ServerFilterTab.MenuDataStore.FindValueInProviderSet('GameModeFilter', 'GameSearchClass', "UTGameSearchCampaign");
 
 	if(ValueIndex != -1)
 	{
 		bCampaignMode = true;
 
+		// make sure that the "Pure Server" option is set to ANY
 		ServerFilterTab.MenuDataStore.GameModeFilter = ValueIndex;
 		ServerFilterTab.MarkOptionsDirty();
 		ServerFilterTab.SearchDataStore.SetCurrentByName('UTGameSearchCampaign', false);
 
+		CurrentSearchSettings = ServerFilterTab.SearchDataStore.GetCurrentGameSearch();
+		if ( CurrentSearchSettings != None )
+		{
+			CurrentSearchSettings.SetStringSettingValue(CONTEXT_PURESERVER, CONTEXT_PURESERVER_ANY, false);
+		}
+
 		ServerFilterChangedGameType();
+	}
+	TabControl.RemovePage(ServerHistoryTab, GetBestPlayerIndex());
+	TabControl.RemovePage(ServerFavoritesTab, GetBestPlayerIndex());
+	ServerHistoryTab = None;
+	ServerFavoritesTab = None;
+}
+
+/**
+ * Notification that the player's connection to the platform's online service is changed.
+ */
+function NotifyOnlineServiceStatusChanged( EOnlineServerConnectionStatus NewConnectionStatus )
+{
+	Super.NotifyOnlineServiceStatusChanged(NewConnectionStatus);
+
+	if ( NewConnectionStatus != OSCS_Connected )
+	{
+		// make sure we are using the LAN option
+		ServerFilterTab.ForceLANOption(GetBestPlayerIndex());
+		if ( bIssuedInitialQuery )
+		{
+			ServerBrowserTab.CancelQuery(QUERYACTION_RefreshAll);
+		}
+		if ( bIssuedInitialHistoryQuery )
+		{
+			ServerHistoryTab.CancelQuery(QUERYACTION_RefreshAll);
+		}
+		if ( bIssuedInitialHistoryQuery )
+		{
+			ServerFavoritesTab.CancelQuery(QUERYACTION_RefreshAll);
+		}
+
+		ServerBrowserTab.NotifyGameTypeChanged();
 	}
 }
 

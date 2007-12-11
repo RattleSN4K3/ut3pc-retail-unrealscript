@@ -37,7 +37,7 @@ simulated event KillActor(Actor Other)
 	if ( !Other.bScriptInitialized )
 	{
 		// warn if actor was spawned in killz volume (bad)
-		`log(Other$" destroyed in "$self$"while being spawned!");
+		`Log(Other @ "destroyed in" @ self @ "while being spawned!",, 'DevSpawn');
 	}
 	Other.FellOutOfWorld(KillZDamageType);
 	if ( UTPawn(Other) != None )

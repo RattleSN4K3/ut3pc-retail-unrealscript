@@ -253,7 +253,7 @@ event NextObjective()
 
 function PlaySound(SoundCue SoundToPlay)
 {
-	`log( "!!!!!!!!!!!!!!!!!!!!!!!MISSIONBRIEFING PLAYSOUND:" @ SoundToPlay );
+	//`log( "!!!!!!!!!!!!!!!!!!!!!!!MISSIONBRIEFING PLAYSOUND:" @ SoundToPlay );
 	AudioPlayer.SoundCue = SoundToPlay;
 	// Set bIgnoreForFlushing to TRUE so that the audio won't be stopped
 	// by the audio device flush issued from the seamless travel handler.
@@ -266,7 +266,7 @@ function PlaySound(SoundCue SoundToPlay)
  */
 function PlayObjectiveSound(SoundCue SoundToPlay)
 {
-	`log( "!!!!!!!!!!!!!!!!!!!!!!!MISSIONBRIEFING PLAY OBJECTIVE SOUND:" @ SoundToPlay );
+	//`log( "!!!!!!!!!!!!!!!!!!!!!!!MISSIONBRIEFING PLAY OBJECTIVE SOUND:" @ SoundToPlay );
 	NotificationAudioPlayer.SoundCue = SoundToPlay;
 	// Set bIgnoreForFlushing to TRUE so that the audio won't be stopped
 	// by the audio device flush issued from the seamless travel handler.

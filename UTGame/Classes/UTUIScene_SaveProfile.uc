@@ -22,6 +22,7 @@ delegate OnSaveFinished();
 event PostInitialize()
 {
 	OnRawInputKey = KillInput;
+	PerformSave();
 }
 
 function bool KillInput( const out InputEventParameters EventParms )
@@ -36,7 +37,7 @@ event PerformSave()
 	if (!bProfileSaved)
 	{
 		// Don't use the timed close on consoles as they are event driven
-		bUseTimedClose = !IsConsole(CONSOLE_PS3);
+		bUseTimedClose = !IsConsole(CONSOLE_Any);
 		if (!bUseTimedClose)
 		{
 			OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
@@ -51,6 +52,7 @@ event PerformSave()
 				bUseTimedClose = true;
 			}
 		}
+
 		SavePlayerProfile(PlayerIndexToSave);
 		bProfileSaved = true;
 	}
@@ -71,12 +73,20 @@ function OnSaveProfileComplete(bool bWasSuccessful)
 		// Register the call back so we can shut down the scene upon completion
 		OnlineSub.PlayerInterface.ClearWriteProfileSettingsCompleteDelegate(PlayerIndexToSave,OnSaveProfileComplete);
 	}
-//@todo Amitt/JoeW -- show an error when failing to save
-	ShutDown();
+
+	if ( !bWasSuccessful )
+	{
+		//@todo Amitt/JoeW -- show an error when failing to save
+	}
+
+	// set the flag indicating that the scene is ready to be closed.  the native code will make sure that we've been open
+	// the required amount of time before actually closing the scene
+	bShutdown = true;
 }
 
 event ShutDown()
 {
+	// make sure we call CloseScene BEFORE firing the OnSaveFinished delegate, as there is code that depends on the order
 	CloseScene(Self);
 	OnSaveFinished();
 	OnSaveFinished = None;
@@ -84,6 +94,7 @@ event ShutDown()
 
 defaultproperties
 {
+	bRenderParentScenes=true
 	bCloseOnLevelChange=true
 	SceneInputMode=INPUTMODE_Simultaneous
 	SceneRenderMode=SPLITRENDER_Fullscreen

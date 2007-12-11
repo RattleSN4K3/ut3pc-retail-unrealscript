@@ -31,5 +31,5 @@ defaultproperties
 	ShotCost(1)=0
 	FireTriggerTags=(MantaWeapon01,MantaWeapon02)
 	VehicleClass=class'UTVehicle_Manta_Content'
-	AimError=650
+	AimError=750
 }

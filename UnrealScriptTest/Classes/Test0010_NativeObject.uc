@@ -9,8 +9,6 @@ class Test0010_NativeObject extends Object
 	native
 	implements(Test0002_InterfaceNative);
 
-`include(Core/Globals.uci)
-
 var Test0002_InterfaceNative InterfaceMember;
 
 var array<Test0002_InterfaceNative> InterfaceArray;

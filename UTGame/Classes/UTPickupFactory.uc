@@ -94,6 +94,9 @@ var Array<SoundNodeWave> LocationSpeech;
 
 var float LastSeekNotificationTime;
 
+var	ForceFeedbackWaveform	PickUpWaveForm;
+
+
 
 
 replication
@@ -410,6 +413,7 @@ simulated event SetInitialState()
 function PickedUpBy(Pawn P)
 {
 	local UTBot B;
+	local PlayerController PC;
 
 	Super.PickedUpBy(P);
 
@@ -418,6 +422,12 @@ function PickedUpBy(Pawn P)
 	if (B != None && B.NoVehicleGoal == self)
 	{
 		B.NoVehicleGoal = None;
+	}
+
+	PC = PlayerController(P.Controller);
+	if(PC != None)
+	{
+		PC.ClientPlayForceFeedbackWaveform(PickUpWaveForm);
 	}
 }
 
@@ -484,4 +494,9 @@ defaultproperties
 	GlowEmissiveParam=LightStrength
 	bDoVisibilityFadeIn=TRUE
 	VisibilityParamName=ResIn
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformPickUp
+		Samples(0)=(LeftAmplitude=80,RightAmplitude=30,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearIncreasing,Duration=0.20)
+	End Object
+	PickUpWaveForm=ForceFeedbackWaveformPickUp
 }

@@ -131,7 +131,13 @@ event bool SubmitGameSearch(byte ControllerIndex, optional bool bInvalidateExist
 				ActiveSearchIndex = SelectedIndex;
 			}
 
-			// Start the async task
+			if ( OverrideQuerySubmission(ControllerIndex, GameSearchCfgList[ActiveSearchIndex].Search) )
+			{
+				return true;
+			}
+
+			// invalidate the results for this search
+			InvalidateCurrentSearchResults();
 			return GameInterface.FindOnlineGames(ControllerIndex,GameSearchCfgList[ActiveSearchIndex].Search);
 		}
 		else
@@ -143,6 +149,19 @@ event bool SubmitGameSearch(byte ControllerIndex, optional bool bInvalidateExist
 	{
 		`warn("No OnlineSubsystem present. Can't search for games");
 	}
+	return false;
+}
+
+/**
+ * Worker for SubmitGameSeach; allows child classes to perform additional work before the query is submitted.
+ *
+ * @param	ControllerId	the index of the controller for the player to perform the search for.
+ * @param	Search			the search object that will be used to generate the query.
+ *
+ * @return	TRUE to prevent SubmitGameSeach from submitting the search (such as when you do this step yourself).
+ */
+protected function bool OverrideQuerySubmission( byte ControllerId, OnlineGameSearch Search )
+{
 	return false;
 }
 
@@ -374,17 +393,20 @@ function ClearAllSearchResults()
 	local int OriginalActiveIndex, GameTypeIndex;
 
 	OriginalActiveIndex = ActiveSearchIndex;
-	for ( GameTypeIndex = 0; GameTypeIndex < GameSearchCfgList.Length; GameTypeIndex++ )
+	if ( GameInterface != None )
 	{
-		ActiveSearchIndex = GameTypeIndex;
-		if ( GameInterface.FreeSearchResults(GameSearchCfgList[GameTypeIndex].Search) )
+		for ( GameTypeIndex = 0; GameTypeIndex < GameSearchCfgList.Length; GameTypeIndex++ )
 		{
-			// this is const - can't clear it...call BuildSearchResults to clear the SearchResults array for this game search element
-			BuildSearchResults();
-		}
-		else
-		{
-			`warn(Name $ ".ClearAllSearchResults: Failed to free search results for" @ GameSearchCfgList[GameTypeIndex].SearchName @ "(" $ GameTypeIndex $ ") - search is still in progress");
+			ActiveSearchIndex = GameTypeIndex;
+			if ( GameInterface.FreeSearchResults(GameSearchCfgList[GameTypeIndex].Search) )
+			{
+				// this is const - can't clear it...call BuildSearchResults to clear the SearchResults array for this game search element
+				BuildSearchResults();
+			}
+			else
+			{
+				`warn(Name $ ".ClearAllSearchResults: Failed to free search results for" @ GameSearchCfgList[GameTypeIndex].SearchName @ "(" $ GameTypeIndex $ ") - search is still in progress");
+			}
 		}
 	}
 

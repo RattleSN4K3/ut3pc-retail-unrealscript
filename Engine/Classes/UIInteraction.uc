@@ -471,6 +471,29 @@ static final event bool CanPlayOnline( int ControllerId )
 	return Result!=FPL_Disabled;
 }
 
+/**
+ * Wrapper for getting the NAT type
+ */
+static final event ENATType GetNATType()
+{
+	local OnlineSubsystem OnlineSub;
+	local OnlineSystemInterface SystemInterface;
+	local ENATType Result;
+
+	// Figure out if we have an online subsystem registered
+	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
+	if (OnlineSub != None)
+	{
+		SystemInterface = OnlineSub.SystemInterface;
+		if (SystemInterface != None)
+		{
+			Result = SystemInterface.GetNATType();
+		}
+	}
+
+	return Result;
+}
+
 /* === Interaction interface === */
 
 /**

@@ -184,5 +184,10 @@ defaultproperties
 	End Object
 	BaseGlow=GlowEffect
 	Components.Add(GlowEffect)
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformPickUp
+		Samples(0)=(LeftAmplitude=90,RightAmplitude=35,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearIncreasing,Duration=0.15)
+	End Object
+	PickUpWaveForm=ForceFeedbackWaveformPickUp
 }
 

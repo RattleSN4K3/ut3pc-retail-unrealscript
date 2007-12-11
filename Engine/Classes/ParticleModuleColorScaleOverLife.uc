@@ -9,7 +9,6 @@
 class ParticleModuleColorScaleOverLife extends ParticleModuleColorBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
 /** The scale factor for the color.													*/

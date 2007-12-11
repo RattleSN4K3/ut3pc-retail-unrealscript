@@ -41,6 +41,15 @@ function Destroyed()
 
 	Super.Destroyed();
 
+	if (CurrentAnnouncementComponent != none)
+	{
+		if (PlayerOwner != none)
+		{
+			PlayerOwner.DetachComponent(CurrentAnnouncementComponent);
+		}
+		CurrentAnnouncementComponent = none;
+	}
+
 	for ( A=Queue; A!=None; A=A.nextAnnouncement )
 		A.Destroy();
 }
@@ -90,6 +99,15 @@ function PlayAnnouncementNow(class<UTLocalMessage> InMessageClass, int MessageIn
 
 	if ( ASound != None )
 	{
+		if (CurrentAnnouncementComponent != none)
+		{
+			if (PlayerOwner != none)
+			{
+				PlayerOwner.DetachComponent(CurrentAnnouncementComponent);
+			}
+			CurrentAnnouncementComponent = none;
+		}
+
 		//@FIXME: part of playsound pool?
 		// if we are a UTVoice when we want to use the special UTVoiceSoundCue which is in the correct SoundGroup (i.e. effects)
 		if ( ClassIsChildOf( InMessageClass, class'UTVoice' ) || ClassIsChildOf( InMessageClass, class'UTScriptedVoiceMessage' ) )
@@ -125,7 +143,9 @@ function PlayAnnouncementNow(class<UTLocalMessage> InMessageClass, int MessageIn
 		}
 		PlayingAnnouncementClass = InMessageClass;
 		PlayingAnnouncementIndex = MessageIndex;
-		SetTimer(ASound.Duration + 0.05, false,'AnnouncementFinished');
+
+		// NOTE: Audio always plays back in real-time, so we'll scale our duration by the world's time dilation
+		SetTimer(ASound.Duration * WorldInfo.TimeDilation + 0.05, false,'AnnouncementFinished');
 
 		if ( InMessageClass.default.bShowPortrait 
 			&& (UTHUD(PlayerOwner.MyHUD) != None) 
@@ -144,6 +164,10 @@ function PlayAnnouncementNow(class<UTLocalMessage> InMessageClass, int MessageIn
 
 function AnnouncementFinished(AudioComponent AC)
 {
+	if ((PlayerOwner != none) && (CurrentAnnouncementComponent != none))
+	{
+		PlayerOwner.DetachComponent(CurrentAnnouncementComponent);
+	}
 	CurrentAnnouncementComponent = None;
 	PlayingAnnouncementClass = None;
 	PlayNextAnnouncement();
@@ -172,7 +196,8 @@ function PlayAnnouncement(class<UTLocalMessage> InMessageClass, int MessageIndex
 		}
 		else
 		{
-			SetTimer(InMessageClass.default.AnnouncementDelay, false,'AnnouncementFinished');
+			// NOTE: Audio always plays back in real-time, so we'll scale our delay by the world's time dilation
+			SetTimer(InMessageClass.default.AnnouncementDelay * WorldInfo.TimeDilation, false,'AnnouncementFinished');
 		}
 	}
 
@@ -181,6 +206,10 @@ function PlayAnnouncement(class<UTLocalMessage> InMessageClass, int MessageIndex
 		if ( CurrentAnnouncementComponent != None )
 		{
 			CurrentAnnouncementComponent.Stop();
+			if (PlayerOwner != none)
+			{
+				PlayerOwner.DetachComponent(CurrentAnnouncementComponent);
+			}
 			CurrentAnnouncementComponent = None;
 		}
 		PlayNextAnnouncement();
@@ -189,6 +218,6 @@ function PlayAnnouncement(class<UTLocalMessage> InMessageClass, int MessageIndex
 
 defaultproperties
 {
-	AnnouncerSoundCue=SoundCue'A_Announcer_Reward.SoundCues.AnnouncerCue'
-	UTVoiceSoundCue=SoundCue'A_Announcer_Reward.SoundCues.UTVoiceSoundCue'
+	AnnouncerSoundCue=SoundCue'A_Announcer_Reward_Cue.SoundCues.AnnouncerCue'
+	UTVoiceSoundCue=SoundCue'A_Announcer_Reward_Cue.SoundCues.UTVoiceSoundCue'
 }

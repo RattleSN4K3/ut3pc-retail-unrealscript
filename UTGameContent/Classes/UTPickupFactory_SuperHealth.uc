@@ -26,7 +26,6 @@ simulated function SetPickupVisible()
 
 defaultproperties
 {
-	RespawnEffectTime = 1.5f;
 	bSuperHeal=true
 	bPredictRespawns=true
 	bIsSuperItem=true

@@ -22,6 +22,9 @@ var config string GroupNames;
 /** Path to a UIScene to use for configuring this mutator. */
 var config string UIConfigScene;
 
+/** gametypes this mutator supports - an empty array means it supports any gametype */
+var config array<string> SupportedGameTypes;
+
 /** Whether or not the mutator should be allowed in standalone matches only. */
 var config bool bStandaloneOnly;
 
@@ -43,8 +46,9 @@ event bool SupportsCurrentGameMode()
 {
 	local string GameMode;
 	local class<UTGame> GameModeClass;
-	local bool bResult;
+	local bool bResult, bGameTypeSupported;
 	local string StandaloneMatch;
+
 	bResult = true;
 
 	// Check to see if we should be allowed in stand alone matches only
@@ -58,19 +62,39 @@ event bool SupportsCurrentGameMode()
 
 	if ( GameMode != "" )
 	{
-		// Make sure we use the UTGame version of classes.
-		GameMode = Repl(GameMode, "UTGameContent.", "UTGame.");
-		GameMode = Repl(GameMode, "_Content", "");
+		if ( SupportedGameTypes.Length > 0 )
+		{
+			bGameTypeSupported = SupportedGameTypes.Find(GameMode) != INDEX_NONE;
+			if ( !bGameTypeSupported )
+			{
+				// Make sure we use the UTGame version of classes.
+				GameMode = Repl(GameMode, "UTGameContent.", "UTGame.");
+				GameMode = Repl(GameMode, "_Content", "");
 
-		// Find the class and then see if this mutator is allowed.
-		GameModeClass = class<UTGame>(FindObject(GameMode, class'class'));
-		if(GameModeClass != none)
-		{
-			bResult = bResult && GameModeClass.static.AllowMutator(ClassName);
+				// try checking the modified GameMode string as well
+				if ( SupportedGameTypes.Find(GameMode) == INDEX_NONE)
+				{
+					bResult = false;
+				}
+			}
 		}
-		else
+
+		if ( bResult )
 		{
-			`Log("UTUIDataProvider_Mutator::SupportsCurrentGameMode() - Unable to find game class: "$GameMode);
+			// Make sure we use the UTGame version of classes.
+			GameMode = Repl(GameMode, "UTGameContent.", "UTGame.");
+			GameMode = Repl(GameMode, "_Content", "");
+
+			// Find the class and then see if this mutator is allowed.
+			GameModeClass = class<UTGame>(FindObject(GameMode, class'class'));
+			if(GameModeClass != none)
+			{
+				bResult = GameModeClass.static.AllowMutator(ClassName);
+			}
+			else
+			{
+				`Log("UTUIDataProvider_Mutator::SupportsCurrentGameMode() - Unable to find game class: "$GameMode);
+			}
 		}
 	}
 

@@ -115,4 +115,9 @@ defaultproperties
 	LocationSpeech(0)=SoundNodeWave'A_Character_IGMale.BotStatus.A_BotStatus_IGMale_HeadingForTheRedeemer'
 	LocationSpeech(1)=SoundNodeWave'A_Character_Jester.BotStatus.A_BotStatus_Jester_HeadingForTheRedeemer'
 	LocationSpeech(2)=SoundNodeWave'A_Character_Othello.BotStatus.A_BotStatus_Othello_HeadingForTheRedeemer'
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.600)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

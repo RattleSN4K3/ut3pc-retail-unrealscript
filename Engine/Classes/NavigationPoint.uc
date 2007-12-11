@@ -86,7 +86,9 @@ var int Cost;					// added cost to visit this pathnode
 var() int ExtraCost;			// Extra weight added by level designer
 var transient int TransientCost;	// added right before a path finding attempt, cleared afterward.
 var	transient int FearCost;		// extra weight diminishing over time (used for example, to mark path where bot died)
-var transient int PathCost;		// extra weight used by certain path finding heuristics
+
+/** Mapping of Cost/Description for costs of this node */
+var transient native Map{FString,INT}	CostArray;
 
 var DroppedPickup	InventoryCache;		// used to point to dropped weapons
 var float	InventoryDist;
@@ -118,6 +120,9 @@ var() editconst const int NetworkID;
 var transient Pawn AnchoredPawn;
 /** Last time a pawn was anchored to this navigation point - set when Pawn chooses a new anchor */
 var transient float LastAnchoredPawnTime;
+
+/** Debug abbrev for hud printing */
+var String	Abbrev;
 
 
 
@@ -159,7 +164,7 @@ Optionally tell Pawn any special instructions to prepare for moving to this goal
 event bool SuggestMovePreparation( Pawn Other )
 {
 	// If special move was taken to get to this link
-	if( Other.SpecialMoveTo( Other.Anchor, self, Other.Controller.GetRouteGoalAfter( 0 ) ) )
+	if( Other.SpecialMoveTo( Other.Anchor, self, Other.Controller.MoveTarget ) )
 	{
 		return TRUE;
 	}
@@ -346,4 +351,6 @@ defaultproperties
 
 	// default to no network id
 	NetworkID=-1
+
+	Abbrev="NP?"
 }

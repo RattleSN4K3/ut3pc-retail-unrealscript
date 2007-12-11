@@ -6,9 +6,9 @@
 class ParticleModuleLocationPrimitiveSphere extends ParticleModuleLocationPrimitiveBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
+/** The radius of the sphere. Retrieved using EmitterTime. */
 var(Location) rawdistributionfloat	StartRadius;
 
 

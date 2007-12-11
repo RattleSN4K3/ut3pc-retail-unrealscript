@@ -50,12 +50,11 @@ function WriteOnlineStats()
 		return;
 	}
 	
-	`log("WriteOnlineStats::Begin");
 	// Only calc this if the subsystem can write stats
 	if (OnlineSub != None && OnlineSub.StatsInterface != None)
 	{
 		//Epic content + No bots => Pure
-		bIsPureGame = IsPureGame() && !bPlayersVsBots && (DesiredPlayerCount == 0);
+		bIsPureGame = IsPureGame() && !bPlayersVsBots;
 
 		Stats = UTLeaderboardWriteDM(new OnlineStatsWriteClass);
 
@@ -66,7 +65,7 @@ function WriteOnlineStats()
 			// Don't record stats for bots
 			if (PRI != None && (PRI.UniqueId != ZeroUniqueId))
 			{
-                `log("Writing out stats for player"@PRI.PlayerName@PRI.UniqueId.Uid[0]@PRI.UniqueId.Uid[1]@PRI.UniqueId.Uid[2]@PRI.UniqueId.Uid[3]@PRI.UniqueId.Uid[4]@PRI.UniqueId.Uid[5]@PRI.UniqueId.Uid[6]@PRI.UniqueId.Uid[7]);
+                `log("Writing out stats for player"@PRI.PlayerName);
 				//Write out all relevant stats
 				Stats.CopyAndWriteAllStats(PC.PlayerReplicationInfo.UniqueId, PRI, bIsPureGame, OnlineSub.StatsInterface);
 			}
@@ -93,7 +92,6 @@ function WriteOnlineStats()
             } 
 		}
 	}
-	`log("WriteOnlineStats::End");
 }
 
 defaultproperties

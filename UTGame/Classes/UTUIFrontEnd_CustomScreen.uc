@@ -82,7 +82,7 @@ function OnKeyboardInputComplete(bool bWasSuccessful)
 	PlayerInt = GetPlayerInterface();
 
 	if(PlayerInt != None)
-	{	
+	{
 		GetUTInteraction().BlockUIInput(false);	// unblock input
 		PlayerInt.ClearKeyboardInputDoneDelegate(OnKeyboardInputComplete);
 
@@ -101,4 +101,26 @@ function OnKeyboardInputComplete(bool bWasSuccessful)
 			}
 		}
 	}
+}
+
+/**
+ * Strips any characters which are deemed invalid for profile names from the specified username.
+ *
+ * @param	Username	the username to strip invalid characters from.
+ *
+ * @return	the username with all invalid characters stripped.
+ */
+static function string StripInvalidUsernameCharacters( string Username )
+{
+	Username = TrimWhitespace(Username);
+
+	// question marks break URL parsing, so strip those as well
+	Username = Repl(Username, "?", "");
+
+	//@todo - at this time, there is a bug on gamespy's end that prevents profiles which contain apostrophes from
+	// logging in online successfully, so we'll need to strip apostrophes from the profile name until gamespy
+	// fixes this bug on their end.
+	Username = Repl(Username, "'", "");
+
+	return Username;
 }

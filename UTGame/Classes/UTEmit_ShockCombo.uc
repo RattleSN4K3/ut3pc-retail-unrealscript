@@ -44,7 +44,7 @@ simulated event SetInitialState()
 		{
 			AttachComponent(new(self) ExplosionLightClass);
 		}
-		if (bDoPhysicsVortex)
+		if ( bDoPhysicsVortex && !class'GameInfo'.Static.UseLowGore(WorldInfo) )
 		{
 			GotoState('PhysicsVortex');
 		}

@@ -8,8 +8,6 @@
 class UIScene extends UIScreenObject
 	native(UIPrivate);
 
-`include(Core/Globals.uci)
-
 /**
  * Semi-unique non-localized name for this scene which is used to reference the scene from unrealscript.
  * For scenes which are gametype specific, each scene may wish to use the same SceneName (for example, if each game
@@ -209,6 +207,16 @@ var(Flags)							bool					bRequiresOnlineService;
  */
 var(Flags)							bool					bMenuLevelRestoresScene;
 
+/**
+ * TRUE to flush all player input when this scene is opened.
+ */
+var(Flags)							bool					bFlushPlayerInput<DisplayName=Flush Input|ToolTip=Controls whether keys being held down (such as when the player is firing) should be cleared when this scene is opened>;
+
+/**
+ * TRUE to disable world rendering while this scene is active
+ */
+var(Flags) 							bool 					bDisableWorldRendering<DisplayName=Disable World Rendering|ToolTip=If true, the world rendering will be disabled when this scene is active>;
+
 //var(Flags)							bool
 //var(Flags)							bool
 
@@ -307,6 +315,14 @@ delegate OnTopSceneChanged( UIScene NewTopScene );
 delegate bool ShouldModulateBackgroundAlpha( out float AlphaModulationPercent );
 
 /* == Natives == */
+/**
+ * Triggers an immediate full scene update (rebuilds docking stacks if necessary, resolves scene positions if necessary, etc.); scene
+ * updates normally occur at the beginning of each scene's Tick() so this function should only be called if you must change the positions
+ * and/or formatting of a widget in the scene after the scene has been ticked, but before it's been rendered.
+ *
+ * @note: noexport because this simply calls through to the C++ UpdateScene().
+ */
+native final noexport function ForceImmediateSceneUpdate();
 
 /**
  * Clears and rebuilds the complete DockingStack.  It is not necessary to manually rebuild the DockingStack when
@@ -445,7 +461,27 @@ event SceneActivated( bool bInitialActivation )
 /** Called just after this scene is removed from the active scenes array */
 event SceneDeactivated()
 {
+	local GameUISceneClient GameSceneClient;
+	local int SubscriberIndex;
+	local UIObject UIObj;
+
 	ActivateEventByClass( LastPlayerIndex,class'UIEvent_SceneDeactivated', Self, true );
+
+	GameSceneClient = GetSceneClient();
+	if (GameSceneClient != none)
+	{
+		for (SubscriberIndex = GameSceneClient.AnimSubscribers.length - 1; SubscriberIndex >= 0; SubscriberIndex--)
+		{
+			UIObj = GameSceneClient.AnimSubscribers[SubscriberIndex];
+			if (UIObj != none)
+			{
+				if (UIObj.GetScene() == self)
+				{
+					GameSceneClient.AnimUnSubscribe(UIObj);
+				}
+			}
+		}
+	}
 }
 
 /**
@@ -753,6 +789,7 @@ DefaultProperties
 	bUpdatePrimitiveUsage=true
 	bCloseOnLevelChange=true
 	bSaveSceneValuesOnClose=true
+	bFlushPlayerInput=true
 
 	DefaultToolTipClass=class'Engine.UIToolTip'
 	DefaultContextMenuClass=class'Engine.UIContextMenu'

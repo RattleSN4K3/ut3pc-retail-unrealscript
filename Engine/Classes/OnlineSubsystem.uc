@@ -262,7 +262,9 @@ enum EOnlineAccountCreateStatus
 	/** The unique user name is invalid */
 	OACS_InvalidUniqueUserName,
 	/** The user name is invalid */
-	OACS_UniqueUserNameInUse
+	OACS_UniqueUserNameInUse,
+	/** The backend service is not reachable */
+	OACS_ServiceUnavailable
 };
 
 /** Information about a local talker */
@@ -440,3 +442,23 @@ event bool SetNewsInterface(Object NewInterface)
 	// This will return false, if the interface wasn't supported
 	return NewsInterface != None;
 }
+
+/**
+ * Generates a string representation of a UniqueNetId struct.
+ *
+ * @param	IdToConvert		the unique net id that should be converted to a string.
+ *
+ * @return	the specified UniqueNetId represented as a string.
+ */
+static final native noexport function string UniqueNetIdToString( const out UniqueNetId IdToConvert );
+
+/**
+ * Converts a string representing a UniqueNetId into a UniqueNetId struct.
+ *
+ * @param	UniqueNetIdString	the string containing the text representation of the unique id.
+ * @param	out_UniqueId		will receive the UniqueNetId generated from the string.
+ *
+ * @return	TRUE if the string was successfully converted into a UniqueNetId; FALSE if the string was not a valid UniqueNetId.
+ */
+static final native noexport function bool StringToUniqueNetId( string UniqueNetIdString, out UniqueNetId out_UniqueId );
+

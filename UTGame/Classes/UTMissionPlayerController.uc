@@ -236,6 +236,22 @@ client reliable function ClientUnlockChapter(int ChapterIndex)
 }
 
 
+exec function AddCard(string CardName)
+{
+	local UTProfileSettings Profile;
+	local int i,cnt;
+
+	Profile = UTProfileSettings( OnlinePlayerData.ProfileProvider.Profile);
+	if ( Profile != none )
+	{
+		cnt = Rand(3);
+		for (i=0;i<Cnt;i++)
+		{
+			Profile.AddModifierCard(name(CardName));
+		}
+	}
+
+}
 
 defaultproperties
 {

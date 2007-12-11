@@ -10,8 +10,6 @@
 class UIButton extends UIObject
 	native(UIPrivate);
 
-`include(Core/Globals.uci)
-
 /** Component for rendering the button background image */
 var(Image)	editinline	const	noclear	UIComp_DrawImage		BackgroundImageComponent;
 

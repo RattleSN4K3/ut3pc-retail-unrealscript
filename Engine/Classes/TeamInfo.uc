@@ -6,8 +6,6 @@ class TeamInfo extends ReplicationInfo
 	native
 	nativereplication;
 
-`include(Core/Globals.uci)
-
 var databinding localized string TeamName;
 var databinding int Size; //number of players on this team in the level
 var databinding float Score;
@@ -43,6 +41,27 @@ simulated event ReplicatedEvent(name VarName)
 	}
 }
 
+simulated event Destroyed()
+{
+	local TeamInfo OtherTeam;
+
+	Super.Destroyed();
+
+	// see if there's another TeamInfo that should take our spot in the GRI
+	// (this could happen after seamless travel as there may be a time during which both the old and new TeamInfos are around)
+	if (WorldInfo.GRI != None)
+	{
+		foreach DynamicActors(class'TeamInfo', OtherTeam)
+		{
+			if (OtherTeam != self && OtherTeam.TeamIndex == TeamIndex)
+			{
+				WorldInfo.GRI.SetTeam(TeamIndex, OtherTeam);
+				break;
+			}
+		}
+	}
+}
+
 function bool AddToTeam( Controller Other )
 {
 	local Controller P;
@@ -52,6 +71,12 @@ function bool AddToTeam( Controller Other )
 	if ( Other == None )
 	{
 		`log("Added none to team!!!");
+		return false;
+	}
+	if (Other.PlayerReplicationInfo == None)
+	{
+		`Warn(Other @ "is missing PlayerReplicationInfo");
+		ScriptTrace();
 		return false;
 	}
 
@@ -70,7 +95,7 @@ function bool AddToTeam( Controller Other )
 		bSuccess = true;
 		foreach WorldInfo.AllControllers(class'Controller', P)
 		{
-			if ( P.bIsPlayer && (P != Other)
+			if ( P.bIsPlayer && (P != Other) && P.PlayerReplicationInfo != None
 				&& (P.PlayerReplicationInfo.Team == Other.PlayerReplicationInfo.Team)
 				&& (P.PlayerReplicationInfo.TeamId == Other.PlayerReplicationInfo.TeamId) )
 			{

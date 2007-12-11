@@ -37,6 +37,7 @@ enum EPixelFormat
 	PF_R32F,
 	PF_G16R16,
 	PF_G16R16F,
+	PF_G16R16F_FILTER,
 	PF_G32R32F,
 	PF_A2B10G10R10,
 	PF_A16B16G16R16,
@@ -56,8 +57,14 @@ enum TextureAddress
 	TA_Mirror
 };
 
-// @warning: update UTextureFactory::StaticConstructor in UnEdFact.cpp if this is changed
-// @warning: update FTextureLODSettings::Initialize and GetTextureGroupNames in Texture.cpp if this is changed
+// @warning: if this is changed
+//     update UnEdFact.cpp UTextureFactory::StaticConstructor
+//     update Texture.cpp FTextureLODSettings::Initialize
+//     update Texture.cpp FTextureLODSettings::GetTextureGroupNames
+//     update SystemSettings.cpp FSystemSettingsData::WriteTextureLODGroupsToIni
+//     update SystemSettings.cpp FSystemSettingsData::DumpTextureLODGroups()
+//
+// TEXTUREGROUP_Cinematic:  should be used for Cinematics which will be baked out and want to have the highest settings
 enum TextureGroup
 {
 	TEXTUREGROUP_World,
@@ -72,6 +79,7 @@ enum TextureGroup
 	TEXTUREGROUP_Vehicle,
 	TEXTUREGROUP_VehicleNormalMap,
 	TEXTUREGROUP_VehicleSpecular,
+	TEXTUREGROUP_Cinematic,
 	TEXTUREGROUP_Effects,
 	TEXTUREGROUP_Skybox,
 	TEXTUREGROUP_UI,

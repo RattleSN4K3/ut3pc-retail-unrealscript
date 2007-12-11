@@ -43,6 +43,27 @@ event SceneActivated(bool bInitialActivation)
 	}
 }
 
+/** Called when a tab page has finished showing. */
+function OnMainRegion_Show_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimationSeq AnimSeq)
+{
+	local name MatchTypeOptionName;
+	local UIObject MatchTypeOption;
+
+	Super.OnMainRegion_Show_UIAnimEnd(AnimTarget, AnimIndex, AnimSeq);
+
+	if ( AnimTarget.AnimStack[AnimIndex].SeqRef.SeqName == 'SceneShowInitial' && IsConsole() )
+	{
+		// if we're on console, then regenerating the option list won't trigger an OnValueChanged event like it
+		// would on PC, so we need to do this manually in order to update the enabled state of the gametype option
+		MatchTypeOptionName = IsConsole(CONSOLE_XBox360) ? 'MatchType360' : 'MatchType';
+		MatchTypeOption = ServerFilterTab.FindChild(MatchTypeOptionName, true);
+		if ( MatchTypeOption != None )
+		{
+			ServerFilterTab.OnOptionList_OptionChanged(MatchTypeOption, MatchTypeOptionName, GetPlayerIndex());
+		}
+	}
+}
+
 /** Setup the button bar for this scene. */
 function SetupButtonBar()
 {

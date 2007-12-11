@@ -57,8 +57,16 @@ event DrawPanel()
 
 	bTeamMode = GRI.GameClass.default.bTeamGame;
 
-	TextYL = TextFont.GetMaxCharHeight();
-	CaptionYL = CaptionFont.GetMaxCharHeight();
+	Canvas.Font = TextFont;
+	Canvas.Strlen("Q",XL,YL);
+	TextYL = YL;
+
+	Canvas.Font = CaptionFont;
+	Canvas.Strlen("Q",XL,YL);
+	CaptionYL = YL;
+
+//	TextYL = TextFont.GetMaxCharHeight();
+//	CaptionYL = CaptionFont.GetMaxCharHeight();
 
 	W = GetBounds(UIORIENT_Horizontal, EVALPOS_PixelViewport);
 

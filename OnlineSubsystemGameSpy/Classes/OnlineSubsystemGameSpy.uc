@@ -557,7 +557,7 @@ native function EFeaturePrivilegeLevel CanCommunicate(byte LocalUserNum);
  */
 function EFeaturePrivilegeLevel CanDownloadUserContent(byte LocalUserNum)
 {
-	return FPL_Enabled;
+	return CanPlayOnline(LocalUserNum);
 }
 
 /**
@@ -1588,11 +1588,7 @@ function ClearConnectionStatusChangeDelegate(delegate<OnConnectionStatusChange> 
 /**
  * Determines the NAT type the player is using
  */
-function ENATType GetNATType()
-{
-//@todo joeg -- hook up properly
-	return NAT_Open;
-}
+native function ENATType GetNATType();
 
 /**
  * Delegate fired when a storage device change is detected
@@ -2349,6 +2345,7 @@ function bool DeleteMessage(byte LocalUserNum,int MessageIndex)
 		if (MessageIndex >= 0 && MessageIndex < CachedFriendMessages.Length)
 		{
 			CachedFriendMessages.Remove(MessageIndex,1);
+			return true;
 		}
 	}
 	return false;

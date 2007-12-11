@@ -27,6 +27,8 @@ var()	bool			bCauseActorAnimPlay;
 var()	bool			bZeroRootRotation;
 /** Always return root bone translation at the origin. */
 var()	bool			bZeroRootTranslation;
+/** if TRUE, don't display a warning when animation is not found. */
+var()	bool			bDisableWarningWhenAnimNotFound;
 
 /** Current position (in seconds) */
 var()	const float				CurrentTime;

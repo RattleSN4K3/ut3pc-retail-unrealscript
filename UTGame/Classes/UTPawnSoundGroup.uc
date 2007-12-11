@@ -148,18 +148,18 @@ static function PlayDrownSound(Pawn P)
 
 defaultproperties
 {
-	DodgeSound=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_Dodge_Cue'
-	DoubleJumpSound=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_DoubleJump_Cue'
-	LandSound=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_LandLight_Cue'
+	DodgeSound=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_Dodge_Cue'
+	DoubleJumpSound=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_DoubleJump_Cue'
+	LandSound=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_LandLight_Cue'
 	DefaultFootStepSound=SoundCue'A_Character_Footsteps.Footsteps.A_Character_Footstep_DefaultCue'
-	DyingSound=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_Death_Cue'
-	HitSounds[0]=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_PainSmall_Cue'
-	HitSounds[1]=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_PainMedium_Cue'
-	HitSounds[2]=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_PainLarge_Cue'
-	FallingDamageLandSound=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_LandHeavy_Cue'
-	GibSound=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_DeathInstant_Cue'
-	DrownSound=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_MaleDrowning_Cue'
-	GaspSound=SoundCue'A_Character_IGMale.Efforts.A_Effort_IGMale_MGasp_Cue'
+	DyingSound=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_Death_Cue'
+	HitSounds[0]=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_PainSmall_Cue'
+	HitSounds[1]=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_PainMedium_Cue'
+	HitSounds[2]=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_PainLarge_Cue'
+	FallingDamageLandSound=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_LandHeavy_Cue'
+	GibSound=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_DeathInstant_Cue'
+	DrownSound=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_MaleDrowning_Cue'
+	GaspSound=SoundCue'A_Character_IGMale_Cue.Efforts.A_Effort_IGMale_MGasp_Cue'
 
 	DefaultJumpingSound=SoundCue'A_Character_Footsteps.FootSteps.A_Character_Footstep_DirtJumpCue'
 

@@ -24,4 +24,5 @@ defaultproperties
 	ObjName="Music Track"
 	ObjCategory="Sound"
 	ObjColor=(R=255,G=0,B=255,A=255)
+	SupportedClasses.Empty
 }

@@ -93,6 +93,8 @@ defaultproperties
 {
 	bRenderParentScenes=true
 	bPauseGameWhileActive=false
+	bIgnoreAxisInput=true
+	bFlushPlayerInput=false
 	bAlwaysRenderScene=true
 	SceneInputMode=INPUTMODE_None
 	ToastDuration=5.0f

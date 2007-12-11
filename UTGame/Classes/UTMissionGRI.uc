@@ -490,7 +490,7 @@ state MenuStateChanged
 		local UIScene OutScene;
 		local UIScene ResolvedSceneTemplate;
 
-		`log("[SinglePlayer] AttemptStateChange()"@CurrentMenuState@CurrentMissionID@PendingMissionInfo.PendingMissionID);
+//		`log("[SinglePlayer] AttemptStateChange()"@CurrentMenuState@CurrentMissionID@PendingMissionInfo.PendingMissionID);
 
 		if (WorldInfo.GRI == self && !WorldInfo.IsInSeamlessTravel())
 		{

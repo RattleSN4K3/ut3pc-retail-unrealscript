@@ -555,6 +555,11 @@ simulated function VehicleWeaponFired( bool bViaReplication, vector HitLocation,
 		BigBeamEmitter.ActivateSystem();
 
 		PlaySound(BigBeamFireSound);
+
+		if(Seats[0].Gun != None)
+		{
+			Seats[0].Gun.ShakeView();
+		}
 		CauseMuzzleFlashLight(0);
 	}
 	else

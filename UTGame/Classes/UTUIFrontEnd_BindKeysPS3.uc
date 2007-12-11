@@ -72,6 +72,9 @@ var transient bool bShowCrucialBindWarning;
 /** List of what binds are crucial or not. */
 var transient array<bool> CrucialBindValues;
 
+/** Delegate to mark the profile as dirty. */
+delegate MarkDirty();
+
 /** Post initialize callback. */
 event PostInitialize()
 {
@@ -254,8 +257,8 @@ function int GetFirstUnboundCrucialBind()
 	return -1;
 }
 
-/** Will first check to see if there are any unbound crucial binds and close the scene if not. */
-function CheckForCrucialBindsAndClose()
+/** Will first check to see if there are any unbound crucial binds and close the scene if not.  Returns true if successfully closing. */
+function bool CheckForCrucialBindsAndClose()
 {
 	local int CrucialBindIdx;
 	local UTUIScene_MessageBox MessageBoxReference;
@@ -269,6 +272,7 @@ function CheckForCrucialBindsAndClose()
 	if (CrucialBindIdx == -1)
 	{
 		CloseScene(self);
+		return true;
 	}
 	else
 	{
@@ -284,6 +288,8 @@ function CheckForCrucialBindsAndClose()
 
 		MessageBoxReference = None;
 	}
+
+	return false;
 }
 
 /** Confirmation for the exit game dialog. */
@@ -471,7 +477,11 @@ function OnAccept()
 		UTPC.ClearStringAliasBindingMapCache();
 	}
 
-	CheckForCrucialBindsAndClose();
+	// Mark the screen for saving if successfully closing and a change was made.
+	if ( CheckForCrucialBindsAndClose() && BindingsHaveChanged() )
+	{
+		MarkDirty();
+	}
 }
 
 /** Handles visiblity/focus changes depending on which mode we are in. */

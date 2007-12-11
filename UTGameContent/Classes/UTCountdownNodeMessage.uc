@@ -57,7 +57,7 @@ static function byte AnnouncementLevel(byte MessageIndex)
 defaultproperties
 {
 	DrawColor=(R=0,G=160,B=255,A=255)
-	FontSize=2
+	FontSize=1
 	Lifetime=2.5
 	bIsConsoleMessage=true
 	MessageArea=6

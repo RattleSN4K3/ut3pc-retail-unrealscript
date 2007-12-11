@@ -7,7 +7,7 @@ class UTUITabPage_Scoreboard extends UTTabPage_MidGame;
 
 var transient array<UTScoreboardPanel> Scoreboards;
 var transient UTScoreInfoPanel InfoPanel;
-var transient UTPlayerReplicationInfo SelectedPRI;
+var int SelectedPI;
 
 function PostInitialize()
 {
@@ -105,7 +105,22 @@ function FindScoreboards(name PanelTagName)
 
 function OnScoreboardSelectionChange(UTScoreboardPanel TargetScoreboard, UTPlayerReplicationInfo PRI)
 {
-    SelectedPRI = PRI;
+    SelectedPI = PRI.PlayerId;
+}
+
+function UTPlayerReplicationInfo GetSelectedPRI()
+{
+	local int i;
+	local WorldInfo WI;
+	WI = UTUIScene(GetScene()).GetWorldInfo();
+	for (i=0;i<WI.GRI.PRIArray.Length;i++)
+	{
+		if (WI.GRI.PRIArray[i].PlayerID == SelectedPI)
+		{
+			return UTPlayerReplicationInfo(WI.GRI.PRIArray[i]);
+		}
+	}
+	return none;
 }
 
 function bool OnPlayerDetails(UIScreenObject InButton, int InPlayerIndex)
@@ -116,6 +131,7 @@ function bool OnPlayerDetails(UIScreenObject InButton, int InPlayerIndex)
 	local UTPlayerController PC;
 	local WorldInfo WI;
 	local string PName, PAlias;
+	local UTPlayerReplicationInfo SelectedPRI;
 
 	Scene = UTUIScene(GetScene());
 	WI = Scene.GetWorldInfo();
@@ -123,7 +139,8 @@ function bool OnPlayerDetails(UIScreenObject InButton, int InPlayerIndex)
 	bIsAdmin = PC.PlayerReplicationInfo.bAdmin;
 	bIsLocal = WI.NetMode == NM_Standalone || WI.NetMode == NM_ListenServer;
 
-	if ( SelectedPRI != none && SelectedPRI != PC.PlayerReplicationInfo  )
+	SelectedPRI = GetSelectedPRI();
+	if ( SelectedPRI != None && SelectedPRI != PC.PlayerReplicationInfo  )
 	{
 		if ( SelectedPRI.bBot )
 		{
@@ -213,7 +230,12 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 	return true;
 }
 
+function NotifyGameSessionEnded()
+{
+	SelectedPI = INDEX_None;
+}
 
 defaultproperties
 {
+	SelectedPI = -1;
 }

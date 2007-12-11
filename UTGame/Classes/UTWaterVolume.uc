@@ -38,6 +38,11 @@ simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLoca
 
 		if( UTP != none )
 		{
+			if ( (UTP.Physics == PHYS_Walking) || (UTP.Physics == PHYS_Swimming) )
+			{
+				// no splash when walking or swimming
+				return;
+			}
 			PS_WaterEffect = PS_EnterWaterEffect_Pawn;
 			ParamValue = 1.0;
 			MaxSpeed = UTP.GroundSpeed;

@@ -35,16 +35,16 @@ event PostInitialize()
 	{
 		// Audio Devices
 		StringListDataStore.Empty('AudioDevices', true);
-		StringListDataStore.AddStr('AudioDevices', "Hardware");
 		StringListDataStore.AddStr('AudioDevices', "Generic Software");
+		StringListDataStore.AddStr('AudioDevices', "Hardware");
 
 		if(UTUIScene(GetScene()).GetCurrentAudioDevice()=="Generic Software")
 		{
-			StringListDataStore.SetCurrentValueIndex('AudioDevices', 1);
+			StringListDataStore.SetCurrentValueIndex('AudioDevices', 0);
 		}
 		else
 		{
-			StringListDataStore.SetCurrentValueIndex('AudioDevices', 0);
+			StringListDataStore.SetCurrentValueIndex('AudioDevices', 1);
 		}
 	}
 
@@ -97,11 +97,11 @@ function OnOptionList_OptionChanged(UIScreenObject InObject, name OptionName, in
 			bSaveAndRefresh=true;
 			if(UICheckBox(InObject).IsChecked())
 			{
-				UTUIScene(GetScene()).SetAudioDeviceToUse("Generic Software");
+				UTUIScene(GetScene()).SetAudioDeviceToUse("");
 			}
 			else
 			{
-				UTUIScene(GetScene()).SetAudioDeviceToUse("");
+				UTUIScene(GetScene()).SetAudioDeviceToUse("Generic Software");
 			}
 		}
 	}

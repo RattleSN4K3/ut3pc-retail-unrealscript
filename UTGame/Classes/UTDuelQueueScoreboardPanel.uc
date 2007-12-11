@@ -31,6 +31,5 @@ function DrawScoreHeader()
 
 function float DrawScore(UTPlayerReplicationInfo PRI, float YPos, int FontIndex, float FontScale)
 {
-	`Log("TEST" @ FontIndex @ FontScale);
 	return Canvas.ClipX;
 }

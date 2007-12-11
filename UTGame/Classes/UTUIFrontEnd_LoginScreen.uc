@@ -43,16 +43,14 @@ event PostInitialize( )
 	UserNameEditBox = UIEditBox(FindChild('txtUserName',true));
 	UserNameEditBox.NotifyActiveStateChanged=OnNotifyActiveStateChanged;
 	UserNameEditBox.OnSubmitText=OnSubmitText;
+	UserNameEditBox.StringRenderComponent.bIgnoreMarkup = true;
+	UserNameEditBox.MaxCharacters = GS_USERNAME_MAXLENGTH;
+	UserNameEditBox.SetDataStoreBinding("");
 
 	PasswordEditBox = UIEditBox(FindChild('txtPassword',true));
 	PasswordEditBox.NotifyActiveStateChanged=OnNotifyActiveStateChanged;
 	PasswordEditBox.OnSubmitText=OnSubmitText;
-
-
-
-	UserNameEditBox.MaxCharacters = GS_USERNAME_MAXLENGTH;
-	UserNameEditBox.SetDataStoreBinding("");
-
+	PasswordEditbox.StringRenderComponent.bIgnoreMarkup = true;
 	PasswordEditBox.MaxCharacters = GS_PASSWORD_MAXLENGTH;
 	PasswordEditBox.SetDataStoreBinding("");
 	PasswordEditBox.SetValue("");
@@ -73,6 +71,8 @@ event PostInitialize( )
 	AutoLoginCheckBox.OnValueChanged=OnAutoLoginCheckBox_ValueChanged;
 
 	LocalLoginCheckBox = UICheckbox(FindChild('chkLocal',true));
+	//LocalLoginCheckBox.OnValueChanged=OnLocalLoginCheckBox_ValueChanged;
+	//LocalLoginCheckBox.SetVisibility(false);
 
 	// Handle saved passwords and auto login
 	CheckLoginProperties();
@@ -86,7 +86,7 @@ function SetupButtonBar()
 {
 	ButtonBar.Clear();
 
-	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Cancel>", OnButtonBar_Cancel);
+	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.PlayOffline>", OnButtonBar_PlayOffline);
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Login>", OnButtonBar_Login);
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.CreateProfileLoginScreen>", OnButtonBar_CreateProfile);
 
@@ -137,18 +137,42 @@ function OnAutoLoginCheckBox_ValueChanged(UIObject Sender, int PlayerIndex)
 	}
 }
 
+/**
+ * Callback for when the local login checkbox changes value.
+ *
+ * @param Sender		Object that sent the event
+ * @param PlayerIndex	Index of the player that performed the action.
+ */
+function OnLocalLoginCheckBox_ValueChanged(UIObject Sender, int PlayerIndex)
+{
+	PasswordEditBox.SetValue("");
+	PasswordEditBox.SetEnabled(!LocalLoginCheckBox.IsChecked());
+	SavePasswordCheckBox.SetEnabled(!LocalLoginCheckBox.IsChecked());
+}
+
 /** Callback for when the user wants to back out of this screen. */
 function OnCancel()
 {
 	CloseScene(self);
 }
 
+/** Play offline callback, logs the user in offline. */
+function OnPlayOffline()
+{
+	OnLogin(true);
+}
+
 /** Tries to login the user */
-function OnLogin()
+function OnLogin(optional bool bLocalLogin=false)
 {
 	local string UserName;
 	local string Password;
 	local OnlinePlayerInterface PlayerInt;
+
+	/* - Removed, have a play offline button now.
+	local bool bLocalLogin;
+	bLocalLogin = LocalLoginCheckBox.IsChecked();
+	*/
 
 	UserName = TrimWhitespace(UserNameEditBox.GetValue());
 	Password = PasswordEditBox.GetValue();
@@ -165,12 +189,12 @@ function OnLogin()
 	}
 
 	// Verify contents of user name box
-	if(Len(UserName) > 0)
+	if(Len(UserName) > 0 || bLocalLogin)
 	{
-		if(Len(Password) > 0)
+		if(Len(Password) > 0 || bLocalLogin)
 		{
 			// Try logging in
-			`Log("UTUIFrontEnd_LoginScreen::OnLogin() - Attempting to login with name '"$UserName$"' bLocalOnly:"@LocalLoginCheckBox.IsChecked());
+			`Log("UTUIFrontEnd_LoginScreen::OnLogin() - Attempting to login with name '"$UserName$"' bLocalOnly:"@bLocalLogin);
 
 			PlayerInt = GetPlayerInterface();
 
@@ -186,10 +210,10 @@ function OnLogin()
 				PlayerInt.AddLoginChangeDelegate(OnLoginChange);
 				PlayerInt.AddLoginFailedDelegate(GetBestControllerId(),OnLoginFailed);
 				PlayerInt.AddLoginCancelledDelegate(OnLoginCancelled);
-				if(PlayerInt.Login(GetBestControllerId(), UserName, Password, LocalLoginCheckBox.IsChecked())==false)
+				if(PlayerInt.Login(GetBestControllerId(), UserName, Password, bLocalLogin)==false)
 				{
 					`Log("UTUIFrontEnd_LoginScreen::OnLogin() - Login call failed.");
-					OnLoginCancelled();
+					//OnLoginCancelled();
 				}
 			}
 			else
@@ -204,7 +228,7 @@ function OnLogin()
 	}
 	else
 	{
-		DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidUserName_Message>","<Strings:UTGameUI.Errors.InvalidUserName_Title>");
+		DisplayMessageBox("<Strings:UTGameUI.Errors." $ (bLocalLogin ? "InvalidUserName_LocalLogin" : "InvalidUserName_Message") $ ">", "<Strings:UTGameUI.Errors.InvalidUserName_Title>");
 	}
 }
 
@@ -236,7 +260,7 @@ function OnLoginChange()
 	MessageBoxReference.Close();
 
 	// Store the player names in a config array so we can show a list of recent logins.
-	UserName = TrimWhitespace(UserNameEditBox.GetValue());
+	UserName = StripInvalidUsernameCharacters(UserNameEditBox.GetValue());
 	SavePassword(PasswordEditBox.GetValue());
 
 	// See if the name is already in the list, if so we will push it to the top.
@@ -388,6 +412,14 @@ function bool OnButtonBar_Cancel(UIScreenObject InButton, int InPlayerIndex)
 	return true;
 }
 
+function bool OnButtonBar_PlayOffline(UIScreenObject InButton, int InPlayerIndex)
+{
+	OnPlayOffline();
+
+	return true;
+}
+
+
 function bool OnButtonBar_Login(UIScreenObject InButton, int InPlayerIndex)
 {
 	OnLogin();
@@ -448,7 +480,7 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 	{
 		if(EventParms.InputKeyName=='XboxTypeS_B' || EventParms.InputKeyName=='Escape')
 		{
-			OnCancel();
+			OnPlayOffline();
 			bResult=true;
 		}
 		else if(EventParms.InputKeyName=='XboxTypeS_Y')

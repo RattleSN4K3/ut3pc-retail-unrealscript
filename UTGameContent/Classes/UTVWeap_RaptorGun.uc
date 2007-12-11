@@ -162,4 +162,9 @@ defaultproperties
 
 	ConsoleLockAim=0.9
 	LockAim=0.93
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=30,RightAmplitude=30,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.120)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

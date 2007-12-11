@@ -11,8 +11,6 @@ var transient UIPanel LanGamePanel;
 var transient UICheckBox SkillLevels[4];
 var transient UICheckBox LanPlay;
 
-
-var transient bool bNetworkOk;
 var transient bool bNewGame;
 
 /** Reference to the settings datastore that we will use to create the game. */
@@ -22,14 +20,46 @@ var localized string SkillDescriptions[4];
 
 var transient string LaunchURL;
 
-var transient bool bWasPublic;
-
 var transient int ChapterToLoad;
 
 var transient bool bIgnoreChange;
 
 var string ChapterURLs[5];
 
+/**
+ * @return	TRUE if the user is allowed to play internet games.
+ */
+function bool AllowInternetPlay()
+{
+	local LocalPlayer LP;
+
+	LP = GetPlayerOwner();
+	if ( LP == None )
+	{
+		return false;
+	}
+
+	if ( !IsLoggedIn(LP.ControllerID,true) )
+	{
+		`log("[Network] Not Logged in!");
+		return false;
+	}
+
+	if (!CanPlayOnline(LP.ControllerID) )
+	{
+		`log("[Network] User Is Restricted from Online");
+		return false;
+	}
+
+	// Check NAT.  If we are behind a strict nat, disable internet play
+	if ( GetNATType() >= NAT_Strict )
+	{
+		`log("[Network] NAT configuration is incompatible");
+		return false;
+    }
+
+	return true;
+}
 
 event PostInitialize( )
 {
@@ -50,8 +80,97 @@ event PostInitialize( )
 
 	MenuLabel = UILabel(FindChild('Title',true));
 
-	OnPreRenderCallback=PreRenderCallback;
+	// this used to be set here, so we'll need to clear it in case it got serialized
+	OnPreRenderCallback=None;
 
+	// Created a scene closed delegate so we can clear the online delegate I added below
+	OnSceneDeactivated = None;
+}
+
+/**
+ * Handler for the 'show' animation completed.
+ */
+function OnMainRegion_Show_UIAnimEnd( UIObject AnimTarget, int AnimIndex, UIAnimationSeq AnimSeq )
+{
+	Super.OnMainRegion_Show_UIAnimEnd(AnimTarget, AnimIndex, AnimSeq);
+
+	`log(`location@`showobj(AnimTarget)@`showvar(AnimIndex)@`showobj(AnimSeq) @ `showvar(AnimTarget.AnimStack[AnimIndex].SeqRef.SeqName,SeqName),,'DevUI');
+	if ( AnimTarget.AnimStack[AnimIndex].SeqRef.SeqName == 'SceneShowInitial' )
+	{
+		// make sure we can't choose "internet" if we aren't signed in online
+		ValidateServerType();
+	}
+}
+
+/**
+ * Displays error messages and/or login ui to the user if the user is unable to play online.
+ */
+function ValidateServerType( optional bool bCheckLoginStatus=true )
+{
+	local int PlayerControllerID;
+
+	PlayerControllerID = GetPlayerControllerId( GetPlayerIndex() );
+
+	`log(`location @ `showvar(PlayerControllerId) @ `showvar(bCheckLoginStatus) @ `showvar(IsLoggedIn(PlayerControllerId,true),LoggedInOnline)
+				@ `showvar(CanPlayOnline(PlayerControllerID)) @ `showenum(ENATType,GetNATType()),,'DevUI');
+
+	if ( ((!bCheckLoginStatus && IsLoggedIn(PlayerControllerId, true)) || (bCheckLoginStatus && CheckLoginAndError(PlayerControllerId, true, , "<Strings:UTGameUI.Errors.OnlineRequiredForInternet_Message>")))
+	&&	 CheckOnlinePrivilegeAndError(PlayerControllerID) )
+	{
+		CheckNatTypeAndDisplayError(PlayerControllerID);
+	}
+
+	UpdateNetworkChoices();
+}
+
+/**
+ * Updates the visibility and enabled state of the LAN checkbox (and its owner panel) based on whether the user is
+ * allowed to play online and has a valid internet connection.
+ */
+function UpdateNetworkChoices()
+{
+	local int PlayerIndex;
+	local bool bAllowNetworkChoice, bShowLANOption;
+
+	bShowLANOption = HasLinkConnection();
+	bAllowNetworkChoice = bShowLANOption && AllowInternetPlay();
+
+	PlayerIndex = GetPlayerIndex();
+	if ( LanPlay != None )
+	{
+		LanPlay.SetVisibility(bShowLANOption);
+		LanPlay.SetEnabled(bAllowNetworkChoice, PlayerIndex);
+	}
+
+	if ( LanGamePanel != None )
+	{
+		LanGamePanel.SetVisibility(bShowLANOption);
+		LanGamePanel.SetEnabled(bAllowNetworkChoice, PlayerIndex);
+	}
+}
+
+/** Callback for when the login changes after showing the login UI. */
+function OnLoginUI_LoginChange()
+{
+	Super.OnLoginUI_LoginChange();
+
+	ValidateServerType(false);
+	SetupButtonBar();
+}
+
+
+/**
+ * Delegate used in notifying the UI/game that the manual login failed after showing the login UI.
+ *
+ * @param ControllerId	the controller number of the associated user
+ * @param ErrorCode		the async error code that occurred
+ */
+function OnLoginUI_LoginFailed( byte ControllerId,EOnlineServerConnectionStatus ErrorCode)
+{
+	Super.OnLoginUI_LoginFailed(ControllerId, ErrorCode);
+
+	ValidateServerType(false);
+	SetupButtonBar();
 }
 
 function SkillLevelChanged( UIObject Sender, int PlayerIndex )
@@ -81,22 +200,19 @@ function SkillLevelChanged( UIObject Sender, int PlayerIndex )
 	}
 }
 
+
 /** Sets up the button bar for the scene. */
 function SetupButtonBar()
 {
-	local LocalPlayer LP;
 
 	if(ButtonBar != None)
 	{
 		ButtonBar.Clear();
 		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", OnButtonBar_Back);
 
-		LP = GetPlayerOwner();
-
-        bNetworkOk = IsLoggedIn(LP.ControllerID, true);
-		if ( bNetworkOk )
+		if ( HasLinkConnection() )
 		{
-			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.StartPrivateGame>", OnButtonBar_Start);
+			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.StartGame>", OnButtonBar_Start);
 			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.StartPublicGame>", OnButtonBar_StartPublic);
 		}
 		else
@@ -111,11 +227,6 @@ function SetupButtonBar()
 	}
 }
 
-function PreRenderCallBack()
-{
-	LanGamePanel.SetVisibility(bNetworkOk);
-}
-
 function Configure(bool bIsNewGame, int InChapterToLoad)
 {
 	local UTProfileSettings Profile;
@@ -127,18 +238,17 @@ function Configure(bool bIsNewGame, int InChapterToLoad)
 	s = "[<Strings:UTGameUI.Campaign.CampaignOptionsPrefix>" @ (bIsNewGame ? "<Strings:UTGameUI.Campaign.CampaignTitleA>]" : "<Strings:UTGameUI.Campaign.CampaignTitleB>]");
     GetTitleLabel().SetDataStoreBinding(Caps(s));
 
-	if ( bIsNewGame )
+	Profile = GetPlayerProfile();
+	if ( Profile != None )
 	{
-		Profile = GetPlayerProfile();
-		if ( Profile != none )
+		if ( bIsNewGame )
 		{
 			Profile.NewGame();
 		}
+		Skill = Profile.GetCampaignSkillLevel();
 	}
 
-	Skill = Profile.GetCampaignSkillLevel();
 	SkillLevels[Skill].SetValue( true );
-
 	ChapterToLoad = InChapterToLoad;
 }
 
@@ -165,58 +275,37 @@ function StartGame(int InPlayerIndex, bool bPublic)
 	if ( Profile != none )
 	{
 		Skill = Profile.GetCampaignSkillLevel();
-		SavePlayerProfile(0);
 	}
 
 	Skill *= 2;
 
 	if (ChapterToLoad != INDEX_None)
 	{
-		LaunchURL = "open "$ChapterURLs[ChapterToLoad]$"?Difficulty="$Skill$"?Listen?MaxPlayers=" $ `MaxCampaignPlayers;
+		LaunchURL = "open "$ChapterURLs[ChapterToLoad]$"?Difficulty="$Skill$"?MaxPlayers=" $ `MaxCampaignPlayers;
 	}
 	else
 	{
 		if ( bNewGame )
 		{
-			LaunchURL = "open UTM-MissionSelection?SPI=0?SPResult=1?Difficulty="$Skill$"?Listen?MaxPlayers=" $ `MaxCampaignPlayers;
+			LaunchURL = "open UTM-MissionSelection?SPI=0?SPResult=1?Difficulty="$Skill$"?MaxPlayers=" $ `MaxCampaignPlayers;
 		}
 		else
 		{
-			LaunchURL = "open UTM-MissionSelection?Difficulty="$Skill$"?Listen?MaxPlayers=" $ `MaxCampaignPlayers;
+			LaunchURL = "open UTM-MissionSelection?Difficulty="$Skill$"?MaxPlayers=" $ `MaxCampaignPlayers;
 		}
 	}
 
-	bWasPublic = bPublic;
-
-	if ( bNetworkOk )
+	if ( HasLinkConnection() )
 	{
-		// We have a profile, see if we can play on the net....
+		LaunchURL $= "?Listen";
 
-		if ( HasLinkConnection() && CanPlayOnline() )
-		{
-			CreateOnlineGame(InPlayerIndex, bPublic, LanPlay.IsChecked());
-		}
-		else
-		{
-			ShowOnlinePrivilegeError();
-		}
+		// if we're able to play online, or the lan checkbox is checked, create the match.
+		CreateOnlineGame(InPlayerIndex, bPublic, LanPlay.IsChecked() || !AllowInternetPlay());
 	}
 	else
 	{
-		CreateOnlineGame(InPlayerIndex, true, true);
+		ConsoleCommand(LaunchURL);
 	}
-}
-
-function ShowOnlinePrivilegeError()
-{
-
-	DisplayMessageBox("<Strings:UTGameUI.Errors.CampaignOnlineFailure>","<Strings:UTGameUI.Errors.CampaignOnlineFailure_Title>");
-	GetMessageBoxScene().OnClosed = MessageBoxClosed;
-}
-
-function MessageBoxClosed()
-{
-	CreateOnlineGame(0, bWasPublic, true);
 }
 
 
@@ -326,7 +415,29 @@ function OnGameCreated(bool bWasSuccessful)
 	}
 }
 
+function bool HasPushedUp( const InputEventParameters EventParms )
+{
+	if( (EventParms.InputKeyName == 'Up') || (EventParms.InputKeyName == 'XboxTypeS_DPad_Up') || (EventParms.InputKeyName == 'Gamepad_LeftStick_Up') )
+	{
+		if ( EventParms.EventType==IE_Released )
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
+function bool HasPushedDown( const InputEventParameters EventParms )
+{
+	if( (EventParms.InputKeyName == 'Down') || (EventParms.InputKeyName == 'XboxTypeS_DPad_Down') || (EventParms.InputKeyName == 'Gamepad_LeftStick_Down') )
+	{
+		if ( EventParms.EventType==IE_Released )
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
 /**
  * Provides a hook for unrealscript to respond to input using actual input key names (i.e. Left, Tab, etc.)
@@ -342,8 +453,20 @@ function OnGameCreated(bool bWasSuccessful)
  */
 function bool HandleInputKey( const out InputEventParameters EventParms )
 {
-	if(EventParms.InputKeyName=='XboxTypeS_A')
+	if ( HasPushedUp(EventParms) )
 	{
+		ChangeSkill(false);
+		return true;
+	}
+
+	if ( HasPushedDown(EventParms) )
+	{
+		ChangeSkill(true);
+		return true;
+	}
+
+    if( EventParms.InputKeyName=='XBoxTypeS_A' )
+    {
 		if (EventParms.EventType==IE_Released)
 		{
 			StartGame(EventParms.PlayerIndex,false);
@@ -351,18 +474,24 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 		return true;
 	}
 
-	if( EventParms.InputKeyName=='XboxTypeS_X' && bNetworkOk )
+    if( EventParms.InputKeyName=='XboxTypeS_LeftShoulder')
+    {
+    	if ( AllowInternetPlay() && EventParms.EventType==IE_Released )
+    	{
+    		LanPlay.SetValue( !LanPlay.IsChecked() );
+    	}
+
+		return true;
+	}
+
+
+	if( EventParms.InputKeyName=='XboxTypeS_X' )
 	{
-		if (EventParms.EventType==IE_Released)
+		if ( EventParms.EventType==IE_Released && HasLinkConnection() )
 		{
 			StartGame(EventParms.PlayerIndex,true);
 		}
 		return true;
-	}
-
-	if( EventParms.EventType == IE_Released && EventParms.InputKeyNAme=='XboxTypeS_Y' )
-	{
-		LanPlay.SetValue( !LanPlay.IsChecked() );
 	}
 
 	if(EventParms.InputKeyName=='XboxTypeS_B' || EventParms.InputKeyName=='Escape')
@@ -377,6 +506,27 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 	return Super.HandleInputKey(EventParms);
 }
 
+function ChangeSkill( bool bSelectionDown )
+{
+	local UTProfileSettings Profile;
+	local int Skill;
+
+	Profile = GetPlayerProfile();
+	if ( Profile != none )
+	{
+		Skill = Profile.GetCampaignSkillLevel() + (bSelectionDown ? 1 : -1);
+		if (Skill > 3)
+		{
+			Skill = 0;
+		}
+		else if (Skill < 0)
+		{
+			Skill = 3;
+		}
+
+		SkillLevels[Skill].SetValue(true);
+	}
+}
 
 /** Buttonbar Callbacks. */
 function bool OnButtonBar_Back(UIScreenObject InButton, int PlayerIndex)

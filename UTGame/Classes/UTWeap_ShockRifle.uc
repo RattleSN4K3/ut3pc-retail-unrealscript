@@ -404,5 +404,10 @@ defaultproperties
 	IconY=129
 	IconWidth=22
 	IconHeight=48
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=90,RightAmplitude=40,LeftFunction=WF_Constant,RightFunction=WF_LinearDecreasing,Duration=0.1200)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }
 

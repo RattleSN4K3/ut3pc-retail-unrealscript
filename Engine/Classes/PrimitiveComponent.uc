@@ -553,12 +553,15 @@ native function SetAbsolute(optional bool NewAbsoluteTranslation,optional bool N
 final function vector GetPosition()
 {
 	local vector Position;
-
 	Position.X = LocalToWorld.WPlane.X;
 	Position.Y = LocalToWorld.WPlane.Y;
 	Position.Z = LocalToWorld.WPlane.Z;
 	return Position;
 }
+
+/** Returns rotation of the component, in world space. */
+final native function rotator GetRotation();
+
 
 defaultproperties
 {

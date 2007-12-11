@@ -8,9 +8,6 @@ class Weapon extends Inventory
 	abstract
 	config(game);
 
-/** Logging pre-processor macros */
-`include( Core\Globals.uci )
-
 /************************************************************************************
  * Firing Mode Definition
  ***********************************************************************************/
@@ -456,7 +453,7 @@ simulated function ClearPendingFire(int FireMode)
 
 function class<Projectile> GetProjectileClass()
 {
-	return WeaponProjectiles[CurrentFireMode];
+	return (CurrentFireMode < WeaponProjectiles.length) ? WeaponProjectiles[CurrentFireMode] : None;
 }
 
 
@@ -496,7 +493,7 @@ simulated function float MaxRange()
 	{
 		return CachedMaxRange;
 	}
-	
+
 	// return the range of the fire mode that fires farthest
 	if (bInstantHit)
 	{
@@ -1281,7 +1278,7 @@ simulated function FireAmmunition()
 			break;
 	}
 
-	if( ( Instigator != None) 
+	if( ( Instigator != None)
 		&& ( AIController(Instigator.Controller) != None )
 		)
 	{
@@ -1396,7 +1393,7 @@ simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace,
 				HitDist = VSize(HitLocation - StartTrace);
 				// calculate new start and end points on the other side of the portal
 				StartTrace = Portal.TransformHitLocation(HitLocation);
-				EndTrace = StartTrace + Portal.TransformVector(Normal(Dir) * (VSize(Dir) - HitDist));
+				EndTrace = StartTrace + Portal.TransformVectorDir(Normal(Dir) * (VSize(Dir) - HitDist));
 				//@note: intentionally ignoring return value so our hit of the portal is used for effects
 				//@todo: need to figure out how to replicate that there should be effects on the other side as well
 				CalcWeaponFire(StartTrace, EndTrace, ImpactList);

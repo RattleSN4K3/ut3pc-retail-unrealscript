@@ -22,5 +22,6 @@ defaultproperties
 
 	// Class used to write stats to the leaderboard
 	OnlineStatsWriteClass=class'UTGame.UTLeaderboardWriteCTF'
+	OnlineGameSettingsClass=class'UTGameSettingsVCTF'
 	bMidGameHasMap=true
 }

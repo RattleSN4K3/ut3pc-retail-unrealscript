@@ -114,6 +114,8 @@ var float LastNoHealWarningTime;
 /** offset to location for AI to consider shooting if the center cannot be hit */
 var vector AlternateTargetLocOffset;
 
+var ForceFeedbackWaveform CoreDestroyWaveForm;
+
 
 
 replication
@@ -624,12 +626,25 @@ simulated state ObjectiveDestroyed
 					UTSeqEvent_PowerCoreDestructionEffect(DestructionEvents[i]).MeshActor = KismetMeshActor;
 					DestructionEvents[i].CheckActivate(self, None);
 				}
+
+				foreach LocalPlayerControllers(class'PlayerController', PC)
+				{
+					if (LocalPlayer(PC.Player) != None)
+					{
+						PC.ClientPlayForceFeedbackWaveform(CoreDestroyWaveForm);
+					}
+				}
 			}
 			else
 			{
 				foreach LocalPlayerControllers(class'PlayerController', PC)
 				{
 					PC.ClientPlaySound(DestroyedSound);
+
+					if (LocalPlayer(PC.Player) != None)
+					{
+						PC.ClientPlayForceFeedbackWaveform(CoreDestroyWaveForm);
+					}
 				}
 
 				if (DefenderTeamIndex < 2)
@@ -755,4 +770,11 @@ DefaultProperties
 {
 	ReducedDamageTime=+10.0
 	DestroyedStinger=15
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform10
+		Samples(0)=(LeftAmplitude=50,RightAmplitude=25,LeftFunction=WF_Noise,RightFunction=WF_LinearIncreasing,Duration=3.000)
+		Samples(1)=(LeftAmplitude=75,RightAmplitude=50,LeftFunction=WF_Noise,RightFunction=WF_LinearIncreasing,Duration=3.000)
+		Samples(2)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_Noise,RightFunction=WF_Noise,Duration=4.500)
+		Samples(3)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=5.000)
+	End Object
+	CoreDestroyWaveForm=ForceFeedbackWaveform10
 }

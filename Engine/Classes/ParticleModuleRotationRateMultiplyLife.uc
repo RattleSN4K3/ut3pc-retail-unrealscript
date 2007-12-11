@@ -4,9 +4,12 @@
 class ParticleModuleRotationRateMultiplyLife extends ParticleModuleRotationRateBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
+/**
+ *	The scale factor that should be applied to the rotation rate.
+ *	The value is retrieved using the RelativeTime of the particle.
+ */
 var(Rotation) rawdistributionfloat	LifeMultiplier;
 
 

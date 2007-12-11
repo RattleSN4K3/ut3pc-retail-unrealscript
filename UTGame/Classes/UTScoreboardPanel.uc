@@ -78,8 +78,8 @@ var transient string FakeNames[32];
 
 var transient color TeamColors[2];
 
-/** The PRI of the currently selected player */
-var transient UTPlayerReplicationInfo SelectedPRI;
+/** The Player Index of the currently selected player */
+var transient int SelectedPI;
 
 /** We cache this so we don't have to resize everything for a mouse click */
 var transient float LastCellHeight;
@@ -175,7 +175,10 @@ function OnNotifyResolutionChanged( const out Vector2D OldViewportsize, const ou
 
 function NotifyGameSessionEnded()
 {
-	SelectedPRI = none;
+	SelectedPI = INDEX_None;
+	PRIList.Length = 0;
+	PlayerOwner = None;
+	Super.NotifyGameSessionEnded();
 }
 
 
@@ -233,6 +236,7 @@ event DrawPanel()
 	local int NumPRIsToDraw;
 	local bool bHasDrawnLocalPRI;
 	local float LastPRIY;
+	local UTPlayerReplicationInfo OwningPRI;
 
 	WI = UTHudSceneOwner.GetWorldInfo();
 	GRI = UTGameReplicationInfo(WI.GRI);
@@ -251,6 +255,7 @@ event DrawPanel()
 	// cycle to make sure there are no Object->Actor references laying around
 
 	PlayerOwner = UTHudSceneOwner.GetUTPlayerOwner();
+	OwningPRI = UTHudSceneOwner.GetPRIOwner();
 
 	// Figure out if we can fit everyone at the default font levels
 
@@ -324,13 +329,13 @@ event DrawPanel()
 	for (i=0;i<PRIList.length;i++)
 	{
 		// If we are at the end of the draw list and haven't drawn the local player yet, wait until we find him to draw the last PRI.
-		if ( !bHasDrawnLocalPRI && (UTUIScene(GetScene()).GetPRIOwner().GetTeamNum() == AssociatedTeamIndex) && (NameCnt == NumPRIsToDraw-1) && (PRIList[i] != UTUIScene(GetScene()).GetPRIOwner()) )
+		if ( !bHasDrawnLocalPRI && (OwningPRI != None) && (OwningPRI.GetTeamNum() == AssociatedTeamIndex || AssociatedTeamIndex == -1) && (NameCnt == NumPRIsToDraw-1) && (PRIList[i] != OwningPRI) )
 		{
 			continue;
 		}
 
 		// Keep track of whether the local PRI has been drawn yet.
-		if ( PRIList[i] == UTUIScene(GetScene()).GetPRIOwner() )
+		if ( OwningPRI != None && PRIList[i] == OwningPRI )
 		{
 			bHasDrawnLocalPRI = true;
 		}
@@ -409,13 +414,13 @@ function CheckSelectedPRI()
 
 	for (i=0;i<PRIList.Length;i++)
 	{
-		if ( PRIList[i] == SelectedPRI )
+		if ( PRIList[i].PlayerID == SelectedPI )
 		{
 			return;
 		}
 	}
 
-	SelectedPRI = none;
+	SelectedPI = INDEX_None;
 }
 
 /** Scan the PRIArray and get any valid PRI's for display */
@@ -467,7 +472,7 @@ function float AutoFit(UTGameReplicationInfo GRI, out int FontIndex,out int Clan
 			if (bInteractive)
 			{
 
-				if (SelectedPRI != none )
+				if (SelectedPI != INDEX_None )
 				{
 					CheckSelectedPRI();
 				}
@@ -555,7 +560,7 @@ function DrawHighlight(UTPlayerReplicationInfo PRI, float YPos, float CellHeight
 	PC = PRI != none ? UTPlayerController(PRI.Owner) : None;
 
 	if ( (!bInteractive && PC != none && PC.Player != none && LocalPlayer(PC.Player) != none ) ||
-		 ( bInteractive && PRI == SelectedPRI ) )
+		 ( bInteractive && PRI.PlayerID == SelectedPI ) )
 	{
 
 		if ( !bInteractive || IsFocused() )
@@ -893,7 +898,7 @@ function ChangeSelection(int Ofst)
 		PRI = UTPlayerReplicationInfo(GRI.PRIArray[i]);
 		if ( PRI != none && IsValidScoreboardPlayer(PRI) )
 		{
-			if (PRI == SelectedPRI)
+			if (PRI.PlayerID == SelectedPI)
 			{
 				idx = PRIs.Length;
 			}
@@ -903,8 +908,8 @@ function ChangeSelection(int Ofst)
 
 	if ( (ofst>0 && idx < PRIs.Length-1) || (ofst<0 && idx >0) )
 	{
-		SelectedPRI = PRIs[Idx+Ofst];
-		OnSelectionChange(self,SelectedPRI);
+		SelectedPI = PRIs[Idx+Ofst].PlayerID;
+		OnSelectionChange(self,PRIs[Idx+Ofst]);
 	}
 
 }
@@ -965,8 +970,8 @@ function SelectUnderCursor()
 		{
 			if (c == Item)
 			{
-				SelectedPRI = PRI;
-				OnSelectionChange(self,SelectedPRI);
+				SelectedPI = PRI.PlayerID;
+				OnSelectionChange(self,PRI);
 				return;
 			}
 			c++;
@@ -1053,5 +1058,6 @@ defaultproperties
 
 	DefaultStates.Add(class'Engine.UIState_Active')
 	DefaultStates.Add(class'Engine.UIState_Focused')
+	SelectedPI=-1
 }
 

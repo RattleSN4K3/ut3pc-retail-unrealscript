@@ -75,10 +75,6 @@ event bool SuggestMovePreparation(Pawn Other)
 
 function bool ProceedWithMove(Pawn Other)
 {
-	if (Name == name("LiftCenter_6"))
-	{
-		`Log("TEST");
-	}
 	// see if mover is at appropriate location
 	if ( Other.Controller == None )
 		return false;

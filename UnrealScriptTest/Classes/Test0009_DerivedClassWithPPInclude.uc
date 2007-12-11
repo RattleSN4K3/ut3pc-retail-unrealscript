@@ -6,8 +6,6 @@
 
 class Test0009_DerivedClassWithPPInclude extends Object;
 
-`include(Core/Globals.uci)
-
 DefaultProperties
 {
 

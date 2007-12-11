@@ -4,14 +4,13 @@
 class ParticleModuleSpawnPerUnit extends ParticleModuleSpawnBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
 //=============================================================================
 //	Properties
 //=============================================================================
 /** 
- *	The scalar to apply to the distance travelled.
+ *	The scalar to apply to the distance traveled.
  *	The value from SpawnPerUnit is divided by this value to give the actual
  *	number of particles per unit. 
  */

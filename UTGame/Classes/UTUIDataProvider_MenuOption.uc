@@ -47,6 +47,9 @@ var config bool	bNumericCombo;
 /** Maximum length of the editbox property. */
 var config int EditBoxMaxLength;
 
+/** the allowed character set for editboxes */
+var	config EEditBoxCharacterSet EditboxAllowedChars;
+
 /** Range data for the option, only used if its a slider type. */
 var config UIRangeData	RangeData;
 

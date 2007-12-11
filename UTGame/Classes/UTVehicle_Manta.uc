@@ -243,7 +243,7 @@ function bool TooCloseToAttack(Actor Other)
 
 defaultproperties
 {
-	Health=200
+	Health=160
 	MeleeRange=-100.0
 	ExitRadius=160.0
 	bTakeWaterDamageWhileDriving=false
@@ -294,8 +294,8 @@ defaultproperties
 		MaxThrustForce=325.0
 		MaxReverseForce=250.0
 		LongDamping=0.3
-		MaxStrafeForce=275.0
-		DirectionChangeForce=400.0
+		MaxStrafeForce=260.0
+		DirectionChangeForce=375.0
 		LatDamping=0.3
 		MaxRiseForce=0.0
 		UpDamping=0.0

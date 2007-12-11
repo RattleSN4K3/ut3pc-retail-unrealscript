@@ -187,7 +187,7 @@ function OnAcceptGameSettings(UIScreenObject InObject, int PlayerIndex)
 /** Shows the previous tab page, if we are at the first tab, then we close the scene. */
 function ShowPrevTab()
 {
-	if(TabControl.ActivatePreviousPage(0,true,false)==false)
+	if(TabControl.ActivatePreviousPage(0,false,false)==false)
 	{
 		CloseScene(self);
 	}
@@ -205,7 +205,7 @@ function ShowNextTab()
 		}
 	}
 
-	if(TabControl.ActivateNextPage(0,true,false)==false)
+	if(TabControl.ActivateNextPage(0,false,false)==false)
 	{
 		OnStartGame();
 	}

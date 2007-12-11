@@ -22,7 +22,7 @@ struct immutable native FontCharacter
 	var() int StartV;
 	var() int USize;
 	var() int VSize;
-	var() editconst BYTE TextureIndex;
+	var() BYTE TextureIndex;
 	var() int VerticalOffset;
 
 	

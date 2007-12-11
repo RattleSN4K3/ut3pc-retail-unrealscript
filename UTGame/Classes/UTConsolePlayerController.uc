@@ -155,7 +155,7 @@ function ResetPlayerMovementInput()
 }
 
 /** Gathers player settings from the client's profile. */
-exec function RetrieveSettingsFromProfile()
+function LoadSettingsFromProfile(bool bLoadCharacter)
 {
 	local int OutIntValue;
 	local UTProfileSettings Profile;
@@ -194,7 +194,7 @@ exec function RetrieveSettingsFromProfile()
 	// ControllerSensitivityMultiplier
 	if(Profile.GetProfileSettingValueIntByName('ControllerSensitivityMultiplier', OutIntValue))
 	{
-		ConsolePlayerInput.SensitivityMultiplier = OutIntValue / 10.0f;
+		ConsolePlayerInput.SensitivityMultiplier = float(OutIntValue) / 10.0f;
 	}
 
 	// TurningAccelerationFactor
@@ -206,14 +206,14 @@ exec function RetrieveSettingsFromProfile()
 		// 8 is 2.0
 		// 10 is 2.5!!!
 		//`log( "OutIntValue: " $ OutIntValue );
-		ConsolePlayerInput.TurningAccelerationMultiplier = OutIntValue / 5.333f;    // .75
+		ConsolePlayerInput.TurningAccelerationMultiplier = float(OutIntValue) / 5.333f;    // .75
 		//`log( "ConsolePlayerInput.TurningAccelerationMultiplier: " $ ConsolePlayerInput.TurningAccelerationMultiplier );
 	}
 
 	if ( class'UIRoot'.static.IsConsole(CONSOLE_PS3) )
 	{
 		// @todo amitt update this to work with version 2 of the controller UI mapping system
-		for( BindingIdx = 0; BindingIdx < ProfileSettingToUE3BindingMappingPS3.length; ++BindingIdx )
+		for( BindingIdx = ProfileSettingToUE3BindingMappingPS3.length-1; BindingIdx >= 0; BindingIdx-- )
 		{
 			//`log( "RetrieveSettingsFromProfile: " $ ProfileSettingToUE3BindingMappingPS3[BindingIdx].ProfileSettingName );
 
@@ -228,7 +228,7 @@ exec function RetrieveSettingsFromProfile()
 	else
 	{
 		// @todo amitt update this to work with version 2 of the controller UI mapping system
-		for( BindingIdx = 0; BindingIdx < ProfileSettingToUE3BindingMapping360.length; ++BindingIdx )
+		for( BindingIdx = ProfileSettingToUE3BindingMapping360.length-1; BindingIdx >= 0; BindingIdx-- )
 		{
 			//`log( "RetrieveSettingsFromProfile: " $ ProfileSettingToUE3BindingMapping360[BindingIdx].ProfileSettingName );
 
@@ -250,34 +250,58 @@ exec function RetrieveSettingsFromProfile()
 		switch(EAnalogStickActions(OutIntValue))
 		{
 		case ESA_Legacy:
+
+			UpdateControllerSettings_Worker( 'GBA_TurnLeft_Gamepad', "Axis aTurn Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_MoveForward_Gamepad', "Axis aBaseY Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_StrafeLeft_Gamepad', "Axis aStrafe Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_Look_Gamepad', "Axis aLookup Speed=0.65 DeadZone=0.2" );
+
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_TurnLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_MoveForward_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_StrafeLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_Look_Gamepad" );
 			break;
 		case ESA_SouthPaw:
+			UpdateControllerSettings_Worker( 'GBA_TurnLeft_Gamepad', "Axis aTurn Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_Look_Gamepad', "Axis aLookup Speed=-0.65 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_StrafeLeft_Gamepad', "Axis aStrafe Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_MoveForward_Gamepad', "Axis aBaseY Speed=-1.0 DeadZone=0.2" );
+
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_TurnLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_Look_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_StrafeLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_MoveForward_Gamepad" );
 			break;
 		case ESA_LegacySouthPaw:
+			UpdateControllerSettings_Worker( 'GBA_StrafeLeft_Gamepad', "Axis aStrafe Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_Look_Gamepad', "Axis aLookup Speed=-0.65 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_TurnLeft_Gamepad', "Axis aTurn Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_MoveForward_Gamepad', "Axis aBaseY Speed=-1.0 DeadZone=0.2" );
+
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_StrafeLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_Look_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_TurnLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_MoveForward_Gamepad" );
 			break;
 		case ESA_Normal: default:
-			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_StrafeLeft_Gamepad" ); // Axis aStrafe Speed=1.0 DeadZone=0.3 
-			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_MoveForward_Gamepad" ); //  Axis aBaseY Speed=1.0 DeadZone=0.3
-			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_TurnLeft_Gamepad" ); // Axis aTurn Speed=1.0 DeadZone=0.3 
-			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_Look_Gamepad" ); //  Axis aLookup Speed=0.65 DeadZone=0.3
+			UpdateControllerSettings_Worker( 'GBA_StrafeLeft_Gamepad', "Axis aStrafe Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_MoveForward_Gamepad', "Axis aBaseY Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_TurnLeft_Gamepad', "Axis aTurn Speed=1.0 DeadZone=0.2" );
+			UpdateControllerSettings_Worker( 'GBA_Look_Gamepad', "Axis aLookup Speed=0.65 DeadZone=0.2" );
+
+			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_StrafeLeft_Gamepad" ); // Axis aStrafe Speed=1.0 DeadZone=0.2
+			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_MoveForward_Gamepad" ); //  Axis aBaseY Speed=1.0 DeadZone=0.2
+			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_TurnLeft_Gamepad" ); // Axis aTurn Speed=1.0 DeadZone=0.2 
+			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_Look_Gamepad" ); //  Axis aLookup Speed=0.65 DeadZone=0.2
 			break;
 		}
 	}
 
 	// make sure to call the super version after, since it updates the current pawn as well.
-	Super.RetrieveSettingsFromProfile();
+	Super.LoadSettingsFromProfile(bLoadCharacter);
+
+	// Bind menu button
+	UpdateControllerSettings_Worker( 'XboxTypeS_Start', class'UTProfileSettings'.default.DigitalButtonActionsToCommandMapping[DBA_ShowMenu] );	
 }
 
 

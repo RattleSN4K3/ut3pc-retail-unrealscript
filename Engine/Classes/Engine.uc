@@ -170,6 +170,10 @@ var globalconfig string SceneCaptureCubeActorMaterialName;
 var Texture2D RandomAngleTexture;
 var globalconfig string RandomAngleTextureName;
 
+/** Texture used to get random normals per-pixel */
+var Texture2D RandomNormalTexture;
+var globalconfig string RandomNormalTextureName;
+
 /** Time in seconds (game time) we should wait between purging object references to objects that are pending kill */
 var(Settings) config float TimeBetweenPurgingPendingKillObjects;
 
@@ -398,8 +402,10 @@ native static final function bool PlayLoadMapMovie();
 
 /**
  * Stops the current movie
+ *
+ * @param bDelayStopUntilGameHasRendered If TRUE, the engine will delay stopping the movie until after the game has rendered at least one frame
  */
-native static final function StopMovie();
+native static final function StopMovie(bool bDelayStopUntilGameHasRendered);
 
 /**
  * Removes all overlays from displaying
@@ -435,7 +441,7 @@ native static final function AddOverlayWrapped( Font Font, string Text, float X,
 
 defaultproperties
 {
-	C_WorldBox=(R=0,G=0,B=107,A=255)
+	C_WorldBox=(R=0,G=0,B=40,A=255)
 	C_BrushWire=(R=192,G=0,B=0,A=255)
 	C_AddWire=(R=127,G=127,B=255,A=255)
 	C_SubtractWire=(R=255,G=192,B=63,A=255)

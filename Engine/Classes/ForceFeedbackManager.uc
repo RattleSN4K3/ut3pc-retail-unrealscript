@@ -40,6 +40,12 @@ var float ScaleAllWaveformsBy;
  */
 simulated function PlayForceFeedbackWaveform(ForceFeedbackWaveform Waveform)
 {
+	// If there is already a waveform playing, only switch if the new one has a longer duration
+	if ((Waveform != None) && (FFWaveform != None) && (Waveform.Samples.Length > 0) && (Waveform.Samples[0].Duration < FFWaveform.Samples[0].Duration))
+	{
+		return;
+	}
+
 	// Zero out the current sample and duration and unpause if paused
 	CurrentSample = 0;
 	ElapsedTime = 0.0;

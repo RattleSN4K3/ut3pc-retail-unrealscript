@@ -15,7 +15,9 @@ function StartMatch()
 
 // Parse options for this game...
 event InitGame( string Options, out string ErrorMessage )
-{}
+{
+	ParseAutomatedTestingOptions(Options);
+}
 
 auto State PendingMatch
 {
@@ -31,7 +33,7 @@ auto State PendingMatch
     {
 		bWaitingToStartMatch = true;
 		UTGameReplicationInfo(GameReplicationInfo).bWarmupRound = false;
-	StartupStage = 0;
+		StartupStage = 0;
 		bQuickStart = false;
     }
 

@@ -6,6 +6,7 @@
 
 class UTUIFrontEnd_MainMenu extends UTUIFrontEnd_BasicMenu;
 
+
 const MAINMENU_OPTION_CAMPAIGN = 0;
 const MAINMENU_OPTION_INSTANTACTION = 1;
 const MAINMENU_OPTION_MULTIPLAYER = 2;
@@ -34,6 +35,9 @@ var string	SettingsScene;
 /** Reference to the Login screen. */
 var string	LoginScreenScene;
 
+/** Reference to the CDKey screen. */
+var string	CDKeyScene;
+
 var string DemoSellScene;
 
 /** Reference to the modal message box. */
@@ -45,38 +49,67 @@ var transient int LogoutPlayerIndex;
 /** Whether or not the logout was successful. */
 var transient bool bLogoutWasSuccessful;
 
-`include(Core/Globals.uci)
 
 /** Callback for when the show animation has completed for this scene. */
 function OnMainRegion_Show_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimationSeq AnimSeq)
 {
 	local string OutStringValue;
 	local GameUISceneClient GameSceneClient;
+	local bool bLoggedIn;
+//@todo ut3merge
+//	local OnlineAccountInterface	AccountInt;
 
-	`log(`location@`showobj(AnimTarget)@`showvar(AnimIndex)@`showobj(AnimSeq),,'RONDEBUG');
+	`log(`location@`showobj(AnimTarget)@`showvar(AnimIndex)@`showobj(AnimSeq),,'DevUI');
 	Super.OnMainRegion_Show_UIAnimEnd(AnimTarget, AnimIndex, AnimSeq);
+
+
+//@todo ut3merge
+//	AccountInt = GetAccountInterface();
+//	if(AccountInt.IsKeyValid()==false)
+	if ( false )
+	{
+		OpenSceneByName(CDKeyScene);
+		return;
+	}
+
 
 	// AnimIndex of 0 corresponds to the 'SceneShowInitial' animation
 	if ( AnimIndex == 0 )
 	{
+		bLoggedIn = IsLoggedIn(INDEX_NONE);
+
 		GameSceneClient = GetSceneClient();
 		if ( GameSceneClient != None )
 		{
-			GameSceneClient.RestoreMenuProgression(Self);
+			if ( bLoggedIn )
+			{
+				GameSceneClient.RestoreMenuProgression(Self);
+			}
+			else
+			{
+				GameSceneClient.ClearMenuProgression();
+			}
 		}
 
+		//@fixme ronp - this needs to be cleaned up; kind of a mish-mash of pc and ps3 versions
 		// See if we should show the user the login screen.
 		GetDataStoreStringValue("<Registry:ShownLoginScreen>", OutStringValue);
 		if(OutStringValue!="1")
 		{
-			//@todo - this should be removed and we should have an option on the "connection lost" menu for logging
-			// in if we're no longer logged in.
-			if(!IsConsole())
+			if ( !IsConsole() )
 			{
-				if(IsLoggedIn(INDEX_NONE)==FALSE)
+				if ( !class'UTGameUISceneClient'.default.bPerformedMinSpecCheck )
 				{
-					OpenSceneByName(LoginScreenScene, true);
+					class'UTGameUISceneClient'.default.bPerformedMinSpecCheck = true;
+					class'UTGameUISceneClient'.static.StaticSaveConfig();
+					VerifyMinSpecs();
+					return;
 				}
+			}
+			else if ( !bLoggedIn )
+			{
+				OpenSceneByName(LoginScreenScene, true, OnLoginScreenOpened);
+				return;
 			}
 		}
 
@@ -85,9 +118,57 @@ function OnMainRegion_Show_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnima
 	}
 }
 
+/** Callback for when the login screen has opened. */
+function OnLoginScreenOpened(UIScene OpenedScene, bool bInitialActivation)
+{
+	local UTUIFrontEnd_LoginScreen LoginScreen;
+	local OnlinePlayerInterface	PlayerInt;
+
+	PlayerInt = GetPlayerInterface();
+	LoginScreen = UTUIFrontEnd_LoginScreen(OpenedScene);
+	if(LoginScreen != None && IsLoggedIn(INDEX_NONE,true)==false && bInitialActivation)
+	{
+		// If they are logged in locally only, then set the default values for the login screen.
+		if(IsLoggedIn(INDEX_NONE)==true)
+		{
+			LoginScreen.LocalLoginCheckBox.SetValue(true);
+			LoginScreen.UserNameEditBox.SetValue(PlayerInt.GetPlayerNickname(GetPlayerOwner().ControllerId));
+		}
+	}
+}
+
+/**
+ * Checks whether user's machine meets the minimum required specs to play the game, and if not displays a warning message
+ * to the user which points them to the release notes and [possibly] tweak guide.
+ */
+function VerifyMinSpecs()
+{
+	local UTUIScene_MessageBox MBScene;
+
+	if ( IsBelowMinSpecs() )
+	{
+		// the title string we're using here is just "Warning"
+		MBScene = DisplayMessageBox("<Strings:UTGameUI.Errors.MinSpecMessage>", "<Strings:UTGameUI.Errors.SomeChangesMayNotBeApplied_Title>");
+		MBScene.OnClosed = MinSpecMessageClosed;
+	}
+	else
+	{
+		MinSpecMessageClosed();
+	}
+}
+
+function MinSpecMessageClosed()
+{
+	if ( !IsLoggedIn(INDEX_NONE) )
+	{
+		OpenSceneByName(LoginScreenScene, true);
+	}
+}
+
 /** PostInitialize event - Sets delegates for the scene. */
 event PostInitialize( )
 {
+//	VersionText = default.VersionText;
 	Super.PostInitialize();
 }
 
@@ -95,7 +176,7 @@ event SceneActivated(bool bInitialActivation)
 {
 	Super.SceneActivated(bInitialActivation);
 
-	`log(`location@`showvar(bInitialActivation),,'RONDEBUG');
+	`log(`location@`showvar(bInitialActivation),,'DevUI');
 	if ( !bInitialActivation )
 	{
 		MenuList.SetFocus(None);
@@ -353,8 +434,14 @@ function OnLogoutCompleted_LogoutMessageClosed()
  */
 function StartCampaign(int PlayerIndex)
 {
-	OpenSceneByName(CampaignContinueScene);
-
+	if ( GetWorldInfo().IsDemoBuild() )
+	{
+		DisplayMEssageBox("The campaign portion of UT3 is not available in the demo.");
+	}
+	else
+	{
+		OpenSceneByName(CampaignContinueScene);
+	}
 }
 
 /** Buttonbar Callbacks. */
@@ -428,5 +515,8 @@ defaultproperties
 	CampaignContinueScene="UI_Scenes_Campaign.Scenes.CampNewOrContinue"
 	LoginScreenScene="UI_Scenes_ChrisBLayout.Scenes.LoginScreen""
 	DemoSellScene="UI_Scenes_FrontEnd.Scenes.DemoSell"
+	CDKeyScene="UI_Scenes_FrontEnd.CDKey"
+
+    VersionFont=font'UI_Fonts_Final.Menus.Fonts_Positec'
 
 }

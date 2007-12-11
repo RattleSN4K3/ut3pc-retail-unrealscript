@@ -20,8 +20,30 @@ event PostInitialize( )
 /** Sets up the scene's button bar. */
 function SetupButtonBar()
 {
+	ButtonBar.Clear();
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", OnButtonBar_Back);
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.PlayDemo>", OnButtonBar_PlayDemo);
+	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.DeleteDemo>", OnButtonBar_DelDemo);
+}
+
+
+function DoDelete(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
+{
+	local string DemoFileName;
+	local int CurrentSelection;
+
+	if (SelectedOption == 0)
+	{
+		CurrentSelection = DemoFilesList.GetCurrentItem();
+
+		if(CurrentSelection != INDEX_NONE)
+		{
+			if(class'UTUIMenuList'.static.GetCellFieldString(DemoFilesList, 'FileName', CurrentSelection, DemoFileName))
+			{
+				DeleteDemo(DemoFilename);
+			}
+		}
+	}
 }
 
 /** Plays the currently selected demo. */
@@ -54,6 +76,22 @@ function bool OnButtonBar_Back(UIScreenObject InButton, int InPlayerIndex)
 
 	return true;
 }
+
+function bool OnButtonBar_DelDemo(UIScreenObject InButton, int InPlayerIndex)
+{
+
+	local UTUIScene_MessageBox MB;
+
+
+	MB = GetMessageBoxScene();
+	if (MB!=none)
+	{
+		MB.DisplayAcceptCancelBox("<Strings:UTGameUI.Community.DemoDelWarning>","<Strings:UTGameUI.Campaign.Confirmation", DoDelete);
+	}
+
+	return true;
+}
+
 
 function bool OnButtonBar_PlayDemo(UIScreenObject InButton, int InPlayerIndex)
 {
@@ -104,5 +142,5 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 
 defaultproperties
 {
-	
+
 }

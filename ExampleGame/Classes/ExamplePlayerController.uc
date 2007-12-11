@@ -88,11 +88,12 @@ exec function StartFire( optional byte FireModeNum )
 		// Do simple line check then apply impulse
 		StartShot	= CamLoc;
 		EndShot		= StartShot + (10000.0 * X);
-		HitActor	= Trace(HitLocation, HitNormal, EndShot, StartShot, True, ZeroVec, HitInfo);
+		HitActor	= Trace(HitLocation, HitNormal, EndShot, StartShot, True, ZeroVec, HitInfo, TRACEFLAG_Bullet);
 
 		if ( HitActor != None && HitInfo.HitComponent != None )
 		{
 			HitInfo.HitComponent.AddImpulse(X * WeaponImpulse, HitLocation, HitInfo.BoneName);
+			HitActor.TakeDamage(100, self, HitLocation, WeaponImpulse*HitNormal, class'ExampleDamageType', HitInfo, self);
 		}
 	}
 	else

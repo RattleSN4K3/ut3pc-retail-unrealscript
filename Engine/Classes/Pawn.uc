@@ -71,9 +71,11 @@ var	bool		bForceFloorCheck;	// force the pawn in PHYS_Walking to do a check for 
 var bool		bForceKeepAnchor;	// Force ValidAnchor function to accept any non-NULL anchor as valid (used to override when we want to set anchor for path finding)
 
 //@fixme - remove these post-ship, as they aren't general enough to warrant being placed here
-var config bool bCanMantle;				// can this pawn mantle over cover
-var bool bCanClimbCeilings;			// can this pawn climb ceiling nodes
-var config bool bCanSwatTurn;				// can this pawn swat turn between cover
+var config bool bCanMantle;			// can this pawn mantle over cover
+var		   bool bCanClimbCeilings;	// can this pawn climb ceiling nodes
+var config bool bCanSwatTurn;		// can this pawn swat turn between cover
+var config bool bCanLeap;			// can this pawn use LeapReachSpec
+var config bool	bCanCoverSlip;		// can this pawn coverslip
 
 /** if set, display "MAP HAS PATHING ERRORS" and message in the log when a Pawn fails a full path search */
 var globalconfig bool bDisplayPathErrors;
@@ -106,8 +108,13 @@ enum EPathSearchType
 	PST_Default,
 	PST_Breadth,
 	PST_NewBestPathTo,
+	PST_Constraint,
 };
 var EPathSearchType	PathSearchType;
+
+/** List of search constraints for pathing */
+var PathConstraint		PathConstraintList;
+var PathGoalEvaluator	PathGoalList;
 
 var		float	DesiredSpeed;
 var		float	MaxDesiredSpeed;
@@ -230,7 +237,7 @@ var		int		AllowedYawError;
 
 /** Inventory Manager */
 var class<InventoryManager>		InventoryManagerClass;
-var InventoryManager			InvManager;
+var repnotify InventoryManager			InvManager;
 
 /** Weapon currently held by Pawn */
 var()	Weapon					Weapon;
@@ -261,6 +268,11 @@ var PrimitiveComponent PreRagdollCollisionComponent;
 /** Physics object created to create contacts with physics objects, used to push them around. */
 var	native const pointer	PhysicsPushBody;
 
+/** @HACK: count of times processLanded() was called but it failed without changing physics for some reason
+ * so we can detect and avoid a rare case where Pawns get stuck in that state
+ */
+var int FailedLandingCount;
+
 
 
 replication
@@ -275,7 +287,7 @@ replication
 		InvManager, Controller, GroundSpeed, WaterSpeed, AirSpeed, AccelRate, JumpZ, AirControl;
 
 	// sent to non owning clients
-	if ( bNetDirty && !bNetOwner && Role==Role_Authority )
+	if ( bNetDirty && (!bNetOwner || bDemoRecording) && Role==Role_Authority )
 		bIsCrouched, FlashCount, FiringMode;
 
 	// variable sent to all clients when Pawn has been torn off. (bTearOff)
@@ -283,7 +295,7 @@ replication
 		TearOffMomentum;
 
 	// variables sent to all but the owning client
-	if ( !bNetOwner && Role==ROLE_Authority )
+	if ( (!bNetOwner || bDemoRecording) && Role==ROLE_Authority )
 		RemoteViewPitch;
 }
 
@@ -1561,9 +1573,17 @@ function gibbedBy(actor Other)
 function JumpOffPawn()
 {
 	Velocity += (100 + CylinderComponent.CollisionRadius) * VRand();
+	if ( VSize2D(Velocity) > FMax(500.0, GroundSpeed) )
+	{
+		Velocity = FMax(500.0, GroundSpeed) * Normal(Velocity);
+	}
 	Velocity.Z = 200 + CylinderComponent.CollisionHeight;
 	SetPhysics(PHYS_Falling);
 }
+
+/** Called when pawn cylinder embedded in another pawn.  (Collision bug that needs to be fixed).
+*/
+event StuckOnPawn(Pawn OtherPawn);
 
 /**
   * Event called after actor's base changes.
@@ -1606,7 +1626,7 @@ Called for pawns that have bCanBeBaseForPawns=false when another pawn becomes ba
 */
 function CrushedBy(Pawn OtherPawn)
 {
-	TakeDamage( (1-OtherPawn.Velocity.Z/400)* OtherPawn.Mass/Mass, OtherPawn.Controller,Location,0.5 * OtherPawn.Velocity , class'DmgType_Crushed');
+	TakeDamage( (1-OtherPawn.Velocity.Z/400)* OtherPawn.Mass/Mass, OtherPawn.Controller,Location, vect(0,0,0) , class'DmgType_Crushed');
 }
 
 //=============================================================================
@@ -1654,6 +1674,9 @@ simulated event Destroyed()
 
 	Weapon = None;
 
+	//debug
+	ClearPathStep();
+
 	super.Destroyed();
 }
 
@@ -1700,6 +1723,9 @@ event PostBeginPlay()
 		else
 			InvManager.SetupFor( Self );
 	}
+
+	//debug
+	ClearPathStep();
 }
 
 
@@ -2043,7 +2069,7 @@ simulated event bool IsSameTeam( Pawn Other )
  *
  * @returns true if allowed
  */
-function bool Died(Controller Killer, class<DamageType> damageType, vector HitLocation)
+function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLocation)
 {
 	local SeqAct_Latent Action;
 	// allow the current killer to override with a different one for kill credit
@@ -2091,7 +2117,7 @@ function bool Died(Controller Killer, class<DamageType> damageType, vector HitLo
 	else if ( Weapon != None )
 	{
 		Weapon.HolderDied();
-		ThrowActiveWeapon();
+		ThrowActiveWeapon( DamageType );
 	}
 	// notify the gameinfo of the death
 	if ( Controller != None )
@@ -2212,7 +2238,7 @@ function bool CheckWaterJump(out vector WallNormal)
 		else
 		{
 			Checkpoint = Acceleration;
-		}	
+		}
 		Checkpoint.Z = 0.0;
 	}
 	if ( Checkpoint == vect(0,0,0) )
@@ -2587,16 +2613,18 @@ simulated function DrawHUD( HUD H )
 
 /**
  * Toss active weapon using default settings (location+velocity).
+ *
+ * @param DamageType  allows this function to do different behaviors based on the damage type
  */
-function ThrowActiveWeapon()
+function ThrowActiveWeapon( optional class<DamageType> DamageType )
 {
 	if ( Weapon != None )
 	{
-		TossWeapon(Weapon);
+		TossInventory(Weapon, , DamageType);
 	}
 }
 
-function TossWeapon(Weapon Weap, optional vector ForceVelocity)
+function TossInventory( Inventory Inv, optional vector ForceVelocity, optional class<DamageType> DamageType )
 {
 	local vector	POVLoc, TossVel;
 	local rotator	POVRot;
@@ -2614,7 +2642,7 @@ function TossWeapon(Weapon Weap, optional vector ForceVelocity)
 	}
 
 	GetAxes(Rotation, X, Y, Z);
-	Weap.DropFrom(Location + 0.8 * CylinderComponent.CollisionRadius * X - 0.5 * CylinderComponent.CollisionRadius * Y, TossVel);
+	Inv.DropFrom(Location + 0.8 * CylinderComponent.CollisionRadius * X - 0.5 * CylinderComponent.CollisionRadius * Y, TossVel);
 }
 
 /* SetActiveWeapon
@@ -2864,8 +2892,8 @@ simulated function OnTeleport(SeqAct_Teleport Action)
 }
 
 /**
- * NOTE: using this function for things that are "fired off" immediately at spawn (e.g. res in effect) and never "updated" again 
- * this check will always return false.  For effects that are getting updated this code will be able to return true over time due to the 
+ * NOTE: using this function for things that are "fired off" immediately at spawn (e.g. res in effect) and never "updated" again
+ * this check will always return false.  For effects that are getting updated this code will be able to return true over time due to the
  * LastRenderTime being updated even if the pawn stays in the same location.
  **/
 simulated function bool EffectIsRelevant(vector SpawnLocation, bool bForceDedicated, optional float CullDistance )
@@ -2877,7 +2905,7 @@ simulated function bool EffectIsRelevant(vector SpawnLocation, bool bForceDedica
 		return bForceDedicated;
 	}
 
-	if ( (WorldInfo.NetMode == NM_ListenServer) && (WorldInfo.Game.NumPlayers > 1) )
+	if ( (WorldInfo.NetMode == NM_ListenServer) && (WorldInfo.Game.NumPlayers + WorldInfo.Game.NumSpectators > 1) )
 	{
 		if ( bForceDedicated )
 			return true;
@@ -2936,6 +2964,16 @@ event SoakPause()
 		break;
 	}
 }
+
+native function ClearConstraints();
+native function AddPathConstraint( PathConstraint Constraint );
+native function AddGoalEvaluator( PathGoalEvaluator Evaluator );
+
+native function IncrementPathStep( int Cnt, Canvas C );
+native function IncrementPathChild( int Cnt, Canvas C );
+native function DrawPathStep( Canvas C );
+native function	ClearPathStep();
+
 
 defaultproperties
 {

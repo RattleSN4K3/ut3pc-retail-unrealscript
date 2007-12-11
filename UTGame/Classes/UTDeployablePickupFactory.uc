@@ -101,7 +101,7 @@ function StartSleeping()
 /** called when the deployable spawned by this factory has been used up */
 function DeployableUsed(actor ChildDeployable)
 {
-	`warn("called when not waiting for deployable in state "$GetStateName());
+	//`warn("called when not waiting for deployable in state "$GetStateName());
 }
 
 state WaitingForDeployable

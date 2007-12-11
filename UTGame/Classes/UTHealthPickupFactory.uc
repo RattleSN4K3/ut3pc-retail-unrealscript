@@ -119,7 +119,7 @@ defaultproperties
 	bMovable=FALSE
 	bStatic=FALSE
 
-    PickupStatName=Pickups_Health
+    PickupStatName=PICKUPS_HEALTH
 	MaxDesireability=0.700000
 	HealingAmount=20
 

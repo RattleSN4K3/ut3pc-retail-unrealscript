@@ -625,6 +625,7 @@ native(261) final latent function FinishAnim( AnimNodeSequence SeqNode );
 // Collision.
 native(262) final noexport function SetCollision( optional bool bNewColActors, optional bool bNewBlockActors, optional bool bNewIgnoreEncroachers );
 native(283) final function SetCollisionSize( float NewRadius, float NewHeight );
+native final function SetCollisionType(ECollisionType NewCollisionType);
 native final function SetDrawScale(float NewScale);
 native final function SetDrawScale3D(vector NewScale3D);
 
@@ -1854,17 +1855,14 @@ simulated final function bool ActivateEventClass( class<SequenceEvent> InClass, 
  */
 simulated final function bool FindEventsOfClass(class<SequenceEvent> EventClass, optional out array<SequenceEvent> out_EventList)
 {
-	local int idx;
+	local SequenceEvent Evt;
 	local bool bFoundEvent;
-	for (idx = 0; idx < GeneratedEvents.Length; idx++)
+	foreach GeneratedEvents(Evt)
 	{
-		if (ClassIsChildOf(GeneratedEvents[idx].Class, EventClass) &&
-			GeneratedEvents[idx].bEnabled &&
-			(GeneratedEvents[idx].MaxTriggerCount == 0 ||
-			 GeneratedEvents[idx].MaxTriggerCount > GeneratedEvents[idx].TriggerCount))
+		if (Evt != None && Evt.bEnabled && ClassIsChildOf(Evt.Class,EventClass) && (Evt.MaxTriggerCount == 0 || Evt.MaxTriggerCount > Evt.TriggerCount))
 		{
-			out_EventList[out_EventList.Length] = GeneratedEvents[idx];
-			bFoundEvent = true;
+			out_EventList.AddItem(Evt);
+			bFoundEvent = TRUE;
 		}
 	}
 	return bFoundEvent;
@@ -2107,7 +2105,16 @@ simulated function OnSetPhysics(SeqAct_SetPhysics Action)
 /** Handler for collision action, allow designer to toggle collide/block actors */
 function OnChangeCollision(SeqAct_ChangeCollision Action)
 {
-	SetCollision( Action.bCollideActors, Action.bBlockActors, Action.bIgnoreEncroachers );
+	// if the action is out of date then use the previous properties
+	if (Action.ObjInstanceVersion < Action.ObjClassVersion)
+	{
+		SetCollision( Action.bCollideActors, Action.bBlockActors, Action.bIgnoreEncroachers );
+	}
+	else
+	{
+		// otherwise use the new collision type
+		SetCollisionType(Action.CollisionType);
+	}
 	ForceNetRelevant();
 	if (RemoteRole != ROLE_None)
 	{
@@ -2443,6 +2450,11 @@ simulated event RootMotionExtracted(SkeletalMeshComponent SkelComp, out BoneAtom
  * this is a good place to cache references to skeletal controllers, etc that the Actor modifies
  */
 event PostInitAnimTree(SkeletalMeshComponent SkelComp);
+
+/** Looks up the GUID of a package on disk. The package must NOT be in the autodownload cache.
+ * This may require loading the header of the package in question and is therefore slow.
+ */
+native static final function Guid GetPackageGuid(name PackageName);
 
 defaultproperties
 {

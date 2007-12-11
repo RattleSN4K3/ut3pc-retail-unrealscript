@@ -78,7 +78,7 @@ defaultproperties
 {
 	Speed=4000.0
 	MaxSpeed=4000.0
-	Damage=100.0
+	Damage=80.0
 	DamageRadius=220.0
 	SeekRangeSq=250000.0
 	SeekAccel=6000.0

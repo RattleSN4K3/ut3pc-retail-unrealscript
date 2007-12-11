@@ -221,6 +221,8 @@ var bool bBlendOutTakeHitPhysics;
 /** speed at which physics is blended out when bBlendOutTakeHitPhysics is true (amount subtracted from PhysicsWeight per second) */
 var float TakeHitPhysicsBlendOutSpeed;
 
+/** Controller vibration for taking falling damage. */
+var ForceFeedbackWaveform FallingDamageWaveForm;
 
 /*********************************************************************************************
  Aiming
@@ -320,7 +322,7 @@ var repnotify bool bDualWielding;
 /** set when pawn is putting away its current weapon, for playing 3p animations - access with Set/GetPuttingDownWeapon() */
 var protected repnotify bool bPuttingDownWeapon;
 
-var				float FireRateMultiplier; /** affects firing rate of all weapons held by this pawn. */
+var repnotify float FireRateMultiplier; /** affects firing rate of all weapons held by this pawn. */
 
 /** These values are used for determining headshots */
 var float			HeadOffset;
@@ -469,6 +471,8 @@ var(Swimming) float SwimmingZOffset;
 /** Speed to apply swimming z translation. */
 var(Swimming) float SwimmingZOffsetSpeed;
 
+var float CrouchMeshZOffset;
+
 /*********************************************************************************************
 * Custom gravity support
 ********************************************************************************************* */
@@ -547,7 +551,7 @@ replication
 {
 	// replicated properties
 	if ( bNetOwner && bNetDirty )
-		ShieldBeltArmor, HelmetArmor, VestArmor, ThighpadArmor, bHasHoverboard;
+		ShieldBeltArmor, HelmetArmor, VestArmor, ThighpadArmor, bHasHoverboard, FireRateMultiplier;
 	if ( bNetDirty )
 		bFeigningDeath, CurrentWeaponAttachmentClass, bIsTyping, CompressedBodyMatColor, ClientBodyMatDuration,
 		HeadScale, PawnAmbientSoundCue, WeaponAmbientSoundCue, ReplicatedBodyMaterial, OverlayMaterialInstance,
@@ -1088,6 +1092,13 @@ simulated function NotifyTeamChanged()
  */
 simulated function NotifyArmMeshChanged(UTPlayerReplicationInfo UTPRI)
 {
+	// failsafe to make sure local player got arms
+	if ( IsLocallyControlled() && IsHumanControlled() && UTPRI.FirstPersonArmMesh == None &&
+		UTGameReplicationInfo(WorldInfo.GRI) != None && UTGameReplicationInfo(WorldInfo.GRI).CharStatus.Find('PRI', UTPRI) == INDEX_NONE )
+	{
+		UTGameReplicationInfo(WorldInfo.GRI).ProcessCharacterData(UTPRI);
+	}
+
 	// Arms
 	ArmsMesh[0].SetSkeletalMesh(UTPRI.FirstPersonArmMesh);
 	ArmsMesh[1].SetSkeletalMesh(UTPRI.FirstPersonArmMesh);
@@ -1648,6 +1659,17 @@ function JumpOffPawn()
 	bNoJumpAdjust = true;
 	if ( UTBot(Controller) != None )
 		UTBot(Controller).SetFall();
+}
+
+/** Called when pawn cylinder embedded in another pawn.  (Collision bug that needs to be fixed).
+*/
+event StuckOnPawn(Pawn OtherPawn)
+{
+	if( UTPawn(OtherPawn) != None )
+	{
+		TakeDamage( 10, None,Location, vect(0,0,0) , class'DmgType_Crushed');
+		ForceRagdoll();
+	}
 }
 
 event Falling()
@@ -2472,10 +2494,18 @@ simulated event StopDriving(Vehicle V)
 	}
 }
 
-function DoComboName( string ComboClassName );
-function bool InCurrentCombo()
+simulated function ClientReStart()
 {
-	return false;
+	local rotator AdjustedRotation;
+
+	Super.ClientRestart();
+
+	if (Controller != None)
+	{
+		AdjustedRotation = Controller.Rotation;
+		AdjustedRotation.Roll = 0;
+		Controller.SetRotation(AdjustedRotation);
+	}
 }
 
 //=============================================================================
@@ -2926,7 +2956,7 @@ simulated function SpawnGibs(class<UTDamageType> UTDamageType, vector HitLocatio
 
 		// if standalone or client, destroy here
 		if ( WorldInfo.NetMode != NM_DedicatedServer && !WorldInfo.IsRecordingDemo() &&
-			((WorldInfo.NetMode != NM_ListenServer) || (WorldInfo.Game.NumPlayers < 2)) )
+			((WorldInfo.NetMode != NM_ListenServer) || (WorldInfo.Game.NumPlayers + WorldInfo.Game.NumSpectators < 2)) )
 		{
 			Destroy();
 		}
@@ -3022,7 +3052,7 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 	{
 		if (WorldInfo.NetMode == NM_ListenServer || WorldInfo.IsRecordingDemo())
 		{
-			if (WorldInfo.Game.NumPlayers < 2 && !WorldInfo.IsRecordingDemo())
+			if (WorldInfo.Game.NumPlayers + WorldInfo.Game.NumSpectators < 2 && !WorldInfo.IsRecordingDemo())
 			{
 				Destroy();
 				return;
@@ -3166,17 +3196,20 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 		{
 			SpawnHeadGib(UTDamageType, HitLoc);
 
-			HeadShotSocketName = GetFamilyInfo().default.HeadShotGoreSocketName;
-			SMS = Mesh.GetSocketByName( HeadShotSocketName );
-			if( SMS != none )
+			if ( !class'GameInfo'.Static.UseLowGore(WorldInfo) )
 			{
-				HeadshotNeckAttachment = new(self) class'StaticMeshComponent';
-				HeadshotNeckAttachment.SetActorCollision( FALSE, FALSE );
-				HeadshotNeckAttachment.SetBlockRigidBody( FALSE );
+				HeadShotSocketName = GetFamilyInfo().default.HeadShotGoreSocketName;
+				SMS = Mesh.GetSocketByName( HeadShotSocketName );
+				if( SMS != none )
+				{
+					HeadshotNeckAttachment = new(self) class'StaticMeshComponent';
+					HeadshotNeckAttachment.SetActorCollision( FALSE, FALSE );
+					HeadshotNeckAttachment.SetBlockRigidBody( FALSE );
 
-				Mesh.AttachComponentToSocket( HeadshotNeckAttachment, HeadShotSocketName );
-				HeadshotNeckAttachment.SetStaticMesh( GetFamilyInfo().default.HeadShotNeckGoreAttachment );
-				HeadshotNeckAttachment.SetLightEnvironment( LightEnvironment );
+					Mesh.AttachComponentToSocket( HeadshotNeckAttachment, HeadShotSocketName );
+					HeadshotNeckAttachment.SetStaticMesh( GetFamilyInfo().default.HeadShotNeckGoreAttachment );
+					HeadshotNeckAttachment.SetLightEnvironment( LightEnvironment );
+				}
 			}
 		}
 	}
@@ -4340,6 +4373,23 @@ function SetBigHead()
 	}
 }
 
+/** called when FireRateMultiplier is changed to update weapon timers */
+simulated function FireRateChanged()
+{
+	if (Weapon != None && Weapon.IsTimerActive('RefireCheckTimer'))
+	{
+		// make currently firing weapon slow down firing rate
+		Weapon.ClearTimer('RefireCheckTimer');
+		Weapon.TimeWeaponFiring(Weapon.CurrentFireMode);
+	}
+	if (DrivenVehicle != None && DrivenVehicle.Weapon != None && DrivenVehicle.Weapon.IsTimerActive('RefireCheckTimer'))
+	{
+		// make currently firing vehicle weapon slow down firing rate
+		DrivenVehicle.Weapon.ClearTimer('RefireCheckTimer');
+		DrivenVehicle.Weapon.TimeWeaponFiring(DrivenVehicle.Weapon.CurrentFireMode);
+	}
+}
+
 /**
  * Check on various replicated data and act accordingly.
  */
@@ -4461,6 +4511,10 @@ simulated event ReplicatedEvent(name VarName)
 	else if (VarName == 'BigTeleportCount')
 	{
 		PostBigTeleport();
+	}
+	else if (VarName == 'FireRateMultiplier')
+	{
+		FireRateChanged();
 	}
 	else
 	{
@@ -4746,14 +4800,14 @@ simulated function PlayTakeHitEffects()
 
 	if (EffectIsRelevant(Location, false))
 	{
-		if (LastTakeHitInfo.DamageType.default.bCausesBloodSplatterDecals && !IsZero(LastTakeHitInfo.Momentum) )
+		if (LastTakeHitInfo.DamageType.default.bCausesBloodSplatterDecals && !IsZero(LastTakeHitInfo.Momentum) && !class'GameInfo'.Static.UseLowGore(WorldInfo) )
 		{
 			LeaveABloodSplatterDecal( LastTakeHitInfo.HitLocation, LastTakeHitInfo.Momentum );
 		}
 
 		if (!IsFirstPerson() || class'Engine'.static.IsSplitScreen() )
 		{
-			if (LastTakeHitInfo.DamageType.default.bCausesBlood)
+			if ( LastTakeHitInfo.DamageType.default.bCausesBlood && !class'GameInfo'.Static.UseLowGore(WorldInfo) )
 			{
 				BloodTemplate = class'UTEmitter'.static.GetTemplateForDistance(GetFamilyInfo().default.BloodEffects, LastTakeHitInfo.HitLocation, WorldInfo);
 				if (BloodTemplate != None)
@@ -4830,14 +4884,10 @@ reliable server function ServerHoverboard()
 		//Temp turn off collision
 		SetCollision(false, false);
 		Board = Spawn(HoverboardClass);
-		if (Board != None)
+		if (Board != None && !Board.bDeleteMe)
 		{
 			// make sure it didn't get spawned on the other side of a wall
-			if (FastTrace(Board.Location, Location))
-			{
-				Board.TryToDrive(self);
-			}
-			else
+			if (!FastTrace(Board.Location, Location) || !Board.TryToDrive(self))
 			{
 				Board.Destroy();
 				SetCollision(true, true);
@@ -5011,6 +5061,22 @@ simulated function SetOverlayVisibility(bool bVisible)
 	OverlayMesh.SetOwnerNoSee(!bVisible);
 }
 
+simulated function TakeFallingDamage()
+{
+	local UTPlayerController UTPC;
+
+	Super.TakeFallingDamage();
+
+	if (Velocity.Z < -0.5 * MaxFallSpeed)
+	{
+		UTPC = UTPlayerController(Controller);
+		if(UTPC != None && LocalPlayer(UTPC.Player) != None)
+		{
+			UTPC.ClientPlayForceFeedbackWaveform(FallingDamageWaveForm);
+		}
+	}
+}
+
 simulated event RigidBodyCollision( PrimitiveComponent HitComponent, PrimitiveComponent OtherComponent,
 					const out CollisionImpactData RigidCollisionData, int ContactIndex )
 {
@@ -5081,7 +5147,7 @@ function OnInfiniteAmmo(UTSeqAct_InfiniteAmmo Action)
 /**
  * Toss active weapon using default settings (location+velocity).
  */
-function ThrowActiveWeapon()
+function ThrowActiveWeapon( optional class<DamageType> DamageType )
 {
 	local Weapon TossedGun;
 
@@ -5094,14 +5160,14 @@ function ThrowActiveWeapon()
 			TossedGun = Weapon(FindInventoryType(class'UTGame.UTWeap_Enforcer'));
 			if ( (TossedGun != None) && TossedGun.CanThrow() )
 			{
-				TossWeapon(TossedGun);
+				TossInventory(TossedGun);
 			}
 			return;
 		}
 	}
 	if ( Weapon != None )
 	{
-		TossWeapon(Weapon);
+		TossInventory(Weapon);
 	}
 }
 
@@ -5145,10 +5211,7 @@ simulated event EndCrouch(float HeightAdjust)
 	Super.EndCrouch(HeightAdjust);
 
 	// offset mesh by height adjustment
-	if (Mesh != None)
-	{
-		Mesh.SetTranslation(Mesh.Translation - Vect(0,0,1)*HeightAdjust);
-	}
+	CrouchMeshZOffset = 0.0;
 }
 
 /**
@@ -5163,10 +5226,7 @@ simulated event StartCrouch(float HeightAdjust)
 	Super.StartCrouch(HeightAdjust);
 
 	// offset mesh by height adjustment
-	if (Mesh != None)
-	{
-		Mesh.SetTranslation(Mesh.Translation + Vect(0,0,1)*HeightAdjust);
-	}
+	CrouchMeshZOffset = HeightAdjust;
 }
 
 simulated function GetQuickPickCells(UTHud Hud, out array<QuickPickCell> Cells, out int CurrentWeaponIndex)
@@ -5264,6 +5324,13 @@ state FeigningDeath
 
 	event bool EncroachingOn(Actor Other)
 	{
+		if ( ForcedDirVolume(Other) != None )
+		{
+			if ( ForcedDirVolume(Other).bBlockPawns && Other.ContainsPoint(Location) )
+			{
+				TakeDamage(10000, Controller, Location, vect(0,0,0), class'DmgType_Crushed');
+			}
+		}
 		// don't abort moves in ragdoll
 		return false;
 	}
@@ -5573,7 +5640,7 @@ ignores OnAnimEnd, Bump, HitWall, HeadVolumeChange, PhysicsVolumeChange, Falling
 				{
 					UTDamage.Static.SpawnHitEffect(self, Damage, Momentum, HitInfo.BoneName, HitLocation);
 				}
-				if ( DamageType.default.bCausesBlood
+				if ( DamageType.default.bCausesBlood && !class'GameInfo'.Static.UseLowGore(WorldInfo)
 					&& ((PlayerController(Controller) == None) || (WorldInfo.NetMode != NM_Standalone)) )
 				{
 					BloodMomentum = Momentum;
@@ -6075,4 +6142,9 @@ defaultproperties
 
 	SwimmingZOffset=-30.0
 	SwimmingZOffsetSpeed=45.0
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformFall
+		Samples(0)=(LeftAmplitude=50,RightAmplitude=40,LeftFunction=WF_Sin90to180,RightFunction=WF_Sin90to180,Duration=0.200)
+	End Object
+	FallingDamageWaveForm=ForceFeedbackWaveformFall
 }

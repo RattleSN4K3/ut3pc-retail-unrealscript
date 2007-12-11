@@ -12,8 +12,8 @@
  * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
  */
 class UIDataStore extends UIDataProvider
-      native(inherit)
-      abstract;
+	native(inherit)
+	abstract;
 
 
 
@@ -139,6 +139,16 @@ event RefreshSubscribers( optional name PropertyTag, optional bool bInvalidateVa
  * @note: for now, this lives in UIDataStore, but it might make sense to move it up to UIDataProvider later on.
  */
 native function OnCommit();
+
+/**
+ * Returns a reference to the global data store client, if it exists.
+ *
+ * @return	the global data store client for the game.
+ */
+final function DataStoreClient GetDataStoreClient()
+{
+	return class'UIInteraction'.static.GetDataStoreClient();
+}
 
 DefaultProperties
 {

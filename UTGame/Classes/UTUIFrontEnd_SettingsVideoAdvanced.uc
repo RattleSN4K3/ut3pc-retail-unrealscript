@@ -17,7 +17,9 @@ enum EPossibleVideoSettings
 	PVS_LightingQuality,
 	PVS_ShadowQuality,
 	PVS_PostProcessQuality,
-	PVS_VSyncValue
+	PVS_VSyncValue,
+	PVS_SmoothFramerate,
+	PVS_PlayerFOV,
 };
 
 /** Array of setting types to widget names. */
@@ -29,15 +31,15 @@ var transient UTUITabPage_Options	OptionsPage;
 /** Reference to the messagebox scene. */
 var transient UTUIScene_MessageBox MessageBoxReference;
 
-/** 
- * Sets the value of the video setting. 
+/**
+ * Sets the value of the video setting.
  *
  * @param Setting	Setting to set the value of
  * @param Value		New value for the setting
  */
 native function SetVideoSettingValue(EPossibleVideoSettings Setting, int Value);
 
-/** 
+/**
  * Sets the value of multiple video settings at once.
  *
  * @param Setting	Array of settings to set the value of
@@ -226,6 +228,16 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 	return bResult;
 }
 
+event SetPlayerFOV(int NewFOV)
+{
+	local UTPlayerController PC;
+	PC = GetUTPlayerOwner();
+	if ( PC != none )
+	{
+		PC.FOV(NewFOV);
+	}
+}
+
 DefaultProperties
 {
 	SettingWidgetMapping(PVS_ScreenPercentage)="ScreenPercentage";
@@ -237,4 +249,6 @@ DefaultProperties
 	SettingWidgetMapping(PVS_ShadowQuality)="ShadowQuality";
 	SettingWidgetMapping(PVS_PostProcessQuality)="PostProcessQuality";
 	SettingWidgetMapping(PVS_VSyncValue)="VSyncValue";
+	SettingWidgetMapping(PVS_SmoothFramerate)="SmoothFramerate";
+	SettingWidgetMapping(PVS_PlayerFOV)="PlayerFOV";
 }

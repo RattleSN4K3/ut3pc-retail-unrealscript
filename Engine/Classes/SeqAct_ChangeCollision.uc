@@ -4,14 +4,21 @@
  */
 
 
-class SeqAct_ChangeCollision extends SequenceAction;
+class SeqAct_ChangeCollision extends SequenceAction
+	native(Sequence);
 
-var() bool bCollideActors;
-var() bool bBlockActors;
-var() bool bIgnoreEncroachers;
+;
+
+var() editconst const bool bCollideActors;
+var() editconst const bool bBlockActors;
+var() editconst const bool bIgnoreEncroachers;
+
+var() Actor.ECollisionType CollisionType;
 
 defaultproperties
 {
+	ObjClassVersion=5
+
 	ObjName="Change Collision"
 	ObjCategory="Actor"
 }

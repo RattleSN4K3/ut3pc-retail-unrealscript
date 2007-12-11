@@ -21,29 +21,18 @@ simulated static function AddWeaponOverlay(UTGameReplicationInfo GRI)
 /** adds or removes our bonus from the given pawn */
 simulated function AdjustPawn(UTPawn P, bool bRemoveBonus)
 {
-	if (P != None)
+	if (P != None && Role == ROLE_Authority)
 	{
 		if (bRemoveBonus)
 		{
 			P.FireRateMultiplier *= 2.0;
-			if (P.Weapon != None && P.Weapon.IsTimerActive('RefireCheckTimer'))
-			{
-				// make currently firing weapon slow down firing rate
-				P.Weapon.ClearTimer('RefireCheckTimer');
-				P.Weapon.TimeWeaponFiring(P.Weapon.CurrentFireMode);
-			}
-			if (P.DrivenVehicle != None && P.DrivenVehicle.Weapon != None && P.DrivenVehicle.Weapon.IsTimerActive('RefireCheckTimer'))
-			{
-				// make currently firing vehicle weapon slow down firing rate
-				P.DrivenVehicle.Weapon.ClearTimer('RefireCheckTimer');
-				P.DrivenVehicle.Weapon.TimeWeaponFiring(P.DrivenVehicle.Weapon.CurrentFireMode);
-			}
 		}
 		else
 		{
 			// halve firing time
 			P.FireRateMultiplier *= 0.5;
 		}
+		P.FireRateChanged();
 	}
 }
 

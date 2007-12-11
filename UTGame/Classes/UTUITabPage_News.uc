@@ -37,8 +37,11 @@ event PostInitialize()
 		}
 	}
 
-	// Start a news read
-	ReadNews();
+	if ( IsLoggedIn(GetBestControllerId(), true) )
+	{
+		// Start a news read
+		ReadNews();
+	}
 }
 
 /** Starts reading the latest news. */
@@ -66,7 +69,10 @@ function OnReadGameNewsCompleted(bool bWasSuccessful)
 {
 	`Log("UTUITabPage_News::OnReadGameNewsCompleted() - bWasSuccessful: "$bWasSuccessful);
 
-	NewsInterface.ClearReadGameNewsCompletedDelegate(OnReadGameNewsCompleted);
+	if ( NewsInterface != None )
+	{
+		NewsInterface.ClearReadGameNewsCompletedDelegate(OnReadGameNewsCompleted);
+	}
 
 	if(bWasSuccessful)
 	{
@@ -78,6 +84,22 @@ function OnReadGameNewsCompleted(bool bWasSuccessful)
 	}
 }
 
+
+/**
+ * Notification that this widget's parent is about to remove this widget from its children array.  Allows the widget
+ * to clean up any references to the old parent.
+ *
+ * @param	WidgetOwner		the screen object that this widget was removed from.
+ */
+event RemovedFromParent( UIScreenObject WidgetOwner )
+{
+	Super.RemovedFromParent(WidgetOwner);
+
+	if ( NewsInterface != None )
+	{
+		NewsInterface.ClearReadGameNewsCompletedDelegate(OnReadGameNewsCompleted);
+	}
+}
 
 defaultproperties
 {

@@ -500,7 +500,7 @@ simulated function vector GetLinkedToLocation()
 		ToTarget = UTVehicle(LinkedTo).GetTargetLocation();
 
 		// need to do this check first as otherwise we will clip through the Walkers' legs!
-		if( UTVehicle_Walker(LinkedTo) != none )
+		if( (UTVehicle_Walker(LinkedTo) != none) && (UTVehicle_Walker(LinkedTo).BodyActor != None) )
 		{
 			// check to see if we are hitting the legs
 			bHitVehicleAimingAt = TraceComponent( HitLocation, HitNormal, UTVehicle_Walker(LinkedTo).BodyActor.SkeletalMeshComponent, ToTarget, Loc,, );
@@ -921,6 +921,13 @@ simulated state WeaponBeamFiring
 			MuzzleFlashPSC.ClearParameter('Link_Beam_Color');
 		}
 	}
+
+
+	/** You can run around spamming the beam and needing to look around all speed **/
+	simulated function bool CanViewAccelerationWhenFiring()
+	{
+		return TRUE;
+	}
 }
 
 simulated state WeaponPuttingDown
@@ -984,7 +991,7 @@ function bool FocusOnLeader(bool bLeaderFiring)
 	local vector HitLocation, HitNormal, StartTrace;
 
 	B = UTBot(Instigator.Controller);
-	if ( B == None )
+	if (B == None || B.Squad == None || B.Squad.SquadLeader == None)
 	{
 		return false;
 	}
@@ -1218,4 +1225,10 @@ defaultproperties
 
 	QuickPickGroup=5
 	QuickPickWeight=0.8
+
+	Begin Object Class=ForceFeedbackWaveform Name=BeamForceFeedbackWaveform1
+		Samples(0)=(LeftAmplitude=20,RightAmplitude=10,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.100)
+		bIsLooping=TRUE
+	End Object
+	BeamWeaponFireWaveForm=BeamForceFeedbackWaveform1
 }

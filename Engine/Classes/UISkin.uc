@@ -67,7 +67,7 @@ var		const	native	transient			Map{FName,class UUIStyle*}				StyleNameMap;
 /**
  * Contains the style group names for this style and all parent styles.
  */
-var		const	native	transient			Map_Mirror								StyleGroupMap{TLookupMap<FString>};
+var		const	native	transient			LookupMap_Mirror								StyleGroupMap{TLookupMap<FString>};
 
 /**
  * The cursors contained by this skin.  Maps a unique tag (i.e. Arrow) to a cursor resource.

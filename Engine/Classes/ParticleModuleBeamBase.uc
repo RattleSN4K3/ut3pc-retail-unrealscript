@@ -9,11 +9,10 @@
 class ParticleModuleBeamBase extends ParticleModule
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object)
 	abstract;
 
-/** The method to use in determining the source/target							*/
+/** The method to use in determining the source/target. */
 enum Beam2SourceTargetMethod
 {
 	/** Default	- use the distribution. 
@@ -37,7 +36,7 @@ enum Beam2SourceTargetMethod
 	PEB2STM_Actor
 };
 
-/** The method to use in determining the source/target tangent					*/
+/** The method to use in determining the source/target tangent. */
 enum Beam2SourceTargetTangentMethod
 {
 	/** Direct - a direct line between source and target.				 */

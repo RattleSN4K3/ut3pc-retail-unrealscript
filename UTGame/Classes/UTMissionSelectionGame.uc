@@ -36,6 +36,8 @@ event InitGame( string Options, out string ErrorMessage )
 {
 	local string InOpt;
 
+	MaxPlayers = GetIntOption(Options, "MaxPlayers", 4);
+
 	GameDifficulty = FMax(0,GetIntOption(Options, "Difficulty", GameDifficulty));
 
 	BroadcastHandler = Spawn(BroadcastHandlerClass);
@@ -43,6 +45,8 @@ event InitGame( string Options, out string ErrorMessage )
 	{
 		AccessControl = Spawn(AccessControlClass);
 	}
+
+	ParseAutomatedTestingOptions(Options);
 
 	InOpt = ParseOption( Options, "SPResult");
 	if ( InOpt != "" )
@@ -63,6 +67,8 @@ event InitGame( string Options, out string ErrorMessage )
 	{
 		SinglePlayerMissionID = INDEX_NONE;
 	}
+
+	bAllowKeyboardAndMouse = true;
 
 	// Cache a pointer to the online subsystem
 	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
@@ -157,7 +163,7 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 	local string work;
 	local name Card;
 
-	`log("[SinglePlayer] InitializeMission:"@SinglePlayerMissionID@LastMissionResult);
+//	`log("[SinglePlayer] InitializeMission:"@SinglePlayerMissionID@LastMissionResult);
 
 	if ( Host == none )
 	{
@@ -182,7 +188,7 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 		if ( Profile.bGameInProgress() )
 		{
 
-			`log("[SinglePlayer] Reloading last mission");
+//			`log("[SinglePlayer] Reloading last mission");
 
 			Profile.GetCurrentMissionData(CMID, CMResult);
 			SinglePlayerMissionID = CMID;
@@ -190,7 +196,7 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 		}
 		else
 		{
-			`log("[SinglePlayer] New Mission");
+//			`log("[SinglePlayer] New Mission");
 			SinglePlayerMissionID = 0;
 			LastMissionResult = ESPMR_None;
 		}
@@ -212,7 +218,7 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 		bNeedsProfileSaved = true;
 		CMID = SinglePlayerMissionID;
 
-		`log("[SinglePlayer] Continuing to next mission");
+//		`log("[SinglePlayer] Continuing to next mission");
 
 
 	}
@@ -249,6 +255,14 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 		{
 			Profile.BoneHasBeenVisited(Mission.GlobeBoneName);
 			bNeedsProfileSaved = true;
+
+			// If this was any of the containment maps, flag it
+
+		    if ( InStr(Mission.Map,"Containment") > INDEX_None || PreviousMissionObj.MissionID == 33)
+	        {
+	        	Profile.AddPersistentKey(ESPKey_DarkWalkerUnlock);
+	        	Profile.AddPersistentKey(ESPKey_CanStealNecris);
+	        }
 		}
 
 
@@ -385,7 +399,7 @@ function HandleCutSequence(EMissionInformation Mission, UTSeqObj_SPMission Missi
 
 	if ( MissionObj.bIsBinkSequence )
 	{
-		`log("[SinglePlayer] Executing a BINK cut sequence ("$Mission.Map$")");
+//		`log("[SinglePlayer] Executing a BINK cut sequence ("$Mission.Map$")");
 
 		MissionGRI.CurrentMissionID = Mission.MissionID;
 		MissionGRI.PlayBinkMission = Mission.MissionID;
@@ -394,7 +408,7 @@ function HandleCutSequence(EMissionInformation Mission, UTSeqObj_SPMission Missi
 	}
 	else
 	{
-		`log("[SinglePlayer] Executing a in-game cut sequence @"@WorldInfo.TimeSeconds);
+//		`log("[SinglePlayer] Executing a in-game cut sequence @"@WorldInfo.TimeSeconds);
 		URL = Mission.Map $ Mission.URL $ "?SPI="$Mission.MissionID;
 		WorldInfo.ServerTravel(URL);
 	}
@@ -404,7 +418,7 @@ function BinkMovieFinished()
 {
 	local UTMissionGRI MissionGRI;
 
-	`log("[SinglePlayer] Bink movie finished @"@WorldInfo.TimeSeconds@"continuing Re-initializing Mission System");
+//	`log("[SinglePlayer] Bink movie finished @"@WorldInfo.TimeSeconds@"continuing Re-initializing Mission System");
 
 	MissionGRI = UTMissionGRI(GameReplicationInfo);
 	MissionGRI.PlayBinkMission = -1;
@@ -421,7 +435,7 @@ function HandleForcedTravel(int MissionID)
 	local EMissionInformation Mission;
 	UTMissionGRI(GameReplicationInfo).CurrentMissionID = MissionID;
 	UTMissionGRI(GameReplicationInfo).GetCurrentMission(Mission);
-	`log("[SinglePlayer] Force Travel to :"@MissionId@Mission.MissionId@Mission.Map);
+//	`log("[SinglePlayer] Force Travel to :"@MissionId@Mission.MissionId@Mission.Map);
 	AcceptMission();
 }
 
@@ -473,7 +487,7 @@ function AcceptMission()
 		// Always read the skill level from the profile....
 		GameDifficulty = Profile.GetCampaignSkillLevel() * 2;
 
-		URL = Mission.Map $ Mission.URL $ "?SPI="$Mission.MissionID$"?PlayersMustBeReady=1?Difficulty="$GameDifficulty;
+		URL = Mission.Map $ Mission.URL $ "?SPI="$Mission.MissionID$"?PlayersMustBeReady=1?Difficulty="$GameDifficulty$"?MaxPlayers="$MaxPlayers;
 
 		if ( Profile == none  || !Profile.HasPersistentKey(ESPKey_CanStealNecris) )
 		{
@@ -613,7 +627,8 @@ function AddBotsFromMissionData( EMissionInformation Mission, bool bAddOnlyCusto
 
 function ProcessModifierCard(name GameModifierCard, UTProfileSettings Profile, out string URL, out EMissionInformation Mission)
 {
-	local int i,j,r, OldNum;
+	local int i,j,r, OldNum, RemoveCount;
+	local array<string> Pool;
 
 	URL = URL$Class'UTGameModifierCard'.static.GetURL(GameModifierCard);
 
@@ -644,32 +659,47 @@ function ProcessModifierCard(name GameModifierCard, UTProfileSettings Profile, o
 	}
 	else if ( GameModifierCard == 'Liandri' )
 	{
-		if (Profile.HasPersistentKey( class'UTGameModifierCard'.static.GetAltKey(GameModifierCard)) )
+		Pool = Profile.HasPersistentKey(class'UTGameModifierCard'.static.GetAltKey(GameModifierCard)) ? LiandriEnhancedPool : LiandriPool;
+
+		// first, try to pick random characters and only choose those not already in the mission
+		i = CardCharacters.Length;
+		CardCharacters.Length = i + 2;
+		while (i < CardCharacters.length && Pool.length > 0)
 		{
-			i = CardCharacters.Length;
-			CardCharacters.Length = i + 2;
-			for (j=0;j<2;j++)
+			r = Rand(Pool.length);
+			if (Mission.RequiredOpponents.Find(Pool[r]) == INDEX_NONE && Mission.PrecachedOpponents.Find(Pool[r]) == INDEX_NONE)
 			{
-				r = Rand(LiandriEnhancedPool.Length);
-				CardCharacters[i+j] = LiandriEnhancedPool[r];
-				LiandriEnhancedPool.Remove(r,1);
+				CardCharacters[i] = Pool[r];
+				i++;
 			}
+			Pool.Remove(r, 1);
 		}
-		else
+
+		if (i < CardCharacters.length)
 		{
-			i = CardCharacters.Length;
-			CardCharacters.Length = i + 2;
-			for (j=0;j<2;j++)
+			// now just pick in order and don't care about duplicates
+			Pool = Profile.HasPersistentKey(class'UTGameModifierCard'.static.GetAltKey(GameModifierCard)) ? LiandriEnhancedPool : LiandriPool;
+			for (r = 0; r < Pool.length && i < CardCharacters.length; r++)
 			{
-				r = Rand(LiandriPool.Length);
-				CardCharacters[i+j] = LiandriPool[r];
-				LiandriPool.Remove(r,1);
+				if (CardCharacters.Find(Pool[r]) == INDEX_NONE)
+				{
+					CardCharacters[i] = Pool[r];
+					i++;
+				}
 			}
 		}
 	}
 	else if (GameModifierCard == 'TacticalDiversion')
 	{
-		Mission.RequiredOpponents.Remove(Mission.RequiredOpponents.Length-3,2);
+		RemoveCount = Min(2, Mission.RequiredOpponents.length - 1);
+		if (RemoveCount > 0)
+		{
+			Mission.RequiredOpponents.Remove(Mission.RequiredOpponents.length - RemoveCount, RemoveCount);
+		}
+		else
+		{
+			RemoveCount = 0;
+		}
 		// also update the URL's number of players
 		i = InStr(Caps(URL), "?NUMPLAY=");
 		if (i != INDEX_NONE)
@@ -677,7 +707,11 @@ function ProcessModifierCard(name GameModifierCard, UTProfileSettings Profile, o
 			// we have to strip out the mapname for GetIntOption() to work
 			OldNum = GetIntOption(Right(URL, Len(URL) - InStr(URL, "?")), "numplay", 0);
 
-			URL = Left(URL, i) $ "?numplay=" $ (OldNum - 2) $ Right(URL, Len(URL) - i - 9 - ((OldNum >= 10) ? 2 : 1));
+			URL = Left(URL, i) $ "?numplay=" $ (OldNum - RemoveCount) $ Right(URL, Len(URL) - i - 9 - ((OldNum >= 10) ? 2 : 1));
+			if (RemoveCount < 2)
+			{
+				URL $= "?diverted=" $ (2 - RemoveCount);
+			}
 		}
 	}
 
@@ -794,10 +828,7 @@ auto State PendingMatch
 
 function ShowCredits()
 {
-	local UTMissionGRI MGRI;
-
-	MGRI= UTMissionGRI(GameReplicationInfo);
-	MGRI.ShowCredits();
+	WorldInfo.ServerTravel("UTCin-UT3Credits",true);
 }
 
 
@@ -812,7 +843,7 @@ DefaultProperties
 
 	IronGuardPool=("Cain","Blackjack","Johnson","Kregore","Talan")
 	IronGuardEnhancedPool=("Barktooth","Harlin","Slain","Blain")
-	LiandriPool=("Torque","Syntax","Rapter","Mihr")
+	LiandriPool=("Torque","Syntax","Raptor","Mihr")
 	LiandriEnhancedPool=("Matrix","Aspect","Cathode","Enigma")
 
 	// this could be moved to the CustomChar data to say they are important

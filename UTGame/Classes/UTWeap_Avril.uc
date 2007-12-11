@@ -776,24 +776,6 @@ simulated state WeaponFiring
 	}
 }
 
-simulated state WeaponPuttingDown
-{
-	simulated function float GetAbortPutDownTime()
-	{
-		local float Time;
-
-		Time = Super.GetAbortPutDownTime();
-
-		if (DeferredReloadTime > Time)
-		{
-			Time = DeferredReloadTime;
-		}
-		DeferredReloadTime = 0;
-
-		return Time;
-	}
-}
-
 simulated state WeaponEquipping
 {
 	simulated function bool TryPutDown()

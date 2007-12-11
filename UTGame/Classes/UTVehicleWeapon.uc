@@ -554,4 +554,5 @@ defaultproperties
 	MaxFinalAimAdjustment=0.995;
 
 	CrossHairCoordinates=(U=320,V=320,UL=60,VL=56)
+	AimError=600
 }

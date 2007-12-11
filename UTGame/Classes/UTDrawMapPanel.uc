@@ -276,15 +276,20 @@ function bool InputKey( const out InputEventParameters EventParms )
 				PickActorUnderCursor(EventParms.PlayerIndex);
 				return true;
 			}
-			else if( (EventParms.EventType == IE_DoubleClick && EventParms.InputKeyName == 'LeftMouseButton') ||
-					(EventParms.EventType == IE_Released && EventParms.InputKeyName == 'Enter') )
+			else if (EventParms.EventType == IE_DoubleClick && EventParms.InputKeyName == 'LeftMouseButton')
 			{
 				if ( PickActorUnderCursor(EventParms.PlayerIndex) != none )
 				{
 					SelectActor(PC);
 				}
+
 				return true;
 			}
+			else if ( EventParms.EventType == IE_Released && (EventParms.InputKeyName == 'Enter' || EventParms.InputKeyName == 'XBoxTypeS_A') )
+			{
+				SelectActor(PC);
+			}
+
 		}
 
 		if ( EventParms.EventType == IE_Pressed || EventParms.EventType == IE_Repeat )
@@ -350,8 +355,10 @@ function SelectActor(UTPlayerController UTPC)
 {
 	local UTMapInfo MI;
 	MI = GetMapInfo();
+	`log("### SelectActor:"@MI@MI.CurrentActor);
 	if ( MI != none && MI.CurrentActor != none )
 	{
+		`log("### OnActorSelected");
 		OnActorSelected( MI.CurrentActor, UTPC );
 	}
 }

@@ -17,6 +17,8 @@ var transient UniqueNetId TargetPlayerNetId;
 
 event PostInitialize()
 {
+	local UIObject ButtonBarSafeRegion;
+
 	Super.PostInitialize();
 
 	// Gather widget references
@@ -29,6 +31,13 @@ event PostInitialize()
 	MessageEditBox.MaxCharacters = GS_MESSAGE_MAXLENGTH;
 	MessageEditBox.SetDataStoreBinding("");
 	MessageEditBox.SetValue("");
+
+	if ( IsConsole() )
+	{
+		// this must be done to prevent the
+		ButtonBarSafeRegion = FindChild('pnlSafeRegionLong',true);
+		ButtonBarSafeRegion.SetPrivateBehavior(PRIVATE_NotFocusable, true);
+	}
 }
 
 

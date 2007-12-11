@@ -25,7 +25,7 @@ var(Translation)	EBoneControlSpace	BoneTranslationSpace;
 var(Translation)	name				TranslationSpaceBoneName;
 
 /** Whether to modify the translation of this bone. */
-var(Adjustments)		bool			bApplyRotation;
+var(Adjustments)	bool				bApplyRotation;
 
 /** If false, replaces rotation with BoneRotation. If true, adds to existing rotation. */
 var(Rotation)		bool				bAddRotation;

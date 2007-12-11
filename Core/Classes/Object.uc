@@ -62,31 +62,41 @@ struct ThreadSafeCounter
 	var native const int		Value;
 };
 
-struct DynamicMap_Mirror
+struct BitArray_Mirror
 {
-	var native const pointer	Hash;
-	var native const int		HashSize;
-	var native const int		Count;
-	var native const array<int>	Pairs;
-	var native const pointer	FreePairs;
+	var native const pointer Data;
+	var native const int NumBits;
+	var native const int MaxBits;
+	var native const int ReservedData[4];
+};
+
+struct SparseArray_Mirror
+{
+	var native const array<int> Elements;
+	var native const array<int> FreeElements;
+	var native const BitArray_Mirror AllocationFlags;
+};
+
+struct Set_Mirror
+{
+	var native const SparseArray_Mirror Elements;
+	var native const pointer Hash;
+	var native const int HashSize;
 };
 
 struct Map_Mirror
 {
-	var native const pointer	Pairs;
-	var native const int		PairNum;
-	var native const int		PairMax;
-	var native const pointer	Hash;
-	var native const int		HashNum;
+	var native const Set_Mirror Pairs;
 };
 
 struct MultiMap_Mirror
 {
-	var native const pointer	Pairs;
-	var native const int		PairNum;
-	var native const int		PairMax;
-	var native const pointer	Hash;
-	var native const int		HashNum;
+	var native const Set_Mirror Pairs;
+};
+
+struct LookupMap_Mirror extends MultiMap_Mirror
+{
+	var native const array<int> UniqueElements;
 };
 
 struct UntypedBulkData_Mirror
@@ -108,6 +118,11 @@ struct UntypedBulkData_Mirror
 struct TextureMipBulkData_Mirror extends UntypedBulkData_Mirror
 {
 	var native const int		bShouldFreeOnEmtpy;
+};
+
+struct RenderCommandFence_Mirror
+{
+	var native const transient int NumPendingFences;
 };
 
 struct IndirectArray_Mirror
@@ -639,7 +654,6 @@ native(300)		static final function	vector	MirrorVectorByNormal( vector InVect, v
 native(1500)	static final function	Vector	ProjectOnTo( Vector x, Vector y );
 native(1501)	static final function	bool	IsZero( Vector A );
 
-
 /**
  * Tries to reach Target based on distance from Current position,
  * giving a nice smooth feeling when tracking a location.
@@ -681,6 +695,7 @@ native      static final function	Rotator	OrthoRotation( vector X, vector Y, vec
 native      static final function	Rotator	Normalize( rotator Rot );
 native		static final function	Rotator	RLerp( Rotator A, Rotator B, float Alpha, optional bool bShortestPath );
 native		static final function	Rotator	RSmerp( Rotator A, Rotator B, float Alpha, optional bool bShortestPath );
+
 
 /**
  * Tries to reach Target based on distance from Current position,
@@ -766,6 +781,51 @@ static final simulated function ClampRotAxis
 
 	out_DeltaViewAxis = DesiredViewAxis - ViewAxis;
 }
+
+/** 
+ * Clamp Rotator Axis.
+ *
+ * @param Current	Input axis angle.
+ * @param Center	Center of allowed angle.
+ * @param MaxDelta	Maximum delta allowed.
+ * @return axis angle clamped between [Center-MaxDelta, Center+MaxDelta]
+ */
+static final simulated function int ClampRotAxisFromBase(int Current, int Center, int MaxDelta)
+{
+	local int DeltaFromCenter;
+
+	DeltaFromCenter = NormalizeRotAxis(Current - Center);
+
+	if( DeltaFromCenter > MaxDelta )
+	{
+		Current	= Center + MaxDelta;
+	}
+	else if( DeltaFromCenter < -MaxDelta )
+	{
+		Current	= Center - MaxDelta;
+	}
+
+	return Current;
+};
+
+
+/** 
+ * Clamp Rotator Axis.
+ *
+ * @param Current	Input axis angle.
+ * @param Min		Min allowed angle.
+ * @param Max		Max allowed angle.
+ * @return axis angle clamped between [Min, Max]
+ */
+static final simulated function int ClampRotAxisFromRange(int Current, int Min, int Max)
+{
+	local int Delta, Center;
+
+	Delta = NormalizeRotAxis(Max - Min);
+	Center = NormalizeRotAxis(Max + Min) / 2;
+
+	return ClampRotAxisFromBase(Current, Center, Delta);
+};
 
 
 /**
@@ -964,6 +1024,18 @@ native(197) final function bool IsA( name ClassName );
 native(254) static final operator(24) bool == ( name A, name B );
 native(255) static final operator(26) bool != ( name A, name B );
 
+//
+//	Matrix operators and functions
+//
+native		static final operator(34) matrix	*	(Matrix A, Matrix B);
+
+native		static final function	vector	TransformVector(Matrix TM, vector A);
+native		static final function	vector	InverseTransformVector(Matrix TM, vector A);
+native		static final function	vector	TransformNormal(Matrix TM, vector A);
+native		static final function	vector	InverseTransformNormal(Matrix TM, vector A);
+native		static final function	matrix	MakeRotationTranslationMatrix(vector Translation, Rotator Rotation);
+native		static final function	rotator	MatrixGetRotator(Matrix TM);
+native		static final function	vector	MatrixGetOrigin(Matrix TM);
 
 //
 // Quaternion functions

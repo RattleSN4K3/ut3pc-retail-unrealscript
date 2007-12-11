@@ -14,6 +14,9 @@ var transient array<PlayerInput.KeyBind> OldBindings;
 /** Whether to display the crucialbind warning when closing the lose saved data screen. */
 var transient bool bShowCrucialBindWarning;
 
+/** Delegate to mark the profile as dirty. */
+delegate MarkDirty();
+
 /** Post initialize callback. */
 event PostInitialize()
 {
@@ -37,7 +40,7 @@ function SetupButtonBar()
 }
 
 /** Will first check to see if there are any unbound crucial binds and close the scene if not. */
-function CheckForCrucialBindsAndClose()
+function bool CheckForCrucialBindsAndClose()
 {
 	local int CrucialBindIdx;
 	local UTUIScene_MessageBox MessageBoxReference;
@@ -48,6 +51,7 @@ function CheckForCrucialBindsAndClose()
 	if (CrucialBindIdx == -1)
 	{
 		CloseScene(self);
+		return true;
 	}
 	else
 	{
@@ -63,6 +67,8 @@ function CheckForCrucialBindsAndClose()
 
 		MessageBoxReference = None;
 	}
+
+	return false;
 }
 
 /** Confirmation for the exit game dialog. */
@@ -146,7 +152,11 @@ function OnAccept()
 		UTPC.ClearStringAliasBindingMapCache();
 	}
 
-	CheckForCrucialBindsAndClose();
+	// Mark the screen for saving if successfully closing and a change was made.
+	if ( CheckForCrucialBindsAndClose() && BindingList.BindingsHaveChanged() )
+	{
+		MarkDirty();
+	}
 }
 
 /** Callback for when the user wants to reset to the default set of option values. */

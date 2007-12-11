@@ -9,7 +9,6 @@
 class ParticleModuleTrailSource extends ParticleModuleTrailBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
 enum ETrail2SourceMethod
@@ -28,17 +27,17 @@ enum ETrail2SourceMethod
 	PET2SRCM_Actor
 };
 
-/** The method flag																			*/
-var(Source)									ETrail2SourceMethod				SourceMethod;
+/** The source method for the trail. */
+var(Source)					ETrail2SourceMethod				SourceMethod;
 
-/** The strength of the tangent from the source point for each Trail						*/
-var(Source)									name							SourceName;
+/** The name of the source - either the emitter or Actor. */
+var(Source)					name							SourceName;
 
-/** The strength of the tangent from the source point for each Trail						*/
-var(Source)									rawdistributionfloat			SourceStrength;
+/** The strength of the tangent from the source point for each Trail. */
+var(Source)					rawdistributionfloat			SourceStrength;
 
-/** Whether to lock the source to the life of the particle									*/
-var(Source)									bool							bLockSourceStength;
+/** Whether to lock the source to the life of the particle. */
+var(Source)					bool							bLockSourceStength;
 
 /**
  *	SourceOffsetCount
@@ -46,18 +45,19 @@ var(Source)									bool							bLockSourceStength;
  *	These must be named
  *		TrailSourceOffset#
  */
-var(Source)									INT								SourceOffsetCount;
+var(Source)					INT								SourceOffsetCount;
 
-/** Default offsets from the source(s). 
- *	If there are < MaxBeamCount slots, the grabbing of values will simply wrap.
+/** 
+ *	Default offsets from the source(s). 
+ *	If there are < SourceOffsetCount slots, the grabbing of values will simply wrap.
  */
-var(Source)		editfixedsize				array<vector>					SourceOffsetDefaults;
+var(Source) editfixedsize	array<vector>					SourceOffsetDefaults;
 
-/**	Particle selection method, when using the SourceMethod of Particle						*/
-var(Source)									EParticleSourceSelectionMethod	SelectionMethod;
+/**	Particle selection method, when using the SourceMethod of Particle. */
+var(Source)					EParticleSourceSelectionMethod	SelectionMethod;
 
-/**	Interhit particle rotation - only valid for SourceMethod of PET2SRCM_Particle			*/
-var(Source)									bool							bInheritRotation;
+/**	Interhit particle rotation - only valid for SourceMethod of PET2SRCM_Particle. */
+var(Source)					bool							bInheritRotation;
 
 
 

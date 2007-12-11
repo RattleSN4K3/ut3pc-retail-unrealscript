@@ -70,64 +70,99 @@ function bool RequiresPassword()
 	return GamePassword != "";
 }
 
-function Kick( string S )
+/**
+ * Takes a string and tries to find the matching controller associated with it.  First it searches as if the string is the
+ * player's name.  If it doesn't find a match, it attempts to resolve itself using the target as the player id.
+ *
+ * @Params	Target		The search key
+ *
+ * @returns the controller assoicated with the key.  NONE is a valid return and means not found.
+ */
+function Controller GetControllerFromString(string Target)
+{
+	local Controller C,FinalC;
+	local int i;
+
+	FinalC = none;
+	foreach WorldInfo.AllControllers(class'Controller', C)
+	{
+		if (C.PlayerReplicationInfo != None && C.PlayerReplicationInfo.PlayerName ~= Target || C.PlayerReplicationInfo.GetPlayerAlias() ~= Target)
+		{
+			FinalC = C;
+			break;
+		}
+	}
+
+	// if we didn't find it by name, attemtp to convert the target to a player index and look him up if possible.
+	if ( C == none && WorldInfo != none && WorldInfo.GRI != none )
+	{
+		for (i=0;i<WorldInfo.GRI.PRIArray.Length;i++)
+		{
+			if ( String(WorldInfo.GRI.PRIArray[i].PlayerID) == Target )
+			{
+				FinalC = Controller(WorldInfo.GRI.PRIArray[i].Owner);
+				break;
+			}
+		}
+	}
+
+	return FinalC;
+}
+
+function Kick( string Target )
 {
 	local Controller C;
 
-	foreach WorldInfo.AllControllers(class'Controller', C)
+	C = GetControllerFromString(Target);
+	if ( C != none && C.PlayerReplicationInfo != None )
 	{
-		if (C.PlayerReplicationInfo != None && C.PlayerReplicationInfo.PlayerName ~= S || C.PlayerReplicationInfo.GetPlayerAlias() ~= S)
+		if (PlayerController(C) != None)
 		{
-			if (PlayerController(C) != None)
+			KickPlayer(PlayerController(C), DefaultKickReason);
+		}
+		else if (C.PlayerReplicationInfo.bBot)
+		{
+			if (C.Pawn != None)
 			{
-				KickPlayer(PlayerController(C), DefaultKickReason);
+				C.Pawn.Destroy();
 			}
-			else if (C.PlayerReplicationInfo.bBot)
+			if (C != None)
 			{
-				if (C.Pawn != None)
-				{
-					C.Pawn.Destroy();
-				}
-				if (C != None)
-				{
-					C.Destroy();
-				}
+				C.Destroy();
 			}
-			break;
 		}
 	}
 }
 
-function KickBan( string S )
+function KickBan( string Target )
 {
 	local PlayerController P;
 	local string IP;
 
-	ForEach WorldInfo.AllControllers(class'PlayerController', P)
-		if ( (P.PlayerReplicationInfo.PlayerName~=S || P.PlayerReplicationInfo.GetPlayerAlias() ~= S)
-			&&	(NetConnection(P.Player)!=None) )
+	P =  PlayerController( GetControllerFromString(Target) );
+	if ( NetConnection(P.Player) != None )
+	{
+		if (!WorldInfo.IsConsoleBuild())
 		{
-			// don't bother with IP ban on console - doesn't work
-			if (!WorldInfo.IsConsoleBuild())
+			IP = P.GetPlayerNetworkAddress();
+			if( CheckIPPolicy(IP) )
 			{
-				IP = P.GetPlayerNetworkAddress();
-				if( CheckIPPolicy(IP) )
-				{
-					IP = Left(IP, InStr(IP, ":"));
-					`Log("Adding IP Ban for: "$IP);
-					IPPolicies[IPPolicies.length] = "DENY," $ IP;
-					SaveConfig();
-				}
-			}
-			if ( P.PlayerReplicationInfo.UniqueId != P.PlayerReplicationInfo.default.UniqueId &&
-				!IsIDBanned(P.PlayerReplicationInfo.UniqueID) )
-			{
-				BannedIDs.AddItem(P.PlayerReplicationInfo.UniqueId);
+				IP = Left(IP, InStr(IP, ":"));
+				`Log("Adding IP Ban for: "$IP);
+				IPPolicies[IPPolicies.length] = "DENY," $ IP;
 				SaveConfig();
 			}
-			KickPlayer(P, DefaultKickReason);
-			return;
 		}
+
+		if ( P.PlayerReplicationInfo.UniqueId != P.PlayerReplicationInfo.default.UniqueId &&
+			!IsIDBanned(P.PlayerReplicationInfo.UniqueID) )
+		{
+			BannedIDs.AddItem(P.PlayerReplicationInfo.UniqueId);
+			SaveConfig();
+		}
+		KickPlayer(P, DefaultKickReason);
+		return;
+	}
 }
 
 function bool KickPlayer(PlayerController C, string KickReason)
@@ -135,13 +170,15 @@ function bool KickPlayer(PlayerController C, string KickReason)
 	// Do not kick logged admins
 	if (C != None && !IsAdmin(C) && NetConnection(C.Player)!=None )
 	{
-
-		C.ClientWasKicked();
-
 		if (C.Pawn != None)
-			C.Pawn.Destroy();
+		{
+			C.Pawn.Suicide();
+		}
+		C.ClientWasKicked();
 		if (C != None)
+		{
 			C.Destroy();
+		}
 		return true;
 	}
 	return false;
@@ -232,25 +269,18 @@ event PreLogin(string Options, string Address, out string OutError, bool bSpecta
 
 	if( (WorldInfo.NetMode != NM_Standalone) && WorldInfo.Game.AtCapacity(bSpectator) )
 	{
-		OutError=WorldInfo.Game.GameMessageClass.Default.MaxedOutMessage;
+		OutError = PathName(WorldInfo.Game.GameMessageClass) $ ".MaxedOutMessage";
 	}
-	else if
-	(	GamePassword!=""
-	&&	caps(InPassword)!=caps(GamePassword)
-	&&	(AdminPassword=="" || caps(InPassword)!=caps(AdminPassword)) )
+	else if ( GamePassword != "" && Caps(InPassword) != Caps(GamePassword) &&
+		(AdminPassword == "" || Caps(InPassword) != Caps(AdminPassword)) )
 	{
-		if( InPassword == "" )
-		{
-			OutError = NeedPassword;
-		}
-		else
-		{
-			OutError = WrongPassword;
-		}
+		OutError = (InPassword == "") ? "Engine.AccessControl.NeedPassword" : "Engine.AccessControl.WrongPassword";
 	}
 
-	if(!CheckIPPolicy(Address))
-		OutError = IPBanned;
+	if (!CheckIPPolicy(Address))
+	{
+		OutError = "Engine.AccessControl.IPBanned";
+	}
 }
 
 

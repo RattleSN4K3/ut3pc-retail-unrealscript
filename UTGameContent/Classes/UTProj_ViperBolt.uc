@@ -105,7 +105,7 @@ defaultproperties
     MaxSpeed=7000
     AccelRate=16000.0
 
-    Damage=40
+    Damage=36
     DamageRadius=0
     MomentumTransfer=4000
 

@@ -39,7 +39,7 @@ function SetEndGameFocus(PlayerReplicationInfo Winner)
 			EndGameFocus = Flags[1].HomeBase;
 		}
 	}
-	
+
 	if ( EndGameFocus != None )
 		EndGameFocus.bAlwaysRelevant = true;
 
@@ -161,7 +161,7 @@ function bool CheckEndGame(PlayerReplicationInfo Winner, string Reason)
 			// Don't allow overtime with automated perf testing.
 			if( bAutomatedPerfTesting )
 			{
-				GameReplicationInfo.Winner = None;
+				GameReplicationInfo.Winner = Teams[0];
 			}
 			else
 			{
@@ -329,7 +329,7 @@ State MatchOver
 	function AnnounceScore(int ScoringTeam)
 	{
 	}
-	
+
 	function ScoreFlag(Controller Scorer, UTCTFFlag theFlag)
 	{
 	}
@@ -426,6 +426,7 @@ defaultproperties
 
 	// Class used to write stats to the leaderboard
 	OnlineStatsWriteClass=class'UTGame.UTLeaderboardWriteCTF'
+	OnlineGameSettingsClass=class'UTGameSettingsCTF'
 
 	bScoreDeaths=false
 	MidgameScorePanelTag=CTFPanel

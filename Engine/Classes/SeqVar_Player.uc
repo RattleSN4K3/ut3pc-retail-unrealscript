@@ -15,6 +15,7 @@ var() bool bAllPlayers;
 /** Individual player selection for multiplayer scripting */
 var() int PlayerIdx;
 
+/** @fixme - this is an invalid implementation, whoever wrote this needs to fix it */
 function Object GetObjectValue()
 {
 	local PlayerController PC;
@@ -38,4 +39,5 @@ defaultproperties
 	ObjName="Player"
 	ObjCategory="Object"
 	bAllPlayers=TRUE
+	SupportedClasses=(class'Controller',class'Pawn')
 }

@@ -1,18 +1,21 @@
 ﻿/**
- *  When adding new functionality to this you will sadly need to touch a number of places:
+ *  When adding new functionality to this you will (sadly) need to touch a number of places:
  *
  *  MaterialInstanceTimeVarying.uc  for the actual data that will be used in the game
  *  MaterialEditorInstanceTimeVarying.uc for the editor property dialog that will be used to edit the data you just added
  *  
- *  void UMaterialEditorInstanceTimeVarying::CopyToSourceInstance()
+ * MaterialInstanceTimeVaryingHelpers.h  void UMaterialEditorInstanceTimeVarying::CopyToSourceInstance()
  *     template< typename MI_TYPE, typename ARRAY_TYPE >    (this copies
  *     void UpdateParameterValueOverTimeValues(
  *
- *  void UMaterialEditorInstanceTimeVarying::RegenerateArrays()
+ * MaterialInstanceTimeVaryingEditor.cpp  void UMaterialEditorInstanceTimeVarying::RegenerateArrays()  (each of the different types when it sets each param (ughh!))
  *  
- *  the various void UMaterialInstanceTimeVarying::Set   (to set the defaul values)
+ * MaterialInstanceTimeVarying.cpp  void UMaterialInstanceTimeVarying::Set___   (to set the default values)
  *
- *  static void UpdateMICResources(UMaterialInstanceTimeVarying* Instance)   (to send the data over to the rendering thread (if it needs it)
+ * MaterialInstanceConstant.cpp  static void UpdateMICResources(UMaterialInstanceTimeVarying* Instance)   (to send the data over to the rendering thread (if it needs it) (hopefully most data can be encapsulated in the 'struct native ParameterValueOverTime' which all of the specialized data structs derrive from
+ *
+ * MaterialInstance.h struct FTimeVaryingDataTypeBase 
+ *
  *
  * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
  */
@@ -26,9 +29,9 @@ struct native ParameterValueOverTime
 	var guid ExpressionGUID;
 
 	/** when this is parameter is to start "ticking" then this value will be set to the current game time **/
-	var float StartTime;
+	var transient float StartTime;
 
-	var() name	ParameterName;
+	var() name ParameterName;
 
 	/** if true, then the CycleTime is the loop time and time loops **/
 	var() bool bLoop;
@@ -42,8 +45,15 @@ struct native ParameterValueOverTime
 	/** if true, then the CycleTime is used to scale time so all keys are between zero and one **/
 	var() bool bNormalizeTime;
 
+	/** How much time this will wait before actually firing off.  This is useful for keeping the curves being just the data for controlling the param and not a bunch of slack in the beginning (e.g. to wait N seconds then start fading) **/
+	var() float OffsetTime;
+
+	/** When using OffsetTime it is nice to be able to offset from the end of the decal's lifetime (e.g. you want to fade out the decal, you want to change the color of the decal before it fades away etc.) **/
+	var() bool bOffsetFromEnd; // end of decal's lifespan
+
 	structdefaultproperties
 	{
+		StartTime=-1.0f
 		bLoop=FALSE
 		bAutoActivate=FALSE
 		CycleTime=1.0f
@@ -84,6 +94,9 @@ struct native VectorParameterValueOverTime extends ParameterValueOverTime
 /** causes all parameters to start playing immediately **/
 var() bool bAutoActivateAll;
 
+/** This sets how long the MITV will be around (i.e. this MITV is owned by a decal which lasts N seconds).  It is used for bOffsetFromEnd functionality **/
+var transient float Duration;
+
 var() const array<FontParameterValueOverTime>		FontParameterValues;
 var() const array<ScalarParameterValueOverTime>		ScalarParameterValues;
 var() const array<TextureParameterValueOverTime>	TextureParameterValues;
@@ -112,6 +125,9 @@ native function SetScalarCurveParameterValue(name ParameterName, InterpCurveFloa
 /** This sets how long after the MITV has been spawned to start "ticking" the named Scalar InterpCurve **/
 native function SetScalarStartTime(name ParameterName, float Value);
 
+/** This sets how long the MITV will be around (i.e. this MITV is owned by a decal which lasts N seconds) **/
+native function SetDuration(float Value);
+
 
 native function SetTextureParameterValue(name ParameterName, Texture Value);
 native function SetVectorParameterValue(name ParameterName, LinearColor Value);
@@ -139,4 +155,5 @@ native function ClearParameterValues();
 defaultproperties
 {
 	bAutoActivateAll=FALSE
+	Duration=0.0f
 }

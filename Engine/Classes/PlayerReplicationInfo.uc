@@ -1,12 +1,15 @@
 ﻿//=============================================================================
 // PlayerReplicationInfo.
 // Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+//
+// A PlayerReplicationInfo is created for every player on a server (or in a standalone game).
+// Players are PlayerControllers, or other Controllers with bIsPlayer=true
+// PlayerReplicationInfos are replicated to all clients, and contain network game relevant information about the player,
+// such as playername, score, etc.
 //=============================================================================
 class PlayerReplicationInfo extends ReplicationInfo
 	native
 	nativereplication;
-
-`include(Core/Globals.uci)
 
 var databinding float				Score;			// Player's current score.
 var databinding float				Deaths;			// Number of player's deaths.
@@ -68,8 +71,18 @@ var string				SavedNetworkAddress;	/** Used to match up InactivePRI with rejoini
  */
 var repnotify UniqueNetId UniqueId;
 
-/** Number of matches played (maybe remove this before shipping)  This is really useful for doing soak testing and such to see how long you lasted! NOTE:  This is not replicated out to clients atm. **/
-var int NumberOfMatchesPlayed;
+
+struct native AutomatedTestingDatum
+{
+	/** Number of matches played (maybe remove this before shipping)  This is really useful for doing soak testing and such to see how long you lasted! NOTE:  This is not replicated out to clients atm. **/
+	var int NumberOfMatchesPlayed;
+
+	/** Keeps track of the current run so when we have repeats and such we know how far along we are **/
+	var int NumMapListCyclesDone;
+};
+
+var AutomatedTestingDatum AutomatedTestingData;
+
 
 
 
@@ -470,7 +483,7 @@ function CopyProperties(PlayerReplicationInfo PRI)
 	PRI.SavedNetworkAddress = SavedNetworkAddress;
 	PRI.Team = Team;
 	PRI.UniqueId = UniqueId;
-	PRI.NumberOfMatchesPlayed = NumberOfMatchesPlayed;
+	PRI.AutomatedTestingData = AutomatedTestingData;
 }
 
 /** called by seamless travel when initializing a player on the other side - copy properties to the new PRI that should persist */

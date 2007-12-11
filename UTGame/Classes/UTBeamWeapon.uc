@@ -26,6 +26,8 @@ var name	BeamPreFireAnim[2];
 var name	BeamFireAnim[2];
 var name	BeamPostFireAnim[2];
 
+var ForceFeedbackWaveform	BeamWeaponFireWaveForm;
+
 simulated function AddBeamEmitter()
 {
 	if (WorldInfo.NetMode != NM_DedicatedServer)
@@ -199,8 +201,18 @@ simulated state WeaponBeamFiring
 
 	simulated function PlayFireEffects( byte FireModeNum, optional vector HitLocation )
 	{
+		local UTPlayerController PC;
+
 		// Start muzzle flash effect
 		CauseMuzzleFlash();
+
+	    // Play controller vibration
+		PC = UTPlayerController(Instigator.Controller);
+	    if( PC != None && LocalPlayer(PC.Player) != None )
+	    {
+		    // only do rumble if we are a player controller
+		    PC.ClientPlayForceFeedbackWaveform( BeamWeaponFireWaveForm );
+	    }
 
 		ShakeView();
 	}
@@ -245,6 +257,7 @@ simulated state WeaponBeamFiring
 	simulated function EndState(Name NextStateName)
 	{
 		local UTPawn POwner;
+		local UTPlayerController PC;
 
 		POwner = UTPawn(Instigator);
 		if (POwner != None)
@@ -259,6 +272,14 @@ simulated state WeaponBeamFiring
 		{
 			PlayWeaponAnimation( BeamPostFireAnim[CurrentFireMode], 1.0);
 		}
+
+	    // Stop controller vibration
+		PC = UTPlayerController(Instigator.Controller);
+	    if( PC != None && LocalPlayer(PC.Player) != None )
+	    {
+		    // only do rumble if we are a player controller
+		    PC.ClientStopForceFeedbackWaveform( BeamWeaponFireWaveForm );
+	    }
 
 		super.EndState(NextStateName);
 

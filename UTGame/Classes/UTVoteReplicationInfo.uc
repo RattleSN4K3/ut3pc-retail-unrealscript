@@ -177,7 +177,10 @@ simulated reliable client function ClientRecvMapUpdate(int MapId, byte VoteCntUp
 		}
 	}
 
-	LeadingMap = Maps[LeadingMapIndex].Map;
+	if (LeadingMapIndex >= 0)
+	{
+		LeadingMap = Maps[LeadingMapIndex].Map;
+	}
 }
 
 simulated reliable client function ClientBeginVoting()
@@ -186,7 +189,7 @@ simulated reliable client function ClientBeginVoting()
 
 	GRI = UTGameReplicationInfo(WorldInfo.GRI);
 //	`log("### Client beginning to vote"@GRI@GRI.CurrentMidGameMenu);
-	if ( GRI != none && GRI.CurrentMidGameMenu != none )
+	if ( GRI != none && GRI.CurrentMidGameMenu != none && DemoRecSpectator(Owner) == none )
 	{
 		GRI.CurrentMidGameMenu.BeginVoting(self);
 	}

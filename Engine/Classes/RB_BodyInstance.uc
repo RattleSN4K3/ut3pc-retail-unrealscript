@@ -66,16 +66,16 @@ var(BoneSpring)	bool						bUseKinActorForBoneSpring;
 var(BoneSpring) bool						bMakeSpringToBaseCollisionComponent;
 
 /** Strength of linear spring to animated bone. */
-var(BoneSpring) float						BoneLinearSpring;
+var(BoneSpring) const float					BoneLinearSpring;
 
 /** Damping on linear spring to animated bone. */
-var(BoneSpring) float						BoneLinearDamping;
+var(BoneSpring) const float					BoneLinearDamping;
 
 /** Strength of angular spring to animated bone. */
-var(BoneSpring) float						BoneAngularSpring;
+var(BoneSpring) const float					BoneAngularSpring;
 
 /** Damping on angular spring to animated bone. */
-var(BoneSpring) float						BoneAngularDamping;
+var(BoneSpring) const float					BoneAngularDamping;
 
 /** If bDisableOnOverextension is on, the bone spring will be disabled if it stretches more than this amount. */
 var(BoneSpring)	float						OverextensionThreshold;

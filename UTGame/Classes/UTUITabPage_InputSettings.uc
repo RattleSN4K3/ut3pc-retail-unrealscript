@@ -56,6 +56,41 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 	ConditionallyAppendDefaultsButton(ButtonBar);
 }
 
+/** Marks the front end settings scene dirty for profile saving. */
+function ChildSceneMadeProfileChange()
+{
+	local UTUIFrontEnd_Settings SettingsScene;
+
+	// Hack to get to the scene that needs to be marked dirty for saving the profile if changes occur.
+	SettingsScene = UTUIFrontEnd_Settings(GetScene().GetPreviousScene());
+	if ( SettingsScene != None )
+	{
+		SettingsScene.MarkDirty();
+	}
+}
+
+/**
+* Callback for when the xbox 360 gamepad bind scene is opened.
+*/
+function OnShowGamepadBindingScene360_Opened(UIScene OpenedScene, bool bInitialActivation)
+{
+	if(OpenedScene != None)
+	{
+		UTUIFrontEnd_BindKeys360(OpenedScene).MarkDirty = ChildSceneMadeProfileChange;
+	}
+}
+
+/**
+* Callback for when the PS3 gamepad bind scene is opened.
+*/
+function OnShowGamepadBindingScenePS3_Opened(UIScene OpenedScene, bool bInitialActivation)
+{
+	if(OpenedScene != None)
+	{
+		UTUIFrontEnd_BindKeysPS3(OpenedScene).MarkDirty = ChildSceneMadeProfileChange;
+	}
+}
+
 /** Displays the gamepad binding scene. */
 function OnShowGamepadBindingScene()
 {
@@ -66,15 +101,25 @@ function OnShowGamepadBindingScene()
 	{
 		if ( IsConsole(CONSOLE_Xbox360) )
 		{
-			OwnerUTScene.OpenSceneByName(KeyBindingScene360);
+			OwnerUTScene.OpenSceneByName(KeyBindingScene360, false, OnShowGamepadBindingScene360_Opened);
 		}
 		else if (IsConsole(CONSOLE_PS3) )
 		{
-			OwnerUTScene.OpenSceneByName(KeyBindingScenePS3);
+			OwnerUTScene.OpenSceneByName(KeyBindingScenePS3, false, OnShowGamepadBindingScenePS3_Opened);
 		}
 	}
 }
 
+/**
+* Callback for when the keyboard bind scene is opened.
+*/
+function OnShowKeyboardBindingScene_Opened(UIScene OpenedScene, bool bInitialActivation)
+{
+	if(OpenedScene != None)
+	{
+		UTUIFrontEnd_BindKeysPC(OpenedScene).MarkDirty = ChildSceneMadeProfileChange;
+	}
+}
 
 /** Displays the key binding scene. */
 function OnShowKeyBindingScene()
@@ -93,7 +138,7 @@ function OnShowKeyBindingScene()
 			if(	!IsConsole()
 			||	(IsConsole(CONSOLE_PS3) && PC.IsKeyboardAvailable()) )
 			{
-				OwnerUTScene.OpenSceneByName(KeyBindingScenePC);
+				OwnerUTScene.OpenSceneByName(KeyBindingScenePC, false, OnShowKeyboardBindingScene_Opened);
 			}
 		}
 	}

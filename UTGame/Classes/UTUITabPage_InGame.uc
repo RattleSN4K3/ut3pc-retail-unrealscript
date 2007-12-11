@@ -23,9 +23,6 @@ var transient bool bTeamGame;
 
 
 var transient bool bShowingVotes;
-
-var UTVoteReplicationInfo VoteRI;
-
 var transient int LastBestVoteIndex;
 
 var transient UTUIButtonBar MyButtonBar;
@@ -35,10 +32,8 @@ var transient string MOTDText;
 
 var bool bCensor;
 
-function NotifyGameSessionEnded()
-{
-	VoteRI = none;
-}
+/** list of local maps - used to get more friendly names when possible */
+var array<UTUIDataProvider_MapInfo> LocalMapList;
 
 function PostInitialize()
 {
@@ -48,10 +43,12 @@ function PostInitialize()
 	local UTUIScene UTSceneOwner;
 	local UTPlayerController PC;
 	local EFeaturePrivilegeLevel Level;
+	local int i;
+	local array<UTUIResourceDataProvider> ProviderList;
 
 	// Find Everything
 
-    MapVoteList = UTSimpleList(FindChild('MapVoteList',true));
+	MapVoteList = UTSimpleList(FindChild('MapVoteList',true));
 	MapVoteList.OnItemChosen = RecordVote;
 	MapVoteList.OnDrawItem = DrawVote;
 	MapVoteList.OnPostDrawSelectionBar = DrawVotePostSelectionBar;
@@ -66,7 +63,7 @@ function PostInitialize()
 
 	SetMessageOfTheDay();
 
-    PlayerPanel = UIPanel(FindChild('PlayerPanel',true));
+	PlayerPanel = UIPanel(FindChild('PlayerPanel',true));
 
 	// Copy of the console...
 	Con = UTConsole(GetPlayerOwner().ViewportClient.ViewportConsole);
@@ -77,7 +74,7 @@ function PostInitialize()
 
 	// Precache if it's a team game or not
 
-    UTSceneOwner = UTUIScene(GetScene());
+	UTSceneOwner = UTUIScene(GetScene());
 	WI = UTSceneOwner.GetWorldInfo();
 	if ( WI != none )
 	{
@@ -95,6 +92,12 @@ function PostInitialize()
 		bCensor = Level != FPL_Enabled;
 	}
 
+	// fill the local map list
+	class'UTUIDataStore_MenuItems'.static.GetAllResourceDataProviders(class'UTUIDataProvider_MapInfo', ProviderList);
+	for (i = 0; i < ProviderList.length; i++)
+	{
+		LocalMapList.AddItem(UTUIDataProvider_MapInfo(ProviderList[i]));
+	}
 }
 
 
@@ -124,12 +127,18 @@ function SetMessageOfTheDay()
 				if ( MenuItems != none )
 				{
 					X = WI.GetMapName(true);
+
+					if ( Left(X,11) ~= "CONTAINMENT" )
+					{
+						X = "VCTF-"$X;
+					}
+
 					Index = MenuItems.FindValueInProviderSet('Maps','MapName',x);
 					if (Index != INDEX_None)
 					{
 						MenuItems.GetValueFromProviderSet('Maps','Description',Index,MOTDText);
 					}
-					ServerName.SetDataStoreBinding(WI.GetMapName());
+					ServerName.SetDataStoreBinding(X);
 				}
 			}
 			else
@@ -289,11 +298,10 @@ function string ParseMutatorList(string t)
 event bool ActivatePage( int PlayerIndex, bool bActivate, optional bool bTakeFocus=true )
 {
 	local bool b;
-	b =  Super.ActivatePage( PlayerIndex, bActivate);
+	b =  Super.ActivatePage( PlayerIndex, bActivate, bTakeFocus);
 
 	// If we are voting, make sure we focus the map vote list anytime you get to this page
-
-	if (bShowingVotes)
+	if ( bShowingVotes && bActivate && bTakeFocus )
 	{
 		MapVoteList.SetFocus(none);
 	}
@@ -319,7 +327,7 @@ function CheckGameStatus()
 			if (WI.GRI.bMatchIsOver)
 			{
 				bEndOfMatch = true;
-				if( MyButtonBar != none )
+				if( MyButtonBar != none && IsActivePage() )
 				{
 					MyButtonBar.ClearButton(RulesButtonIndex);
 				}
@@ -331,22 +339,37 @@ function CheckGameStatus()
 					ServerNAme.SetVisibility(true);
 					MapVoteList.SetVisibility(false);
 					SetTabCaption("<Strings:UTGameUI.MidGameMenu.TabCaption_Game>");
-					Scene.ActivateTab('ChatTab');
+
+					if ( IsActivePage() )
+					{
+						Scene.ActivateTab('ChatTab');
+					}
 				}
 			}
 		}
 	}
 }
 
+function UTVoteReplicationInfo GetVoteRI()
+{
+	local UTPlayerController UTPC;
+	UTPC = UTUIScene_MidGameMenu(GetScene()).GetUTPlayerOwner();
+	return (UTPC != None) ? UTPC.VoteRI : None;
+}
+
 function RecordVote(UTSimpleList SourceList, int SelectedIndex, int PlayerIndex)
 {
-	local int Index;
-	Index = SourceList.Selection;
-	VoteRI.ServerRecordVoteFor( VoteRI.Maps[Index].MapID );
+	local UTVoteReplicationInfo VoteRI;
+
+	VoteRI = GetVoteRI();
+	if ( VoteRI != none )
+	{
+		VoteRI.ServerRecordVoteFor( VoteRI.Maps[SourceList.Selection].MapID );
+	}
 }
 
 
-function BeginVoting(UTVoteReplicationInfo NewVoteRI)
+function BeginVoting(UTVoteReplicationInfo VoteRI)
 {
 	local int i;
 
@@ -357,7 +380,6 @@ function BeginVoting(UTVoteReplicationInfo NewVoteRI)
 	ServerName.SetVisibility(true);
 	MapVoteList.SetVisibility(True);
 
-	VoteRI = NewVoteRI;
     bShowingVotes = true;
 	SetTabCaption("<Strings:UTGameUI.MidGameMenu.TabCaption_Vote>");
 
@@ -367,55 +389,90 @@ function BeginVoting(UTVoteReplicationInfo NewVoteRI)
 		MapVoteList.AddItem(VoteRI.Maps[I].Map);
 	}
 
+	if ( IsActivePage() )
+	{
+	//Make sure the vote list has the active focus
+	    MapVoteList.SetFocus(none);
+	}
 }
 
 function FindWinningMap()
 {
 	local int i,BestIdx;
 	local string s;
+	local UTVoteReplicationInfo VoteRI;
 
-	if ( VoteRI == none )
+	VoteRI = GetVoteRI();
+	if ( VoteRI != none )
 	{
-		return;
-	}
 
-	BestIdx = -1;
-	for (i=0;i<VoteRI.Maps.Length;i++)
-	{
-		if ( VoteRI.Maps[i].NoVotes > 0 )
+		BestIdx = -1;
+		for (i=0;i<VoteRI.Maps.Length;i++)
 		{
-			if (BestIdx <0 || VoteRI.Maps[i].NoVotes > VoteRI.Maps[BestIdx].NoVotes)
+			if ( VoteRI.Maps[i].NoVotes > 0 )
 			{
-				BestIdx = i;
+				if (BestIdx <0 || VoteRI.Maps[i].NoVotes > VoteRI.Maps[BestIdx].NoVotes)
+				{
+					BestIdx = i;
+				}
 			}
 		}
-	}
 
-	if (LastBestVoteIndex != BestIdx)
-	{
-		LastBestVoteIndex = BestIdx;
-		if (BestIdx>=0)
+		if (LastBestVoteIndex != BestIdx)
 		{
-			s = TrimGameType(VoteRI.Maps[BestIdx].Map)@"<strings:UTGameUI.MidGameMenu.BestVoteA>"@string(int(VoteRI.Maps[BestIdx].NoVotes))@"<strings:UTGameUI.MidGameMenu.BestVoteB>";
-		}
-		else
-		{
-			s = "<strings:UTGameUI.MidGameMenu.BestVoteNone>";
-		}
+			LastBestVoteIndex = BestIdx;
+			if (BestIdx>=0)
+			{
+			s = GetMapFriendlyName(VoteRI.Maps[BestIdx].Map)@"<strings:UTGameUI.MidGameMenu.BestVoteA>"@string(int(VoteRI.Maps[BestIdx].NoVotes))@"<strings:UTGameUI.MidGameMenu.BestVoteB>";
+			}
+			else
+			{
+				s = "<strings:UTGameUI.MidGameMenu.BestVoteNone>";
+			}
 
-		MapVoteInfo.SetDatastoreBinding(s);
+			MapVoteInfo.SetDatastoreBinding(s);
+		}
 	}
 }
 
-function String TrimGameType(string Map)
+function string GetMapFriendlyName(string Map)
 {
-	local int p;
-	p = InStr(Map,"-");
-	if (P>INDEX_None)
+	local int i, p, StartIndex, EndIndex;
+	local array<string> LocPieces;
+
+	// try to use a friendly name from the UI if we can find it
+	for (i = 0; i < LocalMapList.length; i++)
 	{
-		Map = Right(Map,Len(Map)-P-1);
+		if (LocalMapList[i].MapName ~= Map)
+		{
+			// try to resolve the UI string binding into a readable name
+			StartIndex = InStr(Caps(LocalMapList[i].FriendlyName), "<STRINGS:");
+			if (StartIndex == INDEX_NONE)
+			{
+				return LocalMapList[i].FriendlyName;
+			}
+			Map = Right(LocalMapList[i].FriendlyName, Len(LocalMapList[i].FriendlyName) - StartIndex - 9); // 9 = Len("<STRINGS:")
+			EndIndex = InStr(Map, ">");
+			if (EndIndex != INDEX_NONE)
+			{
+				Map = Left(Map, EndIndex);
+				ParseStringIntoArray(Map, LocPieces, ".", true);
+				if (LocPieces.length >= 3)
+				{
+					Map = Localize(LocPieces[1], LocPieces[2], LocPieces[0]);
+				}
+			}
+			return Map;
+		}
 	}
-	return map;
+
+	// just strip the prefix
+	p = InStr(Map,"-");
+	if (P > INDEX_NONE)
+	{
+		Map = Right(Map, Len(Map) - P - 1);
+	}
+	return Map;
 }
 
 function bool DrawVote(UTSimpleList SimpleList,int ItemIndex, float XPos, out float YPos)
@@ -426,6 +483,9 @@ function bool DrawVote(UTSimpleList SimpleList,int ItemIndex, float XPos, out fl
 	local float PaddingOffset;
 	local float ShadowOffset;
 	local string VoteText;
+	local UTVoteReplicationInfo VoteRI;
+
+	VoteRI = GetVoteRI();
 
 	if (VoteRI == none )
 	{
@@ -441,12 +501,12 @@ function bool DrawVote(UTSimpleList SimpleList,int ItemIndex, float XPos, out fl
 
 	if (ItemIndex == SimpleList.Selection)
 	{
-		VoteText = TrimGameType(VoteRI.Maps[ItemIndex].Map);
+		VoteText = GetMapFriendlyName(VoteRI.Maps[ItemIndex].Map);
 	}
 	else
 	{
 		VoteText = (VoteRI.Maps[ItemIndex].NoVotes > 0) ? string(VoteRI.Maps[ItemIndex].NoVotes) : "-";
-		VoteText $= "-"@TrimGameType(VoteRI.Maps[ItemIndex].Map);
+		VoteText $= "-"@GetMapFriendlyName(VoteRI.Maps[ItemIndex].Map);
 	}
 
 	if ( VoteText != "" )
@@ -476,6 +536,10 @@ function bool DrawVotePostSelectionBar(UTSimpleList SimpleList, float YPos, floa
 	local float DrawScale;
 	local string VoteCnt;
 	local float xl,yl;
+
+	local UTVoteReplicationInfo VoteRI;
+
+	VoteRI = GetVoteRI();
 
 	if (VoteRI == none )
 	{

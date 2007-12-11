@@ -162,6 +162,7 @@ function CheckTitleSkip()
 		if(OutValue=="1")
 		{
 			OpenSceneByName(MainMenuScene, true);
+			UpdateProfileLabels();
 
 			/** @todo: Maybe use this code to return users deeper in the flow, depending on what their last screen was.
 			InstantActionSceneInst = UTUIFrontEnd_InstantAction(MainMenuSceneInst.OpenSceneByName(MainMenuSceneInst.InstantActionScene, true));
@@ -192,58 +193,74 @@ event UpdateProfileLabels()
 {
 	local UIScene BackgroundScene;
 	local LocalPlayer LP;
-
+	local OnlinePlayerInterface PlayerInt;
 	local UIObject PanelPC;
 	local UIObject PanelConsole;
 	local UILabel PlayerLabel1;
 	local UILabel PlayerLabel2;
 
-	BackgroundScene = GetSceneClient().FindSceneByTag('Background');
+	PlayerInt=GetPlayerInterface();
+	BackgroundScene = GetSceneClient().FindSceneByTag('MainMenu');
 
-	PanelPC = BackgroundScene.FindChild('imgNameBGPC',true);
-	PanelConsole = BackgroundScene.FindChild('imgNameBGConsole',true);
-
-
-
-	// PC/PS3 don't show any label.
-	if(!IsConsole(CONSOLE_Xbox360))
+	if(BackgroundScene != None)
 	{
-		PanelPC.SetVisibility(false);
-		PanelConsole.SetVisibility(false);
-	}
-	else
-	{
-		PlayerLabel1 = UILabel(BackgroundScene.FindChild('lblPlayerName1', true));
-		PlayerLabel2 = UILabel(BackgroundScene.FindChild('lblPlayerName2', true));
-		PanelPC.SetVisibility(false);
-		PanelConsole.SetVisibility(true);
-	}
+		PanelPC = BackgroundScene.FindChild('imgNameBGPC',true);
+		PanelConsole = BackgroundScene.FindChild('imgNameBGConsole',true);
 
-	// Player 1
-	if ( PlayerLabel1 != None )
-	{
-		LP = GetPlayerOwner(0);
-		if(LP != None && IsLoggedIn(LP.ControllerId))
+		if(!IsConsole(CONSOLE_Xbox360))
 		{
-			PlayerLabel1.SetDataStoreBinding("<OnlinePlayerData:PlayerNickName>");
+			PlayerLabel1 = UILabel(BackgroundScene.FindChild('lblPlayerNamePC', true));
+			PanelPC.SetVisibility(true);
+			PanelConsole.SetVisibility(false);
 		}
 		else
 		{
-			PlayerLabel1.SetDataStoreBinding("<Strings:UTGameUI.Generic.NotLoggedIn>");
+			PlayerLabel1 = UILabel(BackgroundScene.FindChild('lblPlayerName1', true));
+			PlayerLabel2 = UILabel(BackgroundScene.FindChild('lblPlayerName2', true));
+			PanelPC.SetVisibility(false);
+			PanelConsole.SetVisibility(true);
 		}
-	}
 
-	// Player 2
-	if(PlayerLabel2 != None)
-	{
-		LP = GetPlayerOwner(1);
-		if(LP != None && IsLoggedIn(LP.ControllerId))
+		// Player 1
+		if ( PlayerLabel1 != None )
 		{
-			PlayerLabel2.SetDataStoreBinding("<OnlinePlayerData:PlayerNickName>");
+			LP = GetPlayerOwner(0);
+			if(LP != None && IsLoggedIn(LP.ControllerId))
+			{
+				if(IsLoggedIn(LP.ControllerId, true))
+				{
+					PlayerLabel1.SetDataStoreBinding(PlayerInt.GetPlayerNickname(LP.ControllerId));
+				}
+				else
+				{
+					PlayerLabel1.SetDataStoreBinding("<OnlinePlayerData:PlayerNickName> <Strings:UTGameUI.Generic.OfflineProfile>");
+				}
+			}
+			else
+			{
+				PlayerLabel1.SetDataStoreBinding("<Strings:UTGameUI.Generic.NotLoggedIn>");
+			}
 		}
-		else
+
+		// Player 2
+		if(PlayerLabel2 != None)
 		{
-			PlayerLabel2.SetDataStoreBinding("<Strings:UTGameUI.Generic.NotLoggedIn>");
+			LP = GetPlayerOwner(1);
+			if(LP != None && IsLoggedIn(LP.ControllerId))
+			{
+				if(IsLoggedIn(LP.ControllerId, true))
+				{
+					PlayerLabel2.SetDataStoreBinding(PlayerInt.GetPlayerNickname(LP.ControllerId));
+				}
+				else
+				{
+					PlayerLabel2.SetDataStoreBinding("<OnlinePlayerData:PlayerNickName> <Strings:UTGameUI.Generic.OfflineProfile>");
+				}
+			}
+			else
+			{
+				PlayerLabel2.SetDataStoreBinding("<Strings:UTGameUI.Generic.NotLoggedIn>");
+			}
 		}
 	}
 }
@@ -321,6 +338,7 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 					ActivateLevelEvent('TitleScreenExit');
 
 					OpenSceneByName(MainMenuScene);
+					UpdateProfileLabels();
 				}
 
 			}

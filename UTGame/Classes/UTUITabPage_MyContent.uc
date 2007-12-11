@@ -67,24 +67,24 @@ function OnDeleteContent()
 	local string FinalString;
 	local array<string> MessageBoxOptions;
 
-	ContentIdx = ContentList.GetCurrentItem();
+		ContentIdx = ContentList.GetCurrentItem();
 
-	// Display messagebox to confirm deletion.
-	MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene();
+		// Display messagebox to confirm deletion.
+		MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene();
 
-	if(MessageBoxReference != none && GetContentName(ContentIdx, ContentName))
-	{
+		if(MessageBoxReference != none && GetContentName(ContentIdx, ContentName))
+		{
 
-		FinalString = Localize("MessageBox", "DeleteContent_Message", "UTGameUI");
-		FinalString = Repl(FinalString, "%ContentName%", ContentName);
+			FinalString = Localize("MessageBox", "DeleteContent_Message", "UTGameUI");
+			FinalString = Repl(FinalString, "`ContentName`", ContentName);
 
-		MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.DeleteContentAccept>");
-		MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.Cancel>");
+			MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.DeleteContentAccept>");
+			MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.Cancel>");
 
-		MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
-		MessageBoxReference.Display(FinalString, "<Strings:UTGameUI.MessageBox.DeleteContent_Title>", OnDeleteContent_Confirm, 1);
+			MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
+			MessageBoxReference.Display(FinalString, "<Strings:UTGameUI.MessageBox.DeleteContent_Title>", OnDeleteContent_Confirm, 1);
+		}
 	}
-}
 
 /** Confirmation for the delete content dialog. */
 function OnDeleteContent_Confirm(UTUIScene_MessageBox MessageBox, int SelectedItem, int PlayerIndex)
@@ -107,20 +107,20 @@ function OnDeleteAllContent()
 	local string FinalString;
 	local array<string> MessageBoxOptions;
 
-	// Display messagebox to confirm deletion.
-	MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene();
+		// Display messagebox to confirm deletion.
+		MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene();
 
-	if(MessageBoxReference != none)
-	{
+		if(MessageBoxReference != none)
+		{
 
-		FinalString = Localize("MessageBox", "DeleteAllContent_Message", "UTGameUI");
-		MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.DeleteContentAccept>");
-		MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.Cancel>");
+			FinalString = Localize("MessageBox", "DeleteAllContent_Message", "UTGameUI");
+			MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.DeleteContentAccept>");
+			MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.Cancel>");
 
-		MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
-		MessageBoxReference.Display(FinalString, "<Strings:UTGameUI.MessageBox.DeleteAllContent_Title>", OnDeleteAllContent_Confirm, 1);
+			MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
+			MessageBoxReference.Display(FinalString, "<Strings:UTGameUI.MessageBox.DeleteAllContent_Title>", OnDeleteAllContent_Confirm, 1);
+		}
 	}
-}
 
 /** Confirmation for the delete all content dialog. */
 function OnDeleteAllContent_Confirm(UTUIScene_MessageBox MessageBox, int SelectedItem, int PlayerIndex)

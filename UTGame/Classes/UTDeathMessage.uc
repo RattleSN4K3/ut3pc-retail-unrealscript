@@ -100,7 +100,7 @@ static function ClientReceive(
 		return;
 	}
 	if ( (RelatedPRI_1 == P.PlayerReplicationInfo)
-		|| (P.PlayerReplicationInfo.bIsSpectator && (Pawn(P.ViewTarget) != None) && (Pawn(P.ViewTarget).PlayerReplicationInfo == RelatedPRI_1)) )
+		|| ((P.PlayerReplicationInfo != None) && P.PlayerReplicationInfo.bIsSpectator && (Pawn(P.ViewTarget) != None) && (Pawn(P.ViewTarget).PlayerReplicationInfo == RelatedPRI_1)) )
 	{
 		UTPlayerController(P).ClientMusicEvent(1);
 		// Interdict and send the child message instead.

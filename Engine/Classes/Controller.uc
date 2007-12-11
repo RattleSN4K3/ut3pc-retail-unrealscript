@@ -1449,8 +1449,12 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyPhysicsVolume
 		{
 			// stop it in midair and detach
 			Pawn.TurnOff();
-			Pawn.UnPossessed();
-			Pawn = None;
+			StopFiring();
+			if (!bIsPlayer)
+			{
+				Pawn.UnPossessed();
+				Pawn = None;
+			}
 		}
 		if ( !bIsPlayer )
 		{

@@ -590,6 +590,8 @@ function bool CheckScore(PlayerReplicationInfo Scorer)
 
 function bool CheckEndGame(PlayerReplicationInfo Winner, string Reason)
 {
+	local Controller P;
+
 	if (Reason ~= "TimeLimit")
 	{
 		// if we are doing automated perf testing then we have reached the end of the match and watch to exit so the perf logs are saved out
@@ -598,6 +600,10 @@ function bool CheckEndGame(PlayerReplicationInfo Winner, string Reason)
 			if( bAutoContinueToNextRound == FALSE )
 			{
 				ConsoleCommand("EXIT");
+			}
+			foreach WorldInfo.AllControllers(class'Controller', P)
+			{
+				P.GameHasEnded();
 			}
 			return TRUE;
 		}
@@ -1362,6 +1368,35 @@ function Actor GetAutoObjectiveFor(UTPlayerController PC)
 	}
 }
 
+function int GetCurrentMapCycleIndex(const out array<string> MapList)
+{
+	local int Index;
+
+	if (UTOnslaughtGRI(WorldInfo.GRI) != None)
+	{
+		Index = MapList.Find(WorldInfo.GetPackageName() $ "?LinkSetup=" $ UTOnslaughtGRI(WorldInfo.GRI).LinkSetupName);
+		if (Index != INDEX_NONE)
+		{
+			return Index;
+		}
+	}
+	return Super.GetCurrentMapCycleIndex(MapList);
+}
+
+function string GetNextMap()
+{
+	local string Result;
+
+	// if we're going to a different map and a link setup wasn't specified, add 'Default' so the current URL isn't used
+	Result = Super.GetNextMap();
+	if (Result != "" && InStr(Caps(Result), "?LINKSETUP=") == INDEX_NONE)
+	{
+		Result $= "?LinkSetup=Default";
+	}
+
+	return Result;
+}
+
 defaultproperties
 {
 	MapPrefixes[0]="WAR"
@@ -1379,6 +1414,7 @@ defaultproperties
 
 	// Class used to write stats to the leaderboard
 	OnlineStatsWriteClass=class'UTGame.UTLeaderboardWriteWAR'
+	OnlineGameSettingsClass=class'UTGameSettingsWAR'
 
 	bScoreDeaths=false
 	MidgameScorePanelTag=ONSPanel

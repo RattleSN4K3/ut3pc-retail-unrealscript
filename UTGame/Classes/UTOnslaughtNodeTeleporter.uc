@@ -277,7 +277,7 @@ simulated function SendUseMessage()
 		if (LocalPlayer(PC.Player) != None && PC.Pawn != None && PC.Pawn.Base == self && WorldInfo.GRI.OnSameTeam(PC, self))
 		{
 			PRI = UTPlayerReplicationInfo(PC.PlayerReplicationInfo);
-			if ( (PRI != None) && (PRI.GetFlag() != None) )
+			if ( (PRI != None) && PRI.bHasFlag )
 			{
 				PC.ReceiveLocalizedMessage(MessageClass, 44);
 				bDrawUseTeleporterMessage = false;

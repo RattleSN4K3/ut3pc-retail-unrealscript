@@ -81,7 +81,7 @@ simulated static function CalcDeathCamera(UTPawn P, float DeltaTime, out vector 
 	if (AnimNode != None && AnimNode.bPlaying)
 	{
 		//Give it some time to get drilling
-		if (AnimNode.CurrentTime > 2.0f && AnimNode.CurrentTime < 0.99f * AnimNode.AnimSeq.SequenceLength)
+		if (!class'GameInfo'.static.UseLowGore(P.WorldInfo) && AnimNode.CurrentTime > 2.0f && AnimNode.CurrentTime < 0.99f * AnimNode.AnimSeq.SequenceLength)
 		{
 			// Find the player controller
 			ForEach P.LocalPlayerControllers(class'UTPlayerController', MyPC)

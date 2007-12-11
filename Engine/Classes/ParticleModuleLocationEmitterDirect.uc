@@ -9,7 +9,6 @@
 class ParticleModuleLocationEmitterDirect extends ParticleModuleLocationBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
 //=============================================================================
@@ -17,8 +16,8 @@ class ParticleModuleLocationEmitterDirect extends ParticleModuleLocationBase
 //=============================================================================
 // LocationEmitter
 
-// The source emitter for spawn locations
-var(Location)						export		noclear	name					EmitterName;
+/** The name of the emitter to use as a source for the location of the particles. */
+var(Location) export		noclear	name			EmitterName;
 
 //=============================================================================
 // C++ functions

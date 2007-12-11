@@ -645,4 +645,4 @@ native function BuildURL(out string URL);
  *
  * @param URL the URL to parse for settings
  */
-native function UpdateFromURL(const out string URL);
+native function UpdateFromURL(const out string URL, GameInfo Game);

@@ -23,7 +23,7 @@ static simulated function ClientReceive( PlayerController P, optional int Switch
 		if ( Switch < 11 )
 		{
 			// don't prioritize final countdown with other announcements
-			CurrentAnnouncementComponent = P.CreateAudioComponent(SoundCue'A_Announcer_Reward.SoundCues.AnnouncerCue', false, false);
+			CurrentAnnouncementComponent = P.CreateAudioComponent(SoundCue'A_Announcer_Reward_Cue.SoundCues.AnnouncerCue', false, false);
 
 			// CurrentAnnouncementComponent will be none if -nosound option used
 			if ( CurrentAnnouncementComponent != None )
@@ -33,7 +33,6 @@ static simulated function ClientReceive( PlayerController P, optional int Switch
 				CurrentAnnouncementComponent.bAutoDestroy = true;
 				CurrentAnnouncementComponent.bShouldRemainActiveIfDropped = true;
 				CurrentAnnouncementComponent.bAllowSpatialization = false;
-				CurrentAnnouncementComponent.Play();
 				CurrentAnnouncementComponent.bAlwaysPlay = TRUE;
 				CurrentAnnouncementComponent.Play();
 			}

@@ -73,19 +73,19 @@ function OnSelectItem(int PlayerIndex=0)
 		}
 		break;
 	case COMMUNITY_OPTION_FRIENDS:
-		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE,true))
+		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE,true) && CheckCommunicationPrivilegeAndError() && CheckContentPrivilegeAndError())
 		{
 			OnShowFriends();
 		}
 		break;
 	case COMMUNITY_OPTION_MESSAGES:
-		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE,true))
+		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE,true) && CheckCommunicationPrivilegeAndError() && CheckContentPrivilegeAndError())
 		{
 			OnShowMessages();
 		}
 		break;
 	case COMMUNITY_OPTION_STATS:
-		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE, true))
+		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE, true) && CheckOnlinePrivilegeAndError() )
 		{
 			OnShowStats();
 		}
@@ -178,7 +178,14 @@ function OnShowStats()
 /** Shows the demo playback scene. */
 function OnShowDemoPlayback()
 {
-	OpenSceneByName(DemoPlaybackScene);
+	if ( GetWorldInfo().IsDemoBuild() )
+	{
+		DisplayMEssageBox("The demo playback is not available in the UT3 demo.");
+	}
+	else
+	{
+		OpenSceneByName(DemoPlaybackScene);
+	}	
 }
 
 /** Achievements option selected, displays the achievements blade for the specified PlayerIndex. */

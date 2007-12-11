@@ -19,6 +19,8 @@ defaultproperties
 	End Object
 	DamagedFFWaveform=ForceFeedbackWaveform0
 	KilledFFWaveform=ForceFeedbackWaveform1
+
+	bCausesFracture=TRUE
 }
 
 

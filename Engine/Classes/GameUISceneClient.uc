@@ -8,8 +8,6 @@ class GameUISceneClient extends UISceneClient
 	native(UIPrivate)
 	config(UI);
 
-`include(Core/Globals.uci)
-
 /**
  * the list of scenes currently open.  A scene corresponds to a top-level UI construct, such as a menu or HUD
  * There is always at least one scene in the stack - the transient scene.  The transient scene is used as the
@@ -60,8 +58,10 @@ var	const	transient							bool				bUpdateInputProcessingStatus;
 */
 var const	transient							bool				bUpdateCursorRenderStatus;
 
+/** Controls whether debug input commands are accepted */
+var			config								bool				bEnableDebugInput;
 /** Controls whether debug information about the scene is rendered */
-var	config										bool				bRenderDebugInfo;
+var			config								bool				bRenderDebugInfo;
 /** Controls whether debug information is rendered at the top or bottom of the screen */
 var	globalconfig								bool				bRenderDebugInfoAtTop;
 /** Controls whether debug information is rendered about the active control */
@@ -72,6 +72,12 @@ var	globalconfig								bool				bRenderFocusedControlInfo;
 var	globalconfig								bool				bRenderTargetControlInfo;
 /** Controls whether a widget must be visible to become the debug target */
 var	globalconfig								bool				bSelectVisibleTargetsOnly;
+var	globalconfig								bool				bInteractiveMode;
+var	globalconfig								bool				bDisplayFullPaths;
+var	globalconfig								bool				bShowWidgetPath;
+var	globalconfig								bool				bShowRenderBounds;
+var	globalconfig								bool				bShowCurrentState;
+var	globalconfig								bool				bShowMousePos;
 
 /**
  * A multiplier value (between 0.0 and 1.f) used for adjusting the transparency of scenes rendered behind scenes which have
@@ -96,6 +102,8 @@ var transient array<UIAnimationSeq> AnimSequencePool;
 /** Holds a list of UIObjects that have animations being applied to them */
 var transient array<UIObject> AnimSubscribers;
 
+/** Will halt the restoring of the menu progression */
+var transient bool bKillRestoreMenuProgression;
 
 
 
@@ -413,6 +421,31 @@ function SaveMenuProgression()
 }
 
 /**
+ * Clears out any existing stored menu progression values.
+ */
+function ClearMenuProgression()
+{
+	local DataStoreClient DSClient;
+	local UIDataStore_Registry RegistryDS;
+	local UIDynamicFieldProvider RegistryProvider;
+
+	DSClient = class'UIInteraction'.static.GetDataStoreClient();
+	if ( DSClient != None )
+	{
+		RegistryDS = UIDataStore_Registry(DSClient.FindDataStore('Registry'));
+		if ( RegistryDS != None )
+		{
+			RegistryProvider = RegistryDS.GetDataProvider();
+			if ( RegistryProvider != None )
+			{
+				// clear out the stored menu progression
+				RegistryProvider.ClearCollectionValueArray('MenuProgression');
+			}
+		}
+	}
+}
+
+/**
  * Re-opens the scenes which were saved off to the Registry data store.  Should be called from your game's main front-end
  * menu.
  *
@@ -427,6 +460,8 @@ function RestoreMenuProgression( optional UIScene BaseScene )
 	local UIScene CurrentScene, NextSceneTemplate, SceneInstance;
 	local string ScenePathName;
 	local bool bHasValidNetworkConnection;
+
+	bKillRestoreMenuProgression = false;
 
 	// can only restore menu progression in the front-end
 	if ( class'UIInteraction'.static.IsMenuLevel() )
@@ -452,7 +487,7 @@ function RestoreMenuProgression( optional UIScene BaseScene )
 						bHasValidNetworkConnection = class'UIInteraction'.static.HasLinkConnection();
 
 						CurrentScene = BaseScene;
-						while ( CurrentScene != None )
+						while ( CurrentScene != None && !bKillRestoreMenuProgression )
 						{
 							ScenePathName = "";
 
@@ -543,6 +578,12 @@ exec function ShowMenuStates()
 	}
 }
 
+exec function ToggleDebugInput( optional bool bEnable=!bEnableDebugInput )
+{
+	bEnableDebugInput = bEnable;
+	`log( (bEnableDebugInput ? "Enabling" : "Disabling") @ "debug input processing");
+}
+
 `if(`notdefined(ShippingPC))
 exec function CreateMenu( class<UIScene> SceneClass, optional int PlayerIndex=INDEX_NONE )
 {
@@ -630,7 +671,6 @@ exec function RefreshFormatting()
 		ActiveScene.RequestFormattingUpdate();
 	}
 }
-`endif
 
 /**
  * Debug console command for dumping all registered data stores to the log
@@ -650,6 +690,7 @@ exec function ShowDataStores( optional bool bVerbose )
 		`log(Self @ "has a NULL DataStoreManager!",,'DevDataStore');
 	}
 }
+`endif
 
 exec function ShowMenuProgression()
 {

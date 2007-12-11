@@ -12,6 +12,8 @@
 
 
 
+var() bool bPersistFade;
+
 defaultproperties
 {
 	bOnePerGroup=true

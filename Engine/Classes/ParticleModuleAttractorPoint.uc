@@ -4,7 +4,6 @@
 class ParticleModuleAttractorPoint extends ParticleModuleAttractorBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
 /**	The position of the point attractor from the source of the emitter.		*/

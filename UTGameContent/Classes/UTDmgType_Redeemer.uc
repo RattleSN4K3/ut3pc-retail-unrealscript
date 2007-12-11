@@ -21,4 +21,9 @@ defaultproperties
 	KDamageImpulse=20000
 	KImpulseRadius=5000.0
 	bComplainFriendlyFire=false
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform10
+		Samples(0)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=1.500)
+	End Object
+	DamagedFFWaveform=ForceFeedbackWaveform10
 }

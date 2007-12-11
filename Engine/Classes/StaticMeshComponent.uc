@@ -48,7 +48,10 @@ struct StaticMeshComponentLODInfo
 var native private const array<StaticMeshComponentLODInfo> LODData;
 
 /** Change the StaticMesh used by this instance. */
-simulated native final function SetStaticMesh( StaticMesh NewMesh );
+simulated native function bool SetStaticMesh( StaticMesh NewMesh );
+
+/** Disables physics collision between a specific pair of meshes. */
+simulated native function DisableRBCollisionWithSMC( StaticMeshComponent OtherSMC, bool bDisabled );
 
 defaultproperties
 {

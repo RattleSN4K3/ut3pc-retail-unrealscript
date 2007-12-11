@@ -153,10 +153,11 @@ function bool AssignSquadResponsibility(UTBot B)
 		return true;
 	}
 
-	if (B.Skill > 1)
+	if (B.Skill > 1.25)
 	{
 		// search for powerups
-		B.RespawnPredictionTime = (B.Skill >= 5.0) ? 2.0 : 0.0;
+		B.RespawnPredictionTime = (B.Skill > 5.0) ? 2.0 : 0.0;
+
 		// consider vehicles as powerups in DM
 		foreach WorldInfo.AllNavigationPoints(class'UTVehicleFactory', VFactory)
 		{

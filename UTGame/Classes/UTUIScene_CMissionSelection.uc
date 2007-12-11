@@ -535,14 +535,6 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 			ToggleDetails();
 			return true;
 		}
-		if (EventParms.InputKeyName=='F6' || EventPArms.InputKeyName == 'XboxTypeS_RightTrigger')
-		{
-			AllCards();
-		}
-		if (EventParms.InputKeyName=='F5')
-		{
-			AllMaps();
-		}
 		if (EventParms.InputKeyName=='F7')
 		{
 			GetPlayerProfile().AddPersistentKey(ESPKey_IronGuardUpgrade);
@@ -573,19 +565,19 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 
 		if ( EventParms.InputKeyName == 'XboxTypeS_DPad_Left' || EventParms.InputKeyName == 'NumPadfour' || EventParms.InputKeyName == 'Left' )
 		{
-			ChangeSelection(CurrentSelectionIndex-1);
+			if ( NextMission.IsFocused(EventParms.PlayerIndex) )
+			{
+				ChangeSelection(CurrentSelectionIndex-1);
+			}
 			return true;
 		}
 
 		if ( EventParms.InputKeyName == 'XboxTypeS_DPad_Right' || EventParms.InputKeyName == 'NumPadsix' || EventParms.InputKeyName == 'Right' )
 		{
-			ChangeSelection(CurrentSelectionIndex+1);
-			return true;
-		}
-
-		if(EventParms.InputKeyName=='F5' )
-		{
-			AllMaps();
+			if ( NextMission.IsFocused(EventParms.PlayerIndex) )
+			{
+				ChangeSelection(CurrentSelectionIndex+1);
+			}
 			return true;
 		}
 	}
@@ -604,66 +596,6 @@ function CardImgListOnSelectionChange(UTSimpleImageList SourceList, int NewSelec
 	}
 }
 
-function AllCards()
-{
-	local UTProfileSettings Profile;
-	local int i,j,k;
-
-	Profile = GetPlayerProfile();
-	for (i=0;i<class'UTGameModifierCard'.default.Deck.Length;i++)
-	{
-		if ( !Profile.HasModifierCard(class'UTGameModifierCard'.default.Deck[i].Tag) )
-		{
-			J=Rand(3)+1;
-			for (k=0;k<j;k++)
-			{
-				Profile.AddModifierCard( class'UTGameModifierCard'.default.Deck[i].Tag);
-			}
-			return;
-		}
-	}
-
-	DisplayMessageBox ("You now have all of the cards!");
-
-}
-
-function AllMaps()
-{
-
-
-	local int i,j;
-	local UTMissionGRI GRI;
-	local UTSeqObj_SPMission MissionObj;
-	local EMissionInformation Mission;
-	local bool bExists;
-
-   	GRI = UTMissionGRI( GetWorldInfo().GRI );
-	if ( GRI != none )
-	{
-
-		for (i=0;i<GRI.FullMissionList.Length;i++)
-		{
-			MissionObj = GRI.FullMissionList[i];
-			if ( GRI.GetMission(MissionObj.MissionId, Mission) )
-			{
-				bExists = false;
-				for (j=0;j<GRI.AvailMissionList.Length;j++)
-				{
-					if (GRI.AvailMissionList[j].GlobeBoneName == Mission.GlobeBoneName )
-					{
-						bExists = true;
-						break;
-					}
-				}
-
-				if (!bExists)
-				{
-					GRI.AddAvailableMission(Mission);
-				}
-			}
-		}
-	}
-}
 
 function MissionChanged(EMissionInformation NewMission)
 {

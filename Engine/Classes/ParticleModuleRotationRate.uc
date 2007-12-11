@@ -4,10 +4,12 @@
 class ParticleModuleRotationRate extends ParticleModuleRotationRateBase
 	native(Particle)
 	editinlinenew
-	collapsecategories
 	hidecategories(Object);
 
-/** Initial rotation rate distribution, in degrees per second. */
+/** 
+ *	Initial rotation rate, in rotations per second.
+ *	The value is retrieved using the EmitterTime.
+ */
 var(Rotation) rawdistributionfloat	StartRotationRate;
 
 

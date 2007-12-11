@@ -158,7 +158,7 @@ defaultproperties
 	Deck(0)={(	Tag=TacticalDiversion,
 				ProfileID=0,
 				DescMarkup="<Strings:UTGameUI.CardDesc.Desc0>",
-				UVs=(U=2,UL=198,V=253,VL=252))}
+				UVs=(U=398,UL=198,V=1,VL=252))}
 
 	Deck(1)={(	Tag=IronGuard,
 				ProfileID=1,

@@ -15,6 +15,8 @@ var transient UniqueNetId TargetPlayerNetId;
 
 event PostInitialize()
 {
+	local UIObject ButtonBarSafeRegion;
+
 	Super.PostInitialize();
 
 	UserNameEditBox = UIEditBox(FindChild('txtUserName',true));
@@ -32,12 +34,28 @@ event PostInitialize()
 	MessageEditBox.MaxCharacters = GS_MESSAGE_MAXLENGTH;
 	MessageEditBox.SetDataStoreBinding(Localize("PlayerCard","DefaultFriendRequestMessage", "UTGameUI"));
 	MessageEditBox.SetValue(Localize("PlayerCard","DefaultFriendRequestMessage", "UTGameUI"));
+
+	if ( IsConsole() )
+	{
+		// this must be done to prevent the
+		ButtonBarSafeRegion = FindChild('pnlSafeRegionLong',true);
+		ButtonBarSafeRegion.SetPrivateBehavior(PRIVATE_NotFocusable, true);
+	}
 }
 
 
 /** Sets up the scene's button bar. */
 function SetupButtonBar()
 {
+	local int i;
+
+	// HACK - In this menu, set the button bar button's color to the right color to account for the skins
+
+	for (i=0;i<6;i++)
+	{
+		ButtonBar.Buttons[i].StringRenderComponent.SetColor( MakeLinearColor(0.0,0.0,0.0,1.0) );
+	}
+
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Cancel>", OnButtonBar_Cancel);
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.SendFriendRequest>", OnButtonBar_SendFriendRequest);
 
@@ -76,7 +94,7 @@ function OnSendFriendRequest()
 
 	if(Len(TargetPlayerName) > 0)
 	{
-		if(GetDataStoreStringValue("<OnlinePlayerData:PlayerNickName>", LocalPlayerName, self, GetPlayerOwner()) && LocalPlayerName != TargetPlayerName)
+		if( GetDataStoreStringValue("<OnlinePlayerData:PlayerNickName>", LocalPlayerName, self, GetPlayerOwner()) && (Caps(LocalPlayerName) != Caps(TargetPlayerName)) )
 		{
 			PlayerInt = GetPlayerInterface();
 			if(PlayerInt != None)

@@ -33,7 +33,7 @@ function DisplayTeamScore()
 	local int NewScore;
 
 	Canvas.DrawColor = WhiteColor;
-    W = 214 * ResolutionScale;
+    W = 214 * ResolutionScaleX;
     H = 87 * ResolutionScale;
 
 	// Draw the Left Team Indicator
@@ -60,14 +60,14 @@ function DisplayTeamScore()
 	
 	if (DestScale < 1.0)
 	{
-		DrawGlowText(string(NewScore), POSX + 97 * ResolutionScale, -2 * ResolutionScale, 50 * ResolutionScale, LeftTeamPulseTime, true);
+		DrawGlowText(string(NewScore), POSX + 97 * ResolutionScaleX, -2 * ResolutionScale, 50 * ResolutionScale, LeftTeamPulseTime, true);
 	}
 	else
 	{
-		DrawGlowText(string(NewScore), POSX + 124 * ResolutionScale, -2 * ResolutionScale, 60 * ResolutionScale, LeftTeamPulseTime, true);
+		DrawGlowText(string(NewScore), POSX + 124 * ResolutionScaleX, -2 * ResolutionScale, 60 * ResolutionScale, LeftTeamPulseTime, true);
 	}
 
-	Logo.X = POSX + ((TeamIconCenterPoints[0].X) * DestScale * ResolutionScale) + (30 * ResolutionScale);
+	Logo.X = POSX + ((TeamIconCenterPoints[0].X) * DestScale * ResolutionScaleX) + (30 * ResolutionScaleX);
 	Logo.Y = ((TeamIconCenterPoints[0].Y) * DestScale * ResolutionScale) + (27.5 * ResolutionScale);
 
 
@@ -89,9 +89,9 @@ function DisplayTeamScore()
 	Canvas.SetPos(POSX,0);
 	Canvas.DrawColorizedTile(IconHudTexture, W * DestScale, H * DestScale, 0, 582, 214, 87, TeamLC);
 	Canvas.DrawColor = WhiteColor;
-	DrawGlowText(string(NewScore), POSX + 0.66*W, -4 * ResolutionScale, 50 * ResolutionScale, RightTeamPulseTime, true);
+	DrawGlowText(string(NewScore), POSX + 0.66*W, -4 * ResolutionScaleX, 50 * ResolutionScale, RightTeamPulseTime, true);
 
-	Logo.X = (POSX + (TeamIconCenterPoints[1].X) * DestScale * ResolutionScale) + (30 * ResolutionScale);
+	Logo.X = (POSX + (TeamIconCenterPoints[1].X) * DestScale * ResolutionScaleX) + (30 * ResolutionScaleX);
 	Logo.Y = ((TeamIconCenterPoints[1].Y) * DestScale * ResolutionScale) + (27.5 * ResolutionScale);
    	DisplayTeamLogos(TeamIndex,Logo, 1.0);
 }
@@ -136,8 +136,8 @@ function DisplayDirectionIndicator(byte TeamIndex, vector2D POS, Actor DestActor
 
 		// Boost the colors a bit to make them stand out
 		Canvas.DrawColor = WhiteColor;
-		Canvas.SetPos(POS.X - (28.5 * DestScale * ResolutionScale), POS.Y - (26 * DestScale * ResolutionScale));
-		Canvas.DrawRotatedTile( AltHudTexture, Angle, 57 * DestScale * ResolutionScale, 52 * DestScale * ResolutionScale, 897, 452, 43, 43);
+		Canvas.SetPos(POS.X - (28.5 * DestScale * ResolutionScaleX), POS.Y - (26 * DestScale * ResolutionScale));
+		Canvas.DrawRotatedTile( AltHudTexture, Angle, 57 * DestScale * ResolutionScaleX, 52 * DestScale * ResolutionScale, 897, 452, 43, 43);
 	}
 }
 

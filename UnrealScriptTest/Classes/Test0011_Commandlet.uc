@@ -7,7 +7,6 @@
  */
 
 class Test0011_Commandlet extends TestCommandletBase;
-`include(Core/Globals.uci)
 
 event int Main( string Parms )
 {

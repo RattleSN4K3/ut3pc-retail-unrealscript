@@ -7,8 +7,6 @@ class UITabButton extends UILabelButton
 	native(inherit)
 	notplaceable;
 
-`include(Core/Globals.uci)
-
 
 
 var()	editconst	editinline	protected	UITabPage	TabPage;

@@ -40,7 +40,7 @@ event PostInitialize( )
 
 /** Callback for when the menu option changes. */
 function OnMenuOptionChanged(UTSimpleList SourceList, int NewSelectedIndex)
-{	
+{
 	if(bSelectingChapter==false)
 	{
 		DescriptionLabel.SetDataStoreBinding(OptionDescriptions[Menu.List[Menu.Selection].Tag]);
@@ -109,7 +109,6 @@ function ItemChosen(UTSimpleList SourceList, int SelectedIndex, int PlayerIndex)
 
 	if (bSelectingChapter)
 	{
-
 		if ( ChapterLocked[ChapterList.Selection] == 0 )
 		{
 			DisplayMessageBox("<strings:UTGameUI.Campaign.ChapterLockedMsg>","<strings:UTGameUI.Campaign.ChapterLockedTitle>");
@@ -152,12 +151,13 @@ function ItemChosen(UTSimpleList SourceList, int SelectedIndex, int PlayerIndex)
 				GotoOptions(true);
 			}
 			break;
+
 		case 1:
 			GotoOptions(false);
 			break;
 
 		case 2: //	Server Browser
-			if ( CheckLinkConnectionAndError() )
+			if ( CheckLinkConnectionAndError() && CheckOnlinePrivilegeAndError() )
 			{
 				OpenSceneByName(class'UTUIFrontEnd_Multiplayer'.default.JoinScene,,JoinOpen);
 			}
@@ -198,8 +198,6 @@ function JoinOpen(UIScene OpenedScene, bool bInitialActivation)
 		JoinScene.UseCampaignMode();
 	}
 }
-
-
 
 function MB_Selection(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
 {
@@ -262,35 +260,10 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 			ItemChosen(Menu,Menu.Selection,EventParms.PlayerIndex);
 		}
 
-
-		if(EventPArms.InputKeyNAme=='F5' || EventParms.InputKeyName=='XboxTypeS_LeftTrigger')
-		{
-			UnlockNext();
-		}
-
 	}
 
 	return bResult;
 }
-
-function UnlockNext()
-{
-	local UTProfileSettings Profile;
-	local int i;
-
-	Profile = GetPlayerProfile(0);
-
-	for (i=0;i<5;i++)
-	{
-		if ( ChapterLocked[i] == 0 )
-		{
-			Profile.UnlockChapter(i+1);
-			Setup();
-			return;
-		}
-	}
-}
-
 
 defaultproperties
 {

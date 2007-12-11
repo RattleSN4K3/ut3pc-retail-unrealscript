@@ -42,6 +42,9 @@ var float						PlayScale;
 /* Number in range [0..1], controlling how much this influence this instance should have. */
 var float						CurrentBlendWeight;
 
+/** How much longer to play the anim, if a specific duration is desired.  Has no effect if 0.  */
+var protected transient float	RemainingTime;
+
 /** cached movement track from the currently playing anim so we don't have to go find it every frame */
 var InterpTrackMove MoveTrack;
 var InterpTrackInstMove MoveInst;
@@ -57,8 +60,9 @@ var InterpTrackInstMove MoveInst;
  * InBlendInTime:	Time over which to linearly ramp out.
  * bInLoop:			Whether or not to loop the animation.
  * bRandomStartTime:	Whether or not to choose a random time to start playing.  Only really makes sense for bLoop = TRUE;
+ * Duration:	optional specific playtime for this animation.  This is total time, including blends.
  */
-native final function Play(CameraAnim Anim, Actor CamActor, float InRate, float InScale, float InBlendInTime, float InBlendOutTime, bool bInLoop, bool bRandomStartTime);
+native final function Play(CameraAnim Anim, Actor CamActor, float InRate, float InScale, float InBlendInTime, float InBlendOutTime, bool bInLoop, bool bRandomStartTime, optional float Duration);
 
 /** advances the animation by the specified time - updates any modified interp properties, moves the group actor, etc */
 native function AdvanceAnim(float DeltaTime, bool bJump);

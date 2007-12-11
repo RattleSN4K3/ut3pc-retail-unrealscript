@@ -23,12 +23,13 @@ event PostInitialize()
 /** Callback allowing the tabpage to setup the button bar for the current scene. */
 function SetupButtonBar(UTUIButtonBar ButtonBar)
 {
-	if ( UTUIScene(GetScene()).GetWorldInfo().GetMapName() ~= "UTFRONTEND" )
+	if ( class'UIInteraction'.static.IsMenuLevel() )
 	{
 		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.CustomizePlayerButtonBar>", OnButtonBar_CustomizePlayer);
 	}
-		ConditionallyAppendKeyboardButton(ButtonBar);
-		ConditionallyAppendDefaultsButton(ButtonBar);
+
+	ConditionallyAppendKeyboardButton(ButtonBar);
+	ConditionallyAppendDefaultsButton(ButtonBar);
 }
 
 
@@ -64,32 +65,39 @@ function OnShowPlayerScene()
 
 	if(UTScene != None)
 	{
-		// Check to see if we have any saved char data
-		if(HasSavedCharacterData())
+		if ( UTScene.GetWorldInfo().IsDemoBuild() )
 		{
-			// Pop up a message box asking the user if they want to edit their character or randomly generate one.
-			MessageBoxReference = UTScene.GetMessageBoxScene();
-
-			if(MessageBoxReference != none)
-			{
-				MessageBoxOptions.AddItem("<Strings:UTGameUI.CharacterCustomization.CreateNewCharacter>");
-				MessageBoxOptions.AddItem("<Strings:UTGameUI.CharacterCustomization.EditExistingCharacter>");
-				MessageBoxOptions.AddItem("<Strings:UTGameUI.Generic.Cancel>");
-
-				PotentialOptionKeyMappings.length = 3;
-				PotentialOptionKeyMappings[0].Keys.AddItem('XboxTypeS_X');
-				PotentialOptionKeyMappings[1].Keys.AddItem('XboxTypeS_A');
-				PotentialOptionKeyMappings[2].Keys.AddItem('XboxTypeS_B');
-				PotentialOptionKeyMappings[2].Keys.AddItem('Escape');
-
-				MessageBoxReference.SetPotentialOptionKeyMappings(PotentialOptionKeyMappings);
-				MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
-				MessageBoxReference.Display("<Strings:UTGameUI.CharacterCustomization.CreateNewChar_Message>", "<Strings:UTGameUI.CharacterCustomization.CreateNewChar_Title>", OnStartNewCharacter_Confirm);
-			}
+			UTScene.DisplayMessageBox("Custom characters are not available in the demo version of UT3.");
 		}
 		else
 		{
-			UTScene.OpenSceneByName(NewCharacterScene);
+			// Check to see if we have any saved char data
+			if(HasSavedCharacterData())
+			{
+				// Pop up a message box asking the user if they want to edit their character or randomly generate one.
+				MessageBoxReference = UTScene.GetMessageBoxScene();
+
+				if(MessageBoxReference != none)
+				{
+					MessageBoxOptions.AddItem("<Strings:UTGameUI.CharacterCustomization.CreateNewCharacter>");
+					MessageBoxOptions.AddItem("<Strings:UTGameUI.CharacterCustomization.EditExistingCharacter>");
+					MessageBoxOptions.AddItem("<Strings:UTGameUI.Generic.Cancel>");
+
+					PotentialOptionKeyMappings.length = 3;
+					PotentialOptionKeyMappings[0].Keys.AddItem('XboxTypeS_X');
+					PotentialOptionKeyMappings[1].Keys.AddItem('XboxTypeS_A');
+					PotentialOptionKeyMappings[2].Keys.AddItem('XboxTypeS_B');
+					PotentialOptionKeyMappings[2].Keys.AddItem('Escape');
+
+					MessageBoxReference.SetPotentialOptionKeyMappings(PotentialOptionKeyMappings);
+					MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
+					MessageBoxReference.Display("<Strings:UTGameUI.CharacterCustomization.CreateNewChar_Message>", "<Strings:UTGameUI.CharacterCustomization.CreateNewChar_Title>", OnStartNewCharacter_Confirm);
+				}
+			}
+			else
+			{
+				UTScene.OpenSceneByName(NewCharacterScene);
+			}
 		}
 	}
 }

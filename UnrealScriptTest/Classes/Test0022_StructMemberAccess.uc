@@ -4,7 +4,6 @@
  * Copyright 2006 Epic Games, Inc. All Rights Reserved
  */
 class Test0022_StructMemberAccess extends TestClassBase;
-`include(Core/Globals.uci)
 
 
 struct InnerStruct
@@ -120,7 +119,7 @@ function DelegateReturnValueAccessTest()
 {
 `if(`notdefined(FINAL_RELEASE))
 	local InnerStruct LocalStruct;
-`endif	
+`endif
 
     m_StructDelegateProp = ReturnMemberStruct;
 
@@ -130,7 +129,7 @@ function DelegateReturnValueAccessTest()
 
 	// avoid the compiler warning
 	`log(LocalStruct.InnerStructInt);
-`endif	
+`endif
 }
 
 // demonstrates member access through literal struct

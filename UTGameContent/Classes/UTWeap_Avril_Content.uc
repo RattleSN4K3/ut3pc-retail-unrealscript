@@ -59,4 +59,8 @@ defaultproperties
 
 	WeaponProjectiles(0)=class'UTProj_AvrilRocket'
 
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=50,RightAmplitude=50,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.400)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

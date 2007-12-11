@@ -42,7 +42,7 @@ var()				bool					bAutoHideOnInput;
 /* == Delegates == */
 
 /** Wrapper for BeginTracking which allows owning widgets to easily override the default behavior for tooltip activation */
-delegate UIToolTip ActivateToolTip()
+delegate UIToolTip ActivateToolTip( UIToolTip Sender )
 {
 	return BeginTracking();
 }
@@ -52,6 +52,16 @@ delegate bool DeactivateToolTip()
 {
 	return EndTracking();
 }
+
+/**
+ * Allows widgets to prevent a tooltip from being displayed; called every tick once the number of seconds since the tooltip
+ * was linked to a widget (i.e. when ActivateToolTip was called) is greater than UIInteraction.ToolTipInitialDelaySeconds.
+ *
+ * @param	Sender		the tooltip that will be shown
+ *
+ * @return	returning FALSE resets the tooltip's activation timer to 0; returning TRUE causes the tooltip to be made visible immediately.
+ */
+delegate bool CanShowToolTip( UIToolTip Sender );
 
 /* == Events == */
 

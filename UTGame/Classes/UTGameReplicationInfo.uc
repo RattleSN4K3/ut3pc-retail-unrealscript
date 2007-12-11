@@ -102,6 +102,7 @@ var array<MeshEffect> VehicleWeaponEffects;
 
 /** Holds the current Mid Game Menu Scene */
 var UTUIScene_MidGameMenu CurrentMidGameMenu;
+var name LastUsedMidgameTab;
 
 var bool bShowMenuOnDeath;
 
@@ -156,14 +157,23 @@ simulated function PostBeginPlay()
 	}
 
 	// Look for a mid game menu and if it's there fix it up
-
 	SC = UTGameUISceneClient(class'UIRoot'.static.GetSceneClient());
-	if (SC != none )
+	if (SC != none)
 	{
 		CurrentMidGameMenu = UTUIScene_MidGameMenu(SC.FindSceneByTag('MidGameMenu'));
 		if ( CurrentMidGameMenu != none )
 		{
 			CurrentMidGameMenu.Reset();
+		}
+
+		// also close any scoreboards that are up
+		i = 0;
+		while (i < SC.ActiveScenes.Length)
+		{
+			if (UTUIScene_Scoreboard(SC.ActiveScenes[i]) == None || !SC.ActiveScenes[i].CloseScene(SC.ActiveScenes[i]))
+			{
+				i++;
+			}
 		}
 	}
 }
@@ -449,13 +459,13 @@ simulated function UTPlayerReplicationInfo FindExistingMeshForFamily(string Fami
 	local UTPlayerReplicationInfo UTPRI;
 
 	// Check family, gender and team are the same - and don't allow sharing local player mesh (they can change team)
-	// in story mode, require exact match - people need to be the right meshes (or fallback is ok)
+	// in story mode, require exact match for red team - people need to be the right meshes (or fallback is ok)
 	for(i=0; i<PRIArray.length; i++)
 	{
 		UTPRI = UTPlayerReplicationInfo( PRIArray[i] );
 		if( UTPRI != None &&
 			UTPRI != CurrentPRI &&
-			(bStoryMode ? (UTPRI.CharacterData == CurrentPRI.CharacterData) : (UTPRI.CharacterData.FamilyID == FamilyID)) &&
+			((bStoryMode && TeamNum == 0) ? (UTPRI.CharacterData == CurrentPRI.CharacterData) : (UTPRI.CharacterData.FamilyID == FamilyID)) &&
 			UTPRI.CharacterMesh != None &&
 			UTPRI.CharPortrait != None &&
 			UTPRI.GetTeamNum() == TeamNum &&
@@ -474,7 +484,7 @@ simulated function UTPlayerReplicationInfo FindExistingMeshForFamily(string Fami
  * @param PRI - the PlayerReplicationInfo that holds the data to process
  * @param bTeamChange - if this is the result of a team change
  */
-simulated function ProcessCharacterData(UTPlayerReplicationInfo PRI, optional bool bTeamChange)
+simulated singular function ProcessCharacterData(UTPlayerReplicationInfo PRI, optional bool bTeamChange)
 {
 	local int i;
 	local bool bPRIAlreadyPresent, bDefaultCharParts, bLocalTeamChange;
@@ -615,7 +625,7 @@ simulated function ProcessCharacterData(UTPlayerReplicationInfo PRI, optional bo
 		}
 	}
 
-	SetTimer(1.0 / 60.0, true, 'TickCharacterMeshCreation');
+	SetTimer(0.04, true, 'TickCharacterMeshCreation');
 
 	// Start the character creation timer.
 	StartCreateCharTime = WorldInfo.RealTimeSeconds;
@@ -636,6 +646,7 @@ simulated function TickCharacterMeshCreation()
 	local class<UTFamilyInfo> FamilyInfoClass;
 	local MaterialInterface ArmMaterial;
 	local CharPortraitSetup PortraitSetup;
+	local UTPlayerReplicationInfo PRI, ReplacementUTPRI;
 
 	// To speed up streaming parts - disable level streaming.
 	SetNoStreamWorldTextureForFrames(100000);
@@ -648,6 +659,10 @@ simulated function TickCharacterMeshCreation()
 			//`log("PRI NULL - Removing.");
 			ResetCharMerge(i);
 			CharStatus.Remove(i,1);
+			// make sure we GC if this character was being loaded
+			// technically we should only do this if it was actually being processed,
+			// but it's is too small of a delay to be worth the risk of missing a check and not GCing when we should
+			bMergeWasPending = true;
 		}
 	}
 
@@ -867,6 +882,7 @@ simulated function TickCharacterMeshCreation()
 					// Done with this char now! Remove from array.
 					CharStatus.Remove(i,1);
 					i--;
+					bMergeWasPending = true;
 				}
 			}
 		}
@@ -877,6 +893,11 @@ simulated function TickCharacterMeshCreation()
 			// Force garbage collection if merge was pending and hold off kicking off more async loading for a frame so the GC can occur.
 			if( bMergeWasPending )
 			{
+				// reset the timer so that even if we have a low framerate
+				// we guarantee this function will not be called again this frame
+				ClearTimer('TickCharacterMeshCreation');
+				SetTimer(0.04, true, 'TickCharacterMeshCreation');
+
 				WorldInfo.ForceGarbageCollection();
 			}
 			else
@@ -987,8 +1008,13 @@ simulated function TickCharacterMeshCreation()
 	{
 		if (bMergeWasPending)
 		{
+			// reset the timer so that even if we have a low framerate
+			// we guarantee this function will not be called again this frame
+			ClearTimer('TickCharacterMeshCreation');
+			SetTimer(0.04, true, 'TickCharacterMeshCreation');
+
 			// do a final GC before we officially finish
-			WorldInfo.ForceGarbageCollection();
+			WorldInfo.ForceGarbageCollection( TRUE );
 		}
 		else
 		{
@@ -996,6 +1022,25 @@ simulated function TickCharacterMeshCreation()
 			SendCharacterProcessingNotification(false);
 
 			`Log("Finished creating custom characters in "$(WorldInfo.RealTimeSeconds - StartCreateCharTime)$" seconds");
+
+			// see if there are any characters that we skipped that we can fill in with the newly created meshes
+			if (!bForceDefaultCharacter)
+			{
+				for (i = 0; i < PRIArray.length; i++)
+				{
+					PRI = UTPlayerReplicationInfo(PRIArray[i]);
+					if ( PRI != None && PRI.CharacterMesh == None && PRI.CharacterData.FamilyID != "" &&
+						PRI.CharacterData.FamilyID != "NONE" && !PRI.IsLocalPlayerPRI() )
+					{
+						ReplacementUTPRI = FindExistingMeshForFamily(PRI.CharacterData.FamilyID, PRI.GetTeamNum(), PRI);
+						if (ReplacementUTPRI != None)
+						{
+							PRI.SetCharacterMesh(ReplacementUTPRI.CharacterMesh, true);
+							PRI.CharPortrait = ReplacementUTPRI.CharPortrait;
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -1042,11 +1087,25 @@ simulated function PopulateMidGameMenu(UTSimpleMenu Menu)
 /** Whether a player can change teams or not.  Used by menus and such. */
 simulated function bool CanChangeTeam()
 {
-	if ( GameClass.Default.bTeamGame && !bStoryMode && class<UTDuelGame>(GameClass) == None )
+	if (UTGame(WorldInfo.Game) != None && UTGame(WorldInfo.Game).IsConsoleDedicatedServer())
+	{
+		return false;
+	}
+	else
+	{
+		return (GameClass.default.bTeamGame && !bStoryMode && class<UTDuelGame>(GameClass) == None);
+	}
+}
+
+/** hook to allow the GRI to prevent pausing; used when it's performing asynch tasks that must be completed */
+simulated function bool PreventPause()
+{
+	if ( IsProcessingCharacterData() || IsTimerActive('StartProcessingCharacterData') )
 	{
 		return true;
 	}
-	return false;
+
+	return Super.PreventPause();
 }
 
 simulated function bool MidMenuMenu(UTPlayerController UTPC, UTSimpleList List, int Index)
@@ -1113,23 +1172,12 @@ function AssignSinglePlayerCharacters(UTPlayerReplicationInfo PRI)
 	PC = UTPlayerController(PRI.Owner);
 	if (PC != None && !PRI.bOnlySpectator)
 	{
-		// figure out who we already have
-		for (i = 0; i < PRIArray.length; i++)
-		{
-			OtherPRI = UTPlayerReplicationInfo(PRIArray[i]);
-			if (OtherPRI != None && OtherPRI.SinglePlayerCharacterIndex >= 0)
-			{
-				Chars[OtherPRI.SinglePlayerCharacterIndex] = OtherPRI;
-			}
-		}
-
 		if ( PRI.SinglePlayerCharacterIndex >= 0 )
 		{
 			// We already have an assigned player.  Validate it.
-
 			if (PRI.SinglePlayerCharacterIndex == 0) 	// Reaper
 			{
-				if ( PC.Player != none && LocalPlayer(PC.Player) != none && Chars[0] == none )
+				if ( PC.Player != none && LocalPlayer(PC.Player) != None )
 				{
 					Chars[0] = PRI;
 				}
@@ -1137,23 +1185,26 @@ function AssignSinglePlayerCharacters(UTPlayerReplicationInfo PRI)
 				{
 					// We are not the local host, or there is already local
 					// Reaper, so reset this player.
-
-					PRI.SinglePlayerCharacterIndex = -1;
-				}
-			}
-			else
-			{
-				// We aren't reaper.  See if we have already assigned
-				// a character to the slot.
-
-				if (Chars[PRI.SinglePlayerCharacterIndex] != none )
-				{
-					// Yes, reset this player
-
 					PRI.SinglePlayerCharacterIndex = -1;
 				}
 			}
 		}
+
+		// figure out who we already have
+		for (i = 0; i < PRIArray.length; i++)
+		{
+			OtherPRI = UTPlayerReplicationInfo(PRIArray[i]);
+			if (OtherPRI != None && OtherPRI.SinglePlayerCharacterIndex >= 0)
+			{
+				if ( OtherPRI != PRI && OtherPRI.SinglePlayerCharacterIndex != PRI.SinglePlayerCharacterIndex &&
+					PRI.SinglePlayerCharacterIndex != 0 )
+				{
+					PRI.SinglePlayerCharacterIndex = -1;
+				}
+				Chars[OtherPRI.SinglePlayerCharacterIndex] = OtherPRI;
+			}
+		}
+
 		// At this point, a player is either seeded correctly
 		// or waiting for a seed (Index <0).  If needed, seed him now
 
@@ -1218,6 +1269,14 @@ simulated function UTUIScene_MidGameMenu ShowMidGameMenu(UTPlayerController Inst
 	local UIScene Scene;
 	local UTUIScene Template;
 	local class<UTGame> UTGameClass;
+
+	if (TabTag == '')
+	{
+		if (LastUsedMidgameTab != '')
+		{
+			TabTag = LastUsedMidGameTab;
+		}
+	}
 
 	if ( CurrentMidGameMenu != none )
 	{
@@ -1292,13 +1351,15 @@ function ToggleViewingMap(bool bIsViewing)
 	}
 }
 
+/** wrapper for opening UI scenes
+ * @param InstigatorPC - player to open it for
+ * @param Template - the scene to open
+ */
 simulated function UIScene OpenUIScene(UTPlayerController InstigatorPC, UIScene Template)
 {
 	local UIInteraction UIController;
 	local LocalPlayer LP;
 	local UIScene s;
-
-	// Check all replication conditions
 
 	LP = LocalPlayer(InstigatorPC.Player);
 	UIController = LP.ViewportClient.UIController;

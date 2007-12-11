@@ -68,7 +68,10 @@ simulated function Destroyed()
 {
 	Super.Destroyed();
 
-	Home.MinerDestroyed();
+	if ( Home != None )
+	{
+		Home.MinerDestroyed();
+	}
 
 	// blow up
 	if ( (WorldInfo.NetMode != NM_DedicatedServer) && (ExplosionTemplate != None) && EffectIsRelevant(Location,false,5000) )

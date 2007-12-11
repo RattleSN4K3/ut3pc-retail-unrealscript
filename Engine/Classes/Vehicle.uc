@@ -269,8 +269,8 @@ return true if Pawn P is allowed to enter this vehicle
 */
 function bool CanEnterVehicle(Pawn P)
 {
-	return ( AnySeatAvailable() && (!bAttachDriver || !P.bIsCrouched) && P.DrivenVehicle == None && P.Controller != None &&
-		P.Controller.bIsPlayer && !P.IsA('Vehicle') && Health > 0 );
+	return ( !bDeleteMe && AnySeatAvailable() && (!bAttachDriver || !P.bIsCrouched) && P.DrivenVehicle == None &&
+		P.Controller != None && P.Controller.bIsPlayer && !P.IsA('Vehicle') && Health > 0 );
 }
 
 /** SeatAvailable()
@@ -657,7 +657,7 @@ function AdjustDriverDamage(out int Damage, Controller InstigatedBy, Vector HitL
  	}
 }
 
-function ThrowActiveWeapon() {}
+function ThrowActiveWeapon( optional class<DamageType> DamageType ) {}
 
 function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLocation)
 {

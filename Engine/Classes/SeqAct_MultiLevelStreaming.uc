@@ -19,6 +19,11 @@ struct native LevelStreamingNameCombo
 /** Array of levels to load/ unload														*/
 var() array<LevelStreamingNameCombo>	Levels;
 
+/** Should any levels not contained in Levels be unloaded? */
+var() bool bUnloadAllOtherLevels;
+
+var transient bool bStatusIsOk;
+
 ;
 
 defaultproperties

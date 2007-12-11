@@ -150,7 +150,10 @@ function UTSeqObj_SPMission GetChild(int ChildIndex, out EMissionCondition Condi
 	if ( ChildIndex >= 0 && ChildIndex < Progression.Length && ChildIndex < OutputLinks.Length )
 	{
 		Condition = Progression[ChildIndex];
-		Mission = UTSeqObj_SPMission( OutputLinks[ChildIndex].Links[0].LinkedOp );
+		if (OutputLinks[ChildIndex].Links.Length > 0)
+		{
+			Mission = UTSeqObj_SPMission( OutputLinks[ChildIndex].Links[0].LinkedOp );
+		}
 	}
 
 	return Mission;

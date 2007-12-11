@@ -567,7 +567,8 @@ static function SendVoiceMessage(Controller Sender, PlayerReplicationInfo Recipi
 		// make sure have players on my team
 		foreach Sender.WorldInfo.AllControllers(class'UTPlayerController', PC)
 		{
-			if ( (Sender.PlayerReplicationInfo.Team == PC.PlayerReplicationInfo.Team) && (Sender != PC) )
+			if ( (Sender.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo != None) 
+				&& (Sender.PlayerReplicationInfo.Team == PC.PlayerReplicationInfo.Team) && (Sender != PC) )
 			{
 				bFoundFriendlyPlayer = true;
 				break;
@@ -600,7 +601,7 @@ static function SendVoiceMessage(Controller Sender, PlayerReplicationInfo Recipi
 
 	foreach Sender.WorldInfo.AllControllers(class'UTPlayerController', PC)
 	{
-		if ( (PC != Sender) && (!Sender.WorldInfo.Game.bTeamGame || Sender.WorldInfo.GRI.bMatchIsOver || (Sender.PlayerReplicationInfo.Team == PC.PlayerReplicationInfo.Team))
+		if ( (PC != Sender) && (!Sender.WorldInfo.Game.bTeamGame || Sender.WorldInfo.GRI.bMatchIsOver || ((Sender.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo != None) && (Sender.PlayerReplicationInfo.Team == PC.PlayerReplicationInfo.Team)))
 			&& !PC.IsPlayerMuted(Sender.PlayerReplicationInfo.UniqueID) )
 		{
 				PC.ReceiveBotVoiceMessage(SenderPRI, MessageIndex, None);
@@ -694,6 +695,10 @@ static function InitStatusUpdate(Controller Sender, PlayerReplicationInfo Recipi
 	B = UTBot(Sender);
 	if ( B != None )
 	{
+		if ( B.Pawn == None )
+		{
+			return;
+		}
 		BotOrders = B.GetOrders();
 		if ( (BotOrders == 'defend') || (BotOrders == 'hold') )
 		{
@@ -787,7 +792,7 @@ static function SendLocalizedMessage(Controller Sender, PlayerReplicationInfo Re
 	{
 		foreach Sender.WorldInfo.AllControllers(class'UTPlayerController', PC)
 		{
-			if ( (!Sender.WorldInfo.Game.bTeamGame || (Sender.PlayerReplicationInfo.Team == PC.PlayerReplicationInfo.Team))
+			if ( (!Sender.WorldInfo.Game.bTeamGame || ((Sender.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo != None) && (Sender.PlayerReplicationInfo.Team == PC.PlayerReplicationInfo.Team)))
 				&& !PC.IsPlayerMuted(Sender.PlayerReplicationInfo.UniqueID) )
 			{
 				PC.ReceiveBotVoiceMessage(SenderPRI, MessageIndex, LocationObject);

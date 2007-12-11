@@ -39,6 +39,9 @@ var array<float> MinReloadPct;
 /** camera anim to play when firing (for camera shakes) */
 var array<CameraAnim> FireCameraAnim;
 
+/** controller rumble to play when firing. */
+var ForceFeedbackWaveform WeaponFireWaveForm;
+
 var array<name> EffectSockets;
 
 var int IconX, IconY, IconWidth, IconHeight;
@@ -918,6 +921,13 @@ simulated function ShakeView()
 	{
 		PC.PlayCameraAnim(FireCameraAnim[CurrentFireMode], (GetZoomedState() > ZST_ZoomingOut) ? PC.FOVAngle / PC.DefaultFOV : 1.0);
 	}
+
+	// Play controller vibration
+	if( PC != None && LocalPlayer(PC.Player) != None )
+	{
+		// only do rumble if we are a player controller
+		UTPlayerController(Instigator.Controller).ClientPlayForceFeedbackWaveform( WeaponFireWaveForm );
+	}
 }
 
 simulated function WeaponPlaySound(SoundCue Sound, optional float NoiseLoudness)
@@ -1384,7 +1394,7 @@ simulated event SetPosition(UTPawn Holder)
 	local vector2D ViewportSize;
 	local bool bIsWideScreen;
 
-	if ( !Instigator.IsFirstPerson() )
+	if ( !Holder.IsFirstPerson() )
 		return;
 
 	// Hide the weapon if hidden
@@ -1483,7 +1493,7 @@ simulated event SetPosition(UTPawn Holder)
 	// Calculate the draw offset
 	if ( Holder.Controller == None )
 	{
-		DrawOffset = (ViewOffset >> Rotation) + Holder.GetEyeHeight() * vect(0,0,1);
+		DrawOffset = (ViewOffset >> Holder.GetBaseAimRotation()) + Holder.GetEyeHeight() * vect(0,0,1);
 	}
 	else
 	{
@@ -1514,11 +1524,18 @@ simulated event SetPosition(UTPawn Holder)
 		}
 	}
 
-	NewRotation = (Holder.Controller == None) ? Holder.Rotation : Holder.Controller.Rotation;
+	NewRotation = (Holder.Controller == None) ? Holder.GetBaseAimRotation() : Holder.Controller.Rotation;
 
 	// Add some rotation leading
-	FinalRotation.Yaw = LagRot(NewRotation.Yaw & 65535, LastRotation.Yaw & 65535, MaxYawLag, 0);
-	FinalRotation.Pitch = LagRot(NewRotation.Pitch & 65535, LastRotation.Pitch & 65535, MaxPitchLag, 1);
+	if (Holder.Controller != None)
+	{
+		FinalRotation.Yaw = LagRot(NewRotation.Yaw & 65535, LastRotation.Yaw & 65535, MaxYawLag, 0);
+		FinalRotation.Pitch = LagRot(NewRotation.Pitch & 65535, LastRotation.Pitch & 65535, MaxPitchLag, 1);
+	}
+	else
+	{
+		FinalRotation = NewRotation;
+	}
 	LastRotUpdate = WorldInfo.TimeSeconds;
 	LastRotation = NewRotation;
 
@@ -2668,27 +2685,42 @@ simulated function bool TryPutDown()
 
 	bWeaponPutDown = true;
 
-	MinTimerTarget = GetTimerRate('RefireCheckTimer') * MinReloadPct[CurrentFireMode];
-	TimerCount = GetTimerCount('RefireCheckTimer');
-
-	if (bDebugWeapon)
-	{
-		`log("---"@self$"."$GetStateName()$".TryPutDown"@TimerCount@MinTimerTarget);
-		ScriptTrace();
-	}
-
-
-	if (TimerCount > MinTimerTarget)
+	if (!IsTimerActive('RefireCheckTimer'))
 	{
 		PutDownWeapon();
 	}
 	else
 	{
-		// Shorten the wait time
-		SetTimer(TimerCount + (MinTimerTarget - TimerCount), false, 'RefireCheckTimer');
+		MinTimerTarget = GetTimerRate('RefireCheckTimer') * MinReloadPct[CurrentFireMode];
+		TimerCount = GetTimerCount('RefireCheckTimer');
+
+		if (bDebugWeapon)
+		{
+			`log("---"@self$"."$GetStateName()$".TryPutDown"@TimerCount@MinTimerTarget);
+			ScriptTrace();
+		}
+
+
+		if (TimerCount >= MinTimerTarget)
+		{
+			PutDownWeapon();
+		}
+		else
+		{
+			// Shorten the wait time
+			SetTimer(MinTimerTarget - TimerCount, false, 'FiringPutDownWeapon');
+		}
 	}
 
 	return true;
+}
+
+simulated function FiringPutDownWeapon()
+{
+	if (bWeaponPutDown)
+	{
+		PutDownWeapon();
+	}
 }
 
 simulated function vector GetPhysicalFireStartLoc(optional vector AimDir)
@@ -2853,19 +2885,7 @@ simulated state WeaponPuttingDown
 		}
 	}
 
-	simulated function float GetAbortPutDownTime()
-	{
-		return EquipTime * GetTimerCount('WeaponIsDown') / GetTimerRate('WeaponIsDown');
-	}
-
-	simulated function Activate()
-	{
-		// We want the abort to be the same amount of time as
-		// we have already spent putting down
-		SwitchAbortTime = GetAbortPutDownTime();
-		SetupArmsAnim();
-		GotoState('WeaponAbortPutDown');
-	}
+	simulated function Activate();
 
 	/**
 	 * @returns false if the weapon isn't ready to be fired.  For example, if it's in the Inactive/WeaponPuttingDown states.
@@ -2887,74 +2907,6 @@ simulated function AnimNodeSequence GetArmAnimNodeSeq()
 	}
 
 	return None;
-}
-
-simulated state WeaponAbortPutDown
-{
-	simulated function BeginState(name PrevStateName)
-	{
-		local AnimNodeSequence AnimNode;
-		local float Rate;
-
-		if (bDebugWeapon)
-		{
-			`log("---"@self$"."$GetStateName()$".BeginState("$PrevStateName$")");
-		}
-
-
-		// Time the abort
-		SetTimer(FMax(SwitchAbortTime, 0.01),, 'WeaponPutDownAborted');
-		// play anim
-		if (WorldInfo.NetMode != NM_DedicatedServer)
-		{
-			if (WeaponEquipAnim != '')
-			{
-				AnimNode = GetWeaponAnimNodeSeq();
-				if (AnimNode != None && AnimNode.AnimSeq != None)
-				{
-					AnimNode.SetAnim(WeaponEquipAnim);
-					Rate = AnimNode.AnimSeq.SequenceLength / EquipTime;
-					AnimNode.PlayAnim(false, Rate, AnimNode.AnimSeq.SequenceLength - SwitchAbortTime * Rate);
-				}
-			}
-			if(ArmsEquipAnim != '' && ArmsAnimSet != none && Instigator != none /* && Instigator.IsLocallyControlled() && Instigator.IsHumanControlled() */)
-			{
-				AnimNode = GetArmAnimNodeSeq();
-				if (AnimNode != None && AnimNode.AnimSeq != None)
-				{
-					AnimNode.SetAnim(ArmsEquipAnim);
-					Rate = AnimNode.AnimSeq.SequenceLength/EquipTime;
-					AnimNode.PlayAnim(false, Rate, AnimNode.AnimSeq.SequenceLength - SwitchAbortTime * Rate);
-				}
-			}
-		}
-	}
-
-	simulated function WeaponPutDownAborted()
-	{
-		GotoState('Active');
-	}
-
-	simulated function Activate()
-	{
-		SetupArmsAnim();
-	}
-
-	simulated function bool bReadyToFire()
-	{
-		return false;
-	}
-
-	simulated function EndState(Name NextStateName)
-	{
-		if (bDebugWeapon)
-		{
-			`log("---"@self$"."$GetStateName()$".BeginState("$NextStateName$")");
-		}
-		ClearTimer('WeaponPutDownAborted');
-
-		Super.EndState(NextStateName);
-	}
 }
 
 function GivenTo(Pawn NewOwner, bool bDoNotActivate)
@@ -3406,4 +3358,9 @@ defaultproperties
 	SmallWeaponsOffset=(X=16.0,Y=6.0,Z=-6.0)
 	WideScreenOffsetScaling=0.8
 	SimpleCrossHairCoordinates=(U=256,V=64,UL=64,VL=64)
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=30,RightAmplitude=20,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.100)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

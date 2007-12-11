@@ -22,6 +22,6 @@ defaultproperties
 	VehicleClass=class'UTVehicle_Viper_Content'
 	bIgnoreDownwardPitch=true
 	bFastRepeater=true
-	AimError=650
+	AimError=750
 }
 

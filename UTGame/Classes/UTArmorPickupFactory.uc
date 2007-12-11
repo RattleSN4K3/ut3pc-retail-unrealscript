@@ -137,7 +137,7 @@ defaultproperties
 	bMovable=FALSE
 	bStatic=FALSE
 
-    PickupStatName=Pickups_Armor
+    PickupStatName=PICKUPS_ARMOR
     MaxDesireability=1.500000
 	YawRotationRate=24000
 	bRotatingPickup=true

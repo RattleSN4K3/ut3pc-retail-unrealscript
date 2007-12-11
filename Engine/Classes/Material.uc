@@ -159,6 +159,8 @@ var editoronly array<MaterialExpressionComment>	EditorComments;
 /** Array of material expression compounds associated with this material; viewed in the material editor. */
 var editoronly array<MaterialExpressionCompound> EditorCompounds;
 
+var native map{FName, TArray<UMaterialExpression*>} EditorParameters;
+
 /** TRUE if Material uses distortion */
 var private bool						bUsesDistortion;
 
