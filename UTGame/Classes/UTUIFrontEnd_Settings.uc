@@ -5,6 +5,8 @@
  */
 class UTUIFrontEnd_Settings extends UTUIFrontEnd_BasicMenu;
 
+`include(Core/Globals.uci)
+
 // Menu options
 const SETTINGS_OPTION_VIDEO = 0;
 const SETTINGS_OPTION_AUDIO = 1;
@@ -45,11 +47,6 @@ event SceneActivated(bool bInitialActivation)
 final function MarkDirty( optional bool bIsDirty=true )
 {
 	bDirty = bIsDirty;
-}
-
-final function bool IsDirty()
-{
-	return bDirty;
 }
 
 /**

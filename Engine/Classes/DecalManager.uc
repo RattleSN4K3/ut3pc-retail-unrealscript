@@ -65,9 +65,7 @@ function DecalComponent SpawnDecal( MaterialInterface DecalMaterial, vector Deca
 						optional float DecalRotation = (FRand() * 360.0),
 						optional PrimitiveComponent HitComponent,
 						optional bool bProjectOnTerrain = true, optional bool bProjectOnSkeletalMeshes,
-						optional name HitBone, optional int HitNodeIndex = INDEX_NONE, optional int HitLevelIndex = INDEX_NONE, 
-						optional float InDecalLifeSpan = DecalLifeSpan 
-						)
+						optional name HitBone, optional int HitNodeIndex = INDEX_NONE, optional int HitLevelIndex = INDEX_NONE )
 {
 	local int i;
 	local DecalComponent Result;
@@ -131,7 +129,7 @@ function DecalComponent SpawnDecal( MaterialInterface DecalMaterial, vector Deca
 
 	// add to list to tick lifetime
 	DecalInfo.Decal = Result;
-	DecalInfo.LifetimeRemaining = InDecalLifeSpan;
+	DecalInfo.LifetimeRemaining = DecalLifeSpan;
 	ActiveDecals.AddItem(DecalInfo);
 
 	return Result;

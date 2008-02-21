@@ -277,10 +277,12 @@ function PlayObjectiveSound(SoundCue SoundToPlay)
 defaultproperties
 {
 	Begin Object class=AudioComponent Name=ACPlayer
+		bAllowSpatialization=false
 	End Object
 	AudioPlayer=ACPlayer
 
 	Begin Object class=AudioComponent Name=ObjectivePlayer
+		bAllowSpatialization=false
 	End Object
 	NotificationAudioPlayer = ObjectivePlayer
 

@@ -163,7 +163,7 @@ static function name GetStatsName(name StatType)
 		else
 		{
 			`log(Default.Name$" does not have a Killstat value");
-			return 'KILLS_EVIRONMENT';
+			return 'KILLS_ENVIRONMENT';
 		}
 	case 'DEATHS':
 		if ( Default.KillStatsName != '' )
@@ -173,7 +173,7 @@ static function name GetStatsName(name StatType)
 		else
 		{
 			`log(Default.Name$" does not have a Death stat value");
-			return 'DEATHS_EVIRONMENT';
+			return 'DEATHS_ENVIRONMENT';
 		}
 	case 'SUICIDES':
 		if ( Default.KillStatsName != '' )
@@ -183,7 +183,7 @@ static function name GetStatsName(name StatType)
 		else
 		{
 			`log(Default.Name$" does not have a suicide stat value");
-			return 'SUICIDES_EVIRONMENT';
+			return 'SUICIDES_ENVIRONMENT';
 		}
 	}
 
@@ -458,15 +458,4 @@ defaultproperties
 	CustomTauntIndex=-1
 	bComplainFriendlyFire=true
 	bHeadGibCamera=true
-
-	// Short "pop" of damage
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform0
-		Samples(0)=(LeftAmplitude=64,RightAmplitude=96,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.25)
-	End Object
-	DamagedFFWaveform=ForceFeedbackWaveform0
-	// Pretty violent rumble
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform1
-		Samples(0)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.75)
-	End Object
-	KilledFFWaveform=ForceFeedbackWaveform1
 }

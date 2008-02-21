@@ -17,8 +17,14 @@ var	transient	UTDataStore_GameSearchDM	PrimaryGameSearchDataStore;
 /** the maximum number of most recently visited servers that will be retained */
 const MAX_PERSONALSERVERS=15;
 
+struct native ServerEntry
+{
+	var string ServerUniqueId;
+	var string ServerName;
+};
+
 /** the list of servers stored in this data store */
-var	config	string		ServerUniqueId[MAX_PERSONALSERVERS];
+var	config ServerEntry ServerList[MAX_PERSONALSERVERS];
 
 /**
  * @param	bRestrictCheckToSelf	if TRUE, will not check related game search data stores for outstanding queries.
@@ -36,6 +42,70 @@ function bool HasOutstandingQueries( optional bool bRestrictCheckToSelf )
 	}
 
 	return bResult;
+}
+
+/** 
+ *  Tells this provider to rebuild it's array data 
+ *  In this overloaded case, we check the personal servers list against the returned
+ *  array from the master server.  Any missing servers are added as placeholder. 
+ */
+function BuildSearchResults()
+{
+	local GameSearchCfg Cfg;
+	local OnlineGameSearchResult Result;
+	local int i, Index;
+	local string ServerId;
+
+	local ServerEntry AServer;
+	local array<ServerEntry> OfflineServers;
+
+	if((ActiveSearchIndex != INDEX_NONE) && (HasOutstandingQueries()==false))
+	{
+		//Copy the list so we can work on it
+		for (i=0; i<MAX_PERSONALSERVERS; i++)
+		{
+			if (ServerList[i].ServerUniqueId != "")
+			{
+				AServer.ServerUniqueId = ServerList[i].ServerUniqueId;
+				AServer.ServerName = ServerList[i].ServerName;
+				OfflineServers.AddItem(AServer);
+			}
+		}
+
+		Cfg = GameSearchCfgList[ActiveSearchIndex];
+
+		// Search the results for all servers found and remove them from 'offline list'
+		for (Index = 0; Index < Cfg.Search.Results.length; Index++)
+		{
+			Result = Cfg.Search.Results[Index];
+			ServerId = class'Engine.OnlineSubsystem'.static.UniqueNetIdToString(Result.GameSettings.OwningPlayerId);
+			for (i = 0; i<OfflineServers.length; i++)
+			{
+				if (OfflineServers[i].ServerUniqueId == ServerId)
+				{
+					OfflineServers.Remove(i,1);
+					break;
+				}
+			}
+
+			//Update the server name (maybe it changed)
+			for (i=0; i<MAX_PERSONALSERVERS; i++)
+			{
+				if (ServerList[i].ServerUniqueId == ServerId)
+				{
+					ServerList[i].ServerName = Result.GameSettings.OwningPlayerName;
+					break;
+				}
+			}
+		}
+
+		for (i = 0; i<OfflineServers.length; i++)
+		{
+			AddOfflineServer(OfflineServers[i].ServerUniqueId, OfflineServers[i].ServerName);
+		}
+	}
+
+	Super.BuildSearchResults();
 }
 
 /**
@@ -139,7 +209,7 @@ function int FindServerIndexByString( int ControllerId, string IdToFind )
 	Result = INDEX_NONE;
 	for ( i = 0; i < MAX_PERSONALSERVERS; i++ )
 	{
-		if ( ServerUniqueId[i] == IdToFind )
+		if ( ServerList[i].ServerUniqueId == IdToFind )
 		{
 			Result = i;
 			break;
@@ -169,7 +239,7 @@ function int FindServerIndexById( int ControllerId, const out UniqueNetId IdToFi
  * @param	ControllerId	the index of the controller associated with the logged in player.
  * @param	IdToFind		the UniqueNetId for the server to add
  */
-function bool AddServer( int ControllerId, UniqueNetId IdToAdd )
+function bool AddServer( int ControllerId, UniqueNetId IdToAdd, const string ServerNameToAdd )
 {
 	local int i, CurrentIndex;
 	local string UniqueIdString;
@@ -188,10 +258,12 @@ function bool AddServer( int ControllerId, UniqueNetId IdToAdd )
 	{
 		for ( i = CurrentIndex; i > 0; i-- )
 		{
-			ServerUniqueId[i] = ServerUniqueId[i - 1];
+			ServerList[i].ServerUniqueId = ServerList[i-1].ServerUniqueId;
+			ServerList[i].ServerName = ServerList[i-1].ServerName;
 		}
 
-		ServerUniqueId[0] = UniqueIdString;
+		ServerList[0].ServerUniqueId = UniqueIdString;
+		ServerList[0].ServerName = ServerNameToAdd;
 		SaveConfig();
 		bResult = true;
 
@@ -218,11 +290,14 @@ function bool RemoveServer( int ControllerId, UniqueNetId IdToRemove )
 	{
 		for ( i = CurrentIndex + 1; i < MAX_PERSONALSERVERS; i++ )
 		{
-			ServerUniqueId[i - 1] = ServerUniqueId[i];
+			ServerList[i-1].ServerUniqueId = ServerList[i].ServerUniqueId;
+			ServerList[i-1].ServerName = ServerList[i].ServerName;
 		}
 
 		// now clear the last element
-		ServerUniqueId[MAX_PERSONALSERVERS-1] = "";
+		ServerList[MAX_PERSONALSERVERS-1].ServerUniqueId = "";
+		ServerList[MAX_PERSONALSERVERS-1].ServerName = "";
+
 		SaveConfig();
 		bResult = true;
 
@@ -245,8 +320,8 @@ function GetServerIdList( out array<UniqueNetId> out_ServerList )
 	out_ServerList.Length = MAX_PERSONALSERVERS;
 	for ( i = 0; i < MAX_PERSONALSERVERS; i++ )
 	{
-		if ( ServerUniqueId[i] == ""
-		||	!class'Engine.OnlineSubsystem'.static.StringToUniqueNetId(ServerUniqueId[i], ServerNetId) )
+		if ( ServerList[i].ServerUniqueId == ""
+		||	!class'Engine.OnlineSubsystem'.static.StringToUniqueNetId(ServerList[i].ServerUniqueId, ServerNetId) )
 		{
 			out_ServerList.Length = i;
 			break;
@@ -262,13 +337,13 @@ function GetServerStringList( out array<string> out_ServerList )
 	out_ServerList.Length = MAX_PERSONALSERVERS;
 	for ( i = 0; i < MAX_PERSONALSERVERS; i++ )
 	{
-		if ( ServerUniqueId[i] == "" )
+		if ( ServerList[i].ServerUniqueId == "" )
 		{
 			out_ServerList.Length = i;
 			break;
 		}
 
-		out_ServerList[i] = ServerUniqueId[i];
+		out_ServerList[i] = ServerList[i].ServerUniqueId;
 	}
 }
 

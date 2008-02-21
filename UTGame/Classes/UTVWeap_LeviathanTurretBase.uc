@@ -54,7 +54,7 @@ function NotifyShieldHit(int Damage);
 simulated function bool HasAmmo(byte FireModeNum, optional int Amount)
 {
 	return (FireModeNum == 1) ? (WorldInfo.TimeSeconds >= ShieldAvailableTime) : Super.HasAmmo(FireModeNum, Amount);
-}
+}	
 
 simulated function BeginFire(byte FireModeNum)
 {
@@ -78,6 +78,26 @@ simulated function DeactivateShield()
 {
 	bShieldActive = false;
 	MyVehicle.SetShieldActive(SeatIndex, false);
+}
+
+/*********************************************************************************************
+ * State WeaponFiring
+ * This is the default Firing State.  It's performed on both the client and the server.
+ *********************************************************************************************/
+simulated state WeaponFiring
+{
+	/**
+	 * We override BeginFire() to keep shield clicks from resetting the fire delay
+	 */
+	simulated function BeginFire( Byte FireModeNum )
+	{
+		if ( CheckZoom(FireModeNum) )
+		{
+			return;
+		}
+
+		Global.BeginFire(FireModeNum);
+	}
 }
 
 defaultproperties

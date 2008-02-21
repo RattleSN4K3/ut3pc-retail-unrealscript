@@ -4,13 +4,11 @@
 class ParticleModuleTypeDataMesh extends ParticleModuleTypeDataBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
-
-/** The static mesh to render at the particle positions */
-var(Mesh)	StaticMesh				Mesh;
-/** If TRUE, has the meshes cast shadows */
+	
+var(Mesh)	StaticMesh				Mesh;			// The Base Mesh
 var(Mesh)	bool					CastShadows;
-/** UNUSED (the collision module dictates doing collisions) */
 var(Mesh)	bool					DoCollisions;
 
 enum EMeshScreenAlignment
@@ -20,23 +18,11 @@ enum EMeshScreenAlignment
     PSMA_MeshFaceCameraWithLockedAxis
 };
 
-/** 
- *	The alignment to use on the meshes emitted.
- *	The RequiredModule->ScreenAlignment MUST be set to PSA_TypeSpecific to use.
- *	One of the following:
- *	PSMA_MeshFaceCameraWithRoll
- *		Face the camera allowing for rotation around the mesh-to-camera vector 
- *		(amount provided by the standard particle sprite rotation).  
- *	PSMA_MeshFaceCameraWithSpin
- *		Face the camera allowing for the mesh to rotate about the tangential axis.  
- *	PSMA_MeshFaceCameraWithLockedAxis
- *		Face the camera while maintaining the up vector as the locked direction.  
- */
 var(Mesh)	EMeshScreenAlignment	MeshAlignment;
 
 /**
- *	If TRUE, use the emitter material when rendering rather than the one applied 
- *	to the static mesh model.
+ *	If TRUE, us the emitter material when rendering, rather than the 
+ *	one applied to the statis mesh used.
  */
 var(Mesh)	bool					bOverrideMaterial;
 

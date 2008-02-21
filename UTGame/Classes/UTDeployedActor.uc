@@ -62,6 +62,31 @@ event BaseChange()
 	}
 }
 
+/**
+ * HurtRadius()
+ * Hurt locally authoritative actors within the radius.
+ */
+simulated function bool HurtRadius( float DamageAmount,
+								    float InDamageRadius,
+				    class<DamageType> DamageType,
+									float Momentum,
+									vector HurtOrigin,
+									optional actor IgnoredActor,
+									optional Controller InstigatedByController = Instigator != None ? Instigator.Controller : None,
+									optional bool bDoFullDamage
+									)
+{
+	if ( bHurtEntry )
+		return false;
+
+	if (InstigatedByController == None)
+	{
+		InstigatedByController = InstigatorController;
+	}
+
+	return Super.HurtRadius(DamageAmount, InDamageRadius, DamageType, Momentum, HurtOrigin, None, InstigatedByController, bDoFullDamage);
+}
+
 simulated event ReplicatedEvent(name VarName)
 {
 	if ( VarName == 'bDeployed' )

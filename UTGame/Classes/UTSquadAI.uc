@@ -173,7 +173,7 @@ function rotator GetFacingRotation()
 	return Rot;
 }
 
-function actor FormationCenter()
+function actor FormationCenter(Controller C)
 {
 	if ( (SquadObjective != None) && (SquadObjective.DefenderTeamIndex == Team.TeamIndex) )
 		return SquadObjective;
@@ -468,44 +468,54 @@ function bool UnderFire(Pawn NewThreat, UTBot Ignored)
 
 function float AssessThreat( UTBot B, Pawn NewThreat, bool bThreatVisible )
 {
-	local float ThreatValue, NewStrength, Dist;
+	local float ThreatValue, Dist;
+	local bool bCloseThreat;
 
-	NewStrength = B.RelativeStrength(NewThreat);
-	ThreatValue = FClamp(NewStrength, 0, 1);
+	ThreatValue = 0.5;
+
 	Dist = VSize(NewThreat.Location - B.Pawn.Location);
-	if ( Dist < 2000 )
+	
+	if ( Dist < 2500 )
 	{
-		ThreatValue += 0.2;
-		if ( Dist < 1500 )
-			ThreatValue += 0.2;
-		if ( Dist < 1000 )
-			ThreatValue += 0.2;
-		if ( Dist < 500 )
-			ThreatValue += 0.2;
+		bCloseThreat = true;
+		ThreatValue += (2500 - Dist)/2500;
+	}
+
+	// prefer enemies bot is good at killing
+	if ( (B.Pawn != None) && (B.Pawn.Weapon != None) )
+	{
+		ThreatValue += B.Pawn.Weapon.RelativeStrengthVersus(NewThreat, Dist);
 	}
 
 	if ( bThreatVisible )
 		ThreatValue += 1;
-	if ( (NewThreat != B.Enemy) && (B.Enemy != None) )
+
+	if ( (UTVehicle(NewThreat) != None) && UTVehicle(NewThreat).bKeyVehicle )
+	{
+		ThreatValue += 0.25;
+	}
+
+	if ( NewThreat == B.Enemy )
+	{
+		if ( bThreatVisible && bCloseThreat )
+		{
+			ThreatValue += 0.1 * FMax(0, 5 - B.Skill);
+		}
+	}
+	else if ( B.Enemy != None )
 	{
 		if ( !bThreatVisible )
 			ThreatValue -= 5;
 		else if ( WorldInfo.TimeSeconds - B.LastSeenTime > 2 )
+		{
 			ThreatValue += 1;
+		}
 		if ( Dist > 0.7 * VSize(B.Enemy.Location - B.Pawn.Location) )
 			ThreatValue -= 0.25;
 		ThreatValue -= 0.2;
-
-		if ( B.IsHunting() && (NewStrength < 0.2)
-			&& (WorldInfo.TimeSeconds - FMax(B.LastSeenTime,B.AcquireTime) < 2.5) )
-			ThreatValue -= 0.3;
 	}
 
 	ThreatValue = ModifyThreat(ThreatValue,NewThreat,bThreatVisible,B);
-	if ( NewThreat.IsHumanControlled() )
-	{
-		ThreatValue += 0.25;
-	}
 
 	//`log(B.GetHumanReadableName()$" assess threat "$ThreatValue$" for "$NewThreat.GetHumanReadableName());
 	return ThreatValue;
@@ -542,7 +552,7 @@ function bool NearFormationCenter(Pawn P)
 {
 	local Actor Center;
 
-	Center = FormationCenter();
+	Center = FormationCenter(P.Controller);
 	if ( Center == None )
 		return true;
 	if ( Center == SquadLeader.Pawn )
@@ -690,7 +700,7 @@ function bool TryToIntercept(UTBot B, Pawn P, Actor RouteGoal)
 		}
 		else
 		{
-			`log("Not attacking intercepted enemy!");
+			//`log("Not attacking intercepted enemy!");
 			B.MoveTarget = P;
 			B.SetAttractionState();
 			return true;
@@ -740,11 +750,9 @@ function bool LeaveVehicleToReachObjective(UTBot B, Actor O)
 }
 
 /** returns whether bot must be on foot to use the given objective (if so, bot will get out of any vehicle just before reaching it) */
-function bool MustCompleteOnFoot(Actor O)
+function bool MustCompleteOnFoot(Actor O, optional Pawn P)
 {
 	local UTGameObjective Objective;
-
-	//@fixme FIXME: should return false if defending the objective (GetOrders() == 'Defend' && O.GetTeamNum() == Team.TeamIndex)?
 
 	if (UTCarriedObject(O) != None)
 	{
@@ -898,7 +906,7 @@ function bool FindPathToObjective(UTBot B, Actor O)
 		}
 	}
 
-	if (Vehicle(B.Pawn) != None && MustCompleteOnFoot(O))
+	if (Vehicle(B.Pawn) != None && MustCompleteOnFoot(O, B.Pawn))
 	{
 		if (VSize(O.Location - B.Pawn.Location) <= B.Pawn.GetCollisionRadius())
 		{
@@ -999,7 +1007,7 @@ function bool FindPathToObjective(UTBot B, Actor O)
 		}
 	}
 
-	B.MoveTarget = B.FindPathToSquadRoute(B.Pawn.bCanPickupInventory && (Vehicle(B.Pawn) == None));
+	B.MoveTarget = B.FindPathToSquadRoute(B.Pawn.bCanPickupInventory && (Vehicle(B.Pawn) == None)&& !B.bForceNoDetours);
 	return B.StartMoveToward(O);
 }
 
@@ -1501,7 +1509,7 @@ function bool AssignSquadResponsibility(UTBot B)
 
 function float MaxVehicleDist(Pawn P)
 {
-	if (SquadObjective != None && MustCompleteOnFoot(SquadObjective))
+	if (SquadObjective != None && MustCompleteOnFoot(SquadObjective, P))
 	{
 		return FMin(3000.0, VSize(SquadObjective.Location - P.Location));
 	}
@@ -1782,7 +1790,7 @@ function bool CheckTowing(UTBot B, UTVehicle V)
 		}
 		else
 		{
-			if (SquadLeader != None && SquadLeader != B && (B.Skill + B.Tactics > 2.0 || PlayerController(SquadLeader) != None))
+			if (SquadLeader != None && SquadLeader != B && (B.Skill + B.Tactics >= 2.0 || PlayerController(SquadLeader) != None))
 			{
 				OtherV = UTVehicle(SquadLeader.Pawn);
 				if (OtherV != None && OtherV.Class != V.Class && OtherV.IsGoodTowTruck() && V.TryAttachingTowCable(B, OtherV))
@@ -1796,7 +1804,7 @@ function bool CheckTowing(UTBot B, UTVehicle V)
 			{
 				foreach WorldInfo.AllControllers(class'Controller', C)
 				{
-					if (B.Skill + B.Tactics > 2.0 || PlayerController(C) != None)
+					if (B.Skill + B.Tactics >= 2.0 || PlayerController(C) != None)
 					{
 						OtherV = UTVehicle(C.Pawn);
 						if ( OtherV != None && OtherV.Class != V.Class && OtherV.IsGoodTowTruck() &&
@@ -1824,10 +1832,9 @@ function bool CheckVehicle(UTBot B)
 	local UTBot S;
 	local PlayerController PC;
 	local bool bSkip, bVisible;
-	local UTPawn P;
 	local UTSquadAI Squad;
 
-	if (UTGame(WorldInfo.Game).bDemoMode || UTHoldSpot(B.DefensePoint) != None)
+	if ( UTHoldSpot(B.DefensePoint) != None )
 	{
 		return false;
 	}
@@ -1926,7 +1933,9 @@ function bool CheckVehicle(UTBot B)
 		}
 	}
 	if ( B.LastSearchTime == WorldInfo.TimeSeconds )
+	{
 		return false;
+	}
 
 	BotVehicle = Vehicle(B.Pawn);
 	if (BotVehicle != None)
@@ -1998,7 +2007,7 @@ function bool CheckVehicle(UTBot B)
 	}
 	else if ( PlayerController(SquadLeader) != None )
 	{
-		return false;
+		return CheckHoverboard(B);
 	}
 
 	// check other squadmember vehicle
@@ -2106,30 +2115,68 @@ function bool CheckVehicle(UTBot B)
 		}
 	}
 
-
 	if (SquadVehicle == None)
 	{
-		P = UTPawn(B.Pawn);
-		// if no vehicle nearby, objective is far away, and no visible enemies, use hoverboard
-		if ( P != None && P.bHasHoverboard && P.Anchor != None && UTGameObjective(P.Anchor) == None &&
-			WorldInfo.TimeSeconds - B.LastTryHoverboardTime > 2.0 &&
-			(B.PlayerReplicationInfo.bHasFlag || !B.NeedWeapon()) && B.LostContact(3.0) && !B.Pawn.IsFiring() && !B.IsShootingObjective() &&
-			( !B.IsDefending() || ( (B.DefensePoint == None || VSize(B.DefensePoint.Location - P.Location) > 1000.0) &&
-						(B.DefensivePosition == None || VSize(B.DefensivePosition.Location - P.Location) > 1000.0) ) ) &&
-			(SquadObjective == None || (VSize(SquadObjective.Location - P.Location) > 1200.0 && !B.ActorReachable(SquadObjective))) &&
-			P.HoverboardClass.default.CylinderComponent.CollisionRadius <= P.Anchor.MaxPathSize.Radius &&
-			P.HoverboardClass.default.CylinderComponent.CollisionHeight <= P.Anchor.MaxPathSize.Height )
-		{
-			B.LastTryHoverboardTime = WorldInfo.TimeSeconds;
-			// can't start up hoverboard during async work - call it delayed instead
-			B.GoalString = "Get on hoverboard";
-			B.PerformCustomAction(GetOnHoverboard);
-			return true;
-		}
-		return false;
+		return CheckHoverboard(B);
 	}
 
 	return GotoVehicle(SquadVehicle, B);
+}
+
+function bool CheckHoverboard(UTBot B)
+{
+	local UTPawn P;
+
+	P = UTPawn(B.Pawn);
+
+	// if no vehicle nearby, objective is far away, and no visible enemies, use hoverboard
+	if ( P != None && P.bHasHoverboard && P.Anchor != None && UTGameObjective(P.Anchor) == None &&
+		WorldInfo.TimeSeconds - B.LastTryHoverboardTime > 2.0 &&
+		(B.PlayerReplicationInfo.bHasFlag || !B.NeedWeapon()) 
+		&& ShouldUseHoverboard(B)
+		&& !B.Pawn.IsFiring() && !B.IsShootingObjective() &&
+		( !B.IsDefending() || ( (B.DefensePoint == None || VSize(B.DefensePoint.Location - P.Location) > 1600.0) &&
+					(B.DefensivePosition == None || VSize(B.DefensivePosition.Location - P.Location) > 1600.0) ) ) &&
+		(SquadObjective == None || (VSize(SquadObjective.Location - P.Location) > 1200.0 && !B.ActorReachable(SquadObjective))) &&
+		P.HoverboardClass.default.CylinderComponent.CollisionRadius <= P.Anchor.MaxPathSize.Radius &&
+		P.HoverboardClass.default.CylinderComponent.CollisionHeight <= P.Anchor.MaxPathSize.Height 
+		&& (LiftCenter(P.Anchor) == None) )
+	{
+		B.LastTryHoverboardTime = WorldInfo.TimeSeconds;
+		// can't start up hoverboard during async work - call it delayed instead
+		B.GoalString = "Get on hoverboard";
+		B.PerformCustomAction(GetOnHoverboard);
+		return true;
+	}
+	return false;
+}
+
+function bool ShouldUseHoverboard(UTBot B)
+{
+	local UTBot EnemyBot;
+
+	// if no enemy, or have lost him, hoverboard is good
+	if ( B.LostContact(2.0) )
+		return true;
+
+	// was I recently shot at?
+	if ( WorldInfo.TimeSeconds - FMax(B.LastUnderFire, UTPawn(B.Pawn).AccumulationTime) < 2.0 )
+		return false;
+
+	// is an enemy paying attention to me?
+	ForEach WorldInfo.AllControllers(class'UTBot', EnemyBot)
+	{
+		if ( (EnemyBot.Enemy == B.Pawn) && (EnemyBot.Focus == B.Pawn) 
+			&& (!B.PlayerReplicationInfo.bHasFlag || (VSize(EnemyBot.Pawn.Location - B.Pawn.Location) < 3000)) )
+		{
+			return false;
+		}
+	}
+
+	// is player looking at me?
+	return ( (PlayerController(B.Enemy.Controller) != None)
+		&& (VSize(B.Enemy.Location - B.Pawn.Location) > 1600)
+		&& ((Vector(B.Enemy.Controller.Rotation) dot (B.Pawn.Location - B.Enemy.Location)) < 0.75) );
 }
 
 //return a value indicating how useful this vehicle is to the bot
@@ -2619,7 +2666,7 @@ simulated function DisplayDebug(HUD HUD, out float YL, out float YPos)
 	if ( SquadObjective == None )
 		Canvas.DrawText("     ORDERS "$GetOrders()$" on "$GetItemName(string(self))$" no objective. Leader "$SquadLeader.GetHumanReadableName(), false);
 	else
-		Canvas.DrawText("     ORDERS "$GetOrders()$" on "$GetItemName(string(self))$" objective "$GetItemName(string(SquadObjective))$". Leader "$SquadLeader.GetHumanReadableName(), false);
+		Canvas.DrawText("     ORDERS "$GetOrders()$" on "$GetItemName(string(self))$" objective "$SquadObjective.GetHumanReadableName()$". Leader "$SquadLeader.GetHumanReadableName(), false);
 
 	YPos += YL;
 	Canvas.SetPos(4,YPos);
@@ -2708,7 +2755,7 @@ function NavigationPoint FindDefensivePositionFor(UTBot B)
 		return B.FindRandomDest();
 	}
 
-	Center = FormationCenter();
+	Center = FormationCenter(B);
 	if (Center == None)
 	{
 		Center = B.Pawn;
@@ -2811,7 +2858,7 @@ function bool AcceptableDefensivePosition(NavigationPoint N, UTBot B)
 	}
 	else
 	{
-		Center = FormationCenter();
+		Center = FormationCenter(B);
 		if (Center == None)
 		{
 			Center = B.Pawn;

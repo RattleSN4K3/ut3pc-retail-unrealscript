@@ -625,7 +625,6 @@ native(261) final latent function FinishAnim( AnimNodeSequence SeqNode );
 // Collision.
 native(262) final noexport function SetCollision( optional bool bNewColActors, optional bool bNewBlockActors, optional bool bNewIgnoreEncroachers );
 native(283) final function SetCollisionSize( float NewRadius, float NewHeight );
-native final function SetCollisionType(ECollisionType NewCollisionType);
 native final function SetDrawScale(float NewScale);
 native final function SetDrawScale3D(vector NewScale3D);
 
@@ -1855,14 +1854,17 @@ simulated final function bool ActivateEventClass( class<SequenceEvent> InClass, 
  */
 simulated final function bool FindEventsOfClass(class<SequenceEvent> EventClass, optional out array<SequenceEvent> out_EventList)
 {
-	local SequenceEvent Evt;
+	local int idx;
 	local bool bFoundEvent;
-	foreach GeneratedEvents(Evt)
+	for (idx = 0; idx < GeneratedEvents.Length; idx++)
 	{
-		if (Evt != None && Evt.bEnabled && ClassIsChildOf(Evt.Class,EventClass) && (Evt.MaxTriggerCount == 0 || Evt.MaxTriggerCount > Evt.TriggerCount))
+		if (ClassIsChildOf(GeneratedEvents[idx].Class, EventClass) &&
+			GeneratedEvents[idx].bEnabled &&
+			(GeneratedEvents[idx].MaxTriggerCount == 0 ||
+			 GeneratedEvents[idx].MaxTriggerCount > GeneratedEvents[idx].TriggerCount))
 		{
-			out_EventList.AddItem(Evt);
-			bFoundEvent = TRUE;
+			out_EventList[out_EventList.Length] = GeneratedEvents[idx];
+			bFoundEvent = true;
 		}
 	}
 	return bFoundEvent;
@@ -2105,16 +2107,7 @@ simulated function OnSetPhysics(SeqAct_SetPhysics Action)
 /** Handler for collision action, allow designer to toggle collide/block actors */
 function OnChangeCollision(SeqAct_ChangeCollision Action)
 {
-	// if the action is out of date then use the previous properties
-	if (Action.ObjInstanceVersion < Action.ObjClassVersion)
-	{
-		SetCollision( Action.bCollideActors, Action.bBlockActors, Action.bIgnoreEncroachers );
-	}
-	else
-	{
-		// otherwise use the new collision type
-		SetCollisionType(Action.CollisionType);
-	}
+	SetCollision( Action.bCollideActors, Action.bBlockActors, Action.bIgnoreEncroachers );
 	ForceNetRelevant();
 	if (RemoteRole != ROLE_None)
 	{

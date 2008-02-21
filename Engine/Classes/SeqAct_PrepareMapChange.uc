@@ -17,8 +17,6 @@ var() array<name>	InitiallyLoadedSecondaryLevelNames;
 /** If this is TRUE, then a much larger time slice will be given to the loading code (useful for loading during a movie, etc) */
 var() bool			bIsHighPriority;
 
-var transient bool bStatusIsOk;
-
 ;
 
 defaultproperties

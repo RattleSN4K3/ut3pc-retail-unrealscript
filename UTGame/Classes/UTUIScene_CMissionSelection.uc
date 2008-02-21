@@ -449,14 +449,14 @@ function FindMissionNearestToCursor(LocalPlayer LocalPlayerOwner)
 
 					Dist = Abs(Vsize(Screen - Mouse)) / (ViewSize.Y / 768);
 
-                    if (Dist < 30)
-                    {
-                    	if (BestID<0 || Dist < BestDist)
-                    	{
-                    		BestDist = Dist;
-                    		BestID = i;
-                    	}
-                    }
+		    if (Dist < 30)
+		    {
+		    	if (BestID<0 || Dist < BestDist)
+		    	{
+		    		BestDist = Dist;
+		    		BestID = i;
+		    	}
+		    }
 				}
 			}
 		}
@@ -784,6 +784,7 @@ function CardChosen(UTSimpleImageList SourceList, int SelectedIndex, int PlayerI
 defaultproperties
 {
 	Begin Object class=AudioComponent Name=ACPlayer
+		bAllowSpatialization=false
 	End Object
 	AudioPlayer=ACPlayer
 	CurrentMissionID=-1
@@ -791,6 +792,7 @@ defaultproperties
 
 
 	Begin Object class=AudioComponent Name=AnimACPlayer
+		bAllowSpatialization=false
 	End Object
 	AnimAudioPlayer=AnimACPlayer
 	AnimCues(0)=soundcue'A_Interface.Menu.UT3ServerSignInCue'

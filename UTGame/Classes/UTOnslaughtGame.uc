@@ -13,6 +13,9 @@ var bool bSidesAreSwitched;
 
 var bool	bSpawnNodeSelected;		/** temporarily set true if player had chosen his start position, to prevent him from being teleported to a super vehicle */
 
+/** Holds refs to the two orbs */
+var UTOnslaughtFlag Orbs[2];
+
 function InitGameReplicationInfo()
 {
 	local UTOnslaughtMapInfo OnslaughtInfo;
@@ -48,6 +51,43 @@ function UTBot AddBot(optional string BotName, optional bool bUseTeamIndex, opti
 	B = Super.AddBot(BotName, bUseTeamIndex, TeamIndex);
 	UpdateNodePlayerCountRequirements(false);
 	return B;
+}
+
+function ViewObjective(PlayerController PC)
+{
+	local UTOnslaughtFlag Orb;
+
+	if ( Orbs[0] == None )
+	{
+		ForEach DynamicActors(class'UTOnslaughtFlag', Orb)
+		{
+			if ( Orb.Team != None )
+			{
+				Orbs[Orb.Team.TeamIndex] = Orb;
+			}
+		}
+	}	
+	if ( (Orbs[0] == None) || (Orbs[1] == None) )
+	{
+		return;
+	}
+	if (PC.ViewTarget != none &&
+	      (PC.ViewTarget == Orbs[0] || (PC.ViewTarget == Orbs[0].Holder) || PC.ViewTarget == Orbs[0].HomeBase) )
+	{
+		PC.SetViewTarget( Orbs[1].HomeBase.GetBestViewTarget() );
+		if ( UTPlayerController(PC) != None )
+		{
+			UTPlayerController(PC).ClientSetBehindView(true);
+		}
+	}
+	else
+	{
+		PC.SetViewTarget( Orbs[0].HomeBase.GetBestViewTarget() );
+		if ( UTPlayerController(PC) != None )
+		{
+			UTPlayerController(PC).ClientSetBehindView(true);
+		}
+	}
 }
 
 /** update the state of nodes with player count requirements because the number of players in the game has changed */
@@ -1358,7 +1398,7 @@ function Actor GetAutoObjectiveFor(UTPlayerController PC)
 				}
 				return Result;
 			default:
-				`Warn("Unknown AutoObjectivePreference:" @ PC.AutoObjectivePreference);
+				//`Warn("Unknown AutoObjectivePreference:" @ PC.AutoObjectivePreference);
 				return None;
 		}
 	}

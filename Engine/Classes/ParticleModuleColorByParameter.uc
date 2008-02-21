@@ -4,11 +4,10 @@
 class ParticleModuleColorByParameter extends ParticleModuleColorBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
-
-/** The name of the parameter to retrieve the color from. */
+	
 var(Color) name		ColorParam;
-/** The default color to use in the even that the parameter is not set on the emitter. */
 var(Color) color	DefaultColor;
 
 

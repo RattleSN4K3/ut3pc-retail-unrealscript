@@ -20,7 +20,6 @@ static function int GetFontSize( int Switch, PlayerReplicationInfo RelatedPRI1, 
 
 	if ( RelatedPRI2 == None )
 	{
-
 		Size = Default.FontSize;
 
 		// If this is regarding the local player, then increase the size to make it more visible
@@ -28,7 +27,7 @@ static function int GetFontSize( int Switch, PlayerReplicationInfo RelatedPRI1, 
 		{
 			Size = (Switch > 3) ? 4 : 3;
 		}
-		else if ( LocalPlayer.bOnlySpectator )
+		else if ( (LocalPlayer != None) && LocalPlayer.bOnlySpectator )
 		{
 			ViewPawn = Pawn(PlayerController(LocalPlayer.Owner).ViewTarget);
 			if ( (ViewPawn != None) && (ViewPawn.PlayerReplicationInfo == RelatedPRI1) )

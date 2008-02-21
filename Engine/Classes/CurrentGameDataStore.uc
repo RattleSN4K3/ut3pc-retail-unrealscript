@@ -6,6 +6,8 @@
 class CurrentGameDataStore extends UIDataStore_GameState
 	native(inherit);
 
+`include(Core/Globals.uci)
+
 
 
 /**

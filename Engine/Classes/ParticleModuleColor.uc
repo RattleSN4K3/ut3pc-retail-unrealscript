@@ -4,13 +4,12 @@
 class ParticleModuleColor extends ParticleModuleColorBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/** Initial color for a particle as a function of Emitter time. */
+/** Initial color for a particle as a function of Emitter time. Range is 0-255 for X/Y/Z, corresponding to R/G/B. */
 var(Color) rawdistributionvector	StartColor;
-/** Initial alpha for a particle as a function of Emitter time. */
 var(Color) rawdistributionfloat		StartAlpha;
-/** If TRUE, the alpha value will be clamped to the [0..1] range. */
 var(Color) bool						bClampAlpha;
 
 

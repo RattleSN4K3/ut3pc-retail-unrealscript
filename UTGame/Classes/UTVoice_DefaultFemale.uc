@@ -15,6 +15,23 @@ ProfessionalQuality_a-01
 
 */
 
+
+static function int GetEncouragementMessageIndex(Controller Sender, PlayerReplicationInfo Recipient, Name Messagetype)
+{
+	local int R;
+	
+	if ( default.EncouragementSounds.Length == 0)
+	{
+		return -1;
+	}
+	R = Rand(default.EncouragementSounds.Length);
+	if ( ( R == 1) || (R == 5) )
+	{ 
+		R -= 1;
+	} 
+	return ENCOURAGEMENTINDEXSTART + R;
+}
+
 defaultproperties
 {
 	LocationSpeechOffset=1

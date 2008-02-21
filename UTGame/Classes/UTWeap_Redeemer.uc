@@ -112,7 +112,7 @@ function float GetAIRating()
 	if ( B.IsShootingObjective() )
 		return 2.0;
 
-	if ( (B.Enemy == None) || B.Enemy.bCanFly || VSize(B.Enemy.Location - Instigator.Location) < 2400 )
+	if ( (B.Enemy == None) || B.Enemy.bCanFly || ((B.Pawn.Health > B.Enemy.Health) && (VSize(B.Enemy.Location - Instigator.Location) < 1250)) )
 		return 0.4;
 
 	return AIRating;

@@ -11,9 +11,26 @@
 class AccessControl extends Info
 	config(Game);
 
-
 var globalconfig array<string>   IPPolicies;
 var globalconfig array<UniqueNetID> BannedIDs;
+
+struct BannedInfo
+{
+	var UniqueNetID BannedID;
+	var string PlayerName;
+	var string TimeStamp;
+};
+
+var globalconfig array<BannedInfo>   BannedPlayerInfo;
+
+struct BannedHashInfo
+{
+	var string PlayerName;
+	var string BannedHash;
+};
+
+var globalconfig array<BannedHashInfo> BannedHashes;
+
 var	localized string          IPBanned;
 var	localized string	      WrongPassword;
 var	localized string          NeedPassword;
@@ -21,10 +38,15 @@ var localized string          SessionBanned;
 var localized string		  KickedMsg;
 var localized string          DefaultKickReason;
 var localized string		  IdleKickReason;
+/** String to display when kicked for banned CD hash key */
+var localized string BannedCDHashKeyString;
+/** String to display when kicked for a timed out CD hash key request */
+var localized string TimedOutCDHashKeyString;
+
 var class<Admin> AdminClass;
 
 var private globalconfig string AdminPassword;	    // Password to receive bAdmin privileges.
-var private globalconfig string GamePassword;		    // Password to enter game.
+var private globalconfig string GamePassword;		// Password to enter game.
 
 var localized string ACDisplayText[3];
 var localized string ACDescText[3];
@@ -86,7 +108,7 @@ function Controller GetControllerFromString(string Target)
 	FinalC = none;
 	foreach WorldInfo.AllControllers(class'Controller', C)
 	{
-		if (C.PlayerReplicationInfo != None && C.PlayerReplicationInfo.PlayerName ~= Target || C.PlayerReplicationInfo.GetPlayerAlias() ~= Target)
+		if (C.PlayerReplicationInfo != None && (C.PlayerReplicationInfo.PlayerName ~= Target || C.PlayerReplicationInfo.GetPlayerAlias() ~= Target))
 		{
 			FinalC = C;
 			break;
@@ -108,6 +130,7 @@ function Controller GetControllerFromString(string Target)
 
 	return FinalC;
 }
+
 
 function Kick( string Target )
 {
@@ -137,11 +160,15 @@ function Kick( string Target )
 function KickBan( string Target )
 {
 	local PlayerController P;
-	local string IP;
+	local BannedInfo NewBanInfo;
+	local BannedHashInfo NewBanHashInfo;
+	//local string IP;
 
 	P =  PlayerController( GetControllerFromString(Target) );
 	if ( NetConnection(P.Player) != None )
 	{
+		// don't bother with IP ban on console - doesn't work
+		/*
 		if (!WorldInfo.IsConsoleBuild())
 		{
 			IP = P.GetPlayerNetworkAddress();
@@ -153,13 +180,30 @@ function KickBan( string Target )
 				SaveConfig();
 			}
 		}
-
+		*/
 		if ( P.PlayerReplicationInfo.UniqueId != P.PlayerReplicationInfo.default.UniqueId &&
 			!IsIDBanned(P.PlayerReplicationInfo.UniqueID) )
 		{
-			BannedIDs.AddItem(P.PlayerReplicationInfo.UniqueId);
+			//Legacy struct (read from ini only), now check primarily from new BannedPlayerInfo
+			//BannedIDs.AddItem(P.PlayerReplicationInfo.UniqueId);
+
+			NewBanInfo.BannedID = P.PlayerReplicationInfo.UniqueId;
+			NewBanInfo.PlayerName = P.PlayerReplicationInfo.PlayerName;
+			NewBanInfo.TimeStamp = Timestamp();
+			BannedPlayerInfo.AddItem(NewBanInfo);
+
 			SaveConfig();
 		}
+
+        //Add this player to the list of banned hashes
+		if (P.HashResponseCache != "" && P.HashResponseCache != "0" && !IsHashBanned(P.HashResponseCache))
+		{
+			NewBanHashInfo.PlayerName = P.PlayerReplicationInfo.PlayerName;
+			NewBanHashInfo.BannedHash = P.HashResponseCache;
+			BannedHashes.AddItem(NewBanHashInfo);
+			SaveConfig();
+		}
+
 		KickPlayer(P, DefaultKickReason);
 		return;
 	}
@@ -167,6 +211,8 @@ function KickBan( string Target )
 
 function bool KickPlayer(PlayerController C, string KickReason)
 {
+	local string KickString;
+
 	// Do not kick logged admins
 	if (C != None && !IsAdmin(C) && NetConnection(C.Player)!=None )
 	{
@@ -174,7 +220,20 @@ function bool KickPlayer(PlayerController C, string KickReason)
 		{
 			C.Pawn.Suicide();
 		}
-		C.ClientWasKicked();
+
+		/** Written to work around old clients not getting the proper string to let them know they need to update */
+		/** Since ClientWasKicked() is a client side function that if modified they won't have anyway */
+		//C.ClientWasKicked();
+		KickString = Localize("AccessControl", "KickedMsg", "Engine");
+
+		//Append a reason
+		if (KickReason != "" && !(KickReason ~= DefaultKickReason))
+		{
+			KickString @= KickReason;
+		}
+
+		C.ClientSetProgressMessage(PMT_ConnectionFailure, KickString);
+
 		if (C != None)
 		{
 			C.Destroy();
@@ -344,10 +403,36 @@ function bool CheckIPPolicy(string Address)
 	return bAcceptAddress;
 }
 
+function bool IsHashBanned(const string HashToCheck)
+{
+	local int i;
+
+	//Check the new array for banned id's
+	for (i = 0; i < BannedHashes.length; i++)
+	{
+		if (BannedHashes[i].BannedHash == HashToCheck)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 function bool IsIDBanned(const out UniqueNetID NetID)
 {
 	local int i;
 
+	//Check the new array for banned id's
+	for (i = 0; i < BannedPlayerInfo.length; i++)
+	{
+		if (BannedPlayerInfo[i].BannedID == NetID)
+		{
+			return true;
+		}
+	}
+
+	//Legacy struct for banning
 	for (i = 0; i < BannedIDs.length; i++)
 	{
 		if (BannedIDs[i] == NetID)
@@ -355,6 +440,7 @@ function bool IsIDBanned(const out UniqueNetID NetID)
 			return true;
 		}
 	}
+
 	return false;
 }
 

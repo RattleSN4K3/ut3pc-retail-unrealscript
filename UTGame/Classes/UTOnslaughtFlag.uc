@@ -82,12 +82,15 @@ var localized string OrbString;
 /** Used for failsafe check if orb should be unhidden */
 var int HomeHiddenCount;
 
+/** set when rebuilding and finished prebuild delay */
+var repnotify bool bFinishedPreBuild;
+
 
 
 replication
 {
 	if (bNetDirty)
-		RemainingDropTime, LockedNode, BuildStartTime;
+		RemainingDropTime, LockedNode, BuildStartTime, bFinishedPreBuild;
 }
 
 simulated function PostBeginPlay()
@@ -169,7 +172,7 @@ simulated function RenderEnemyMapIcon(UTMapInfo MP, Canvas Canvas, UTPlayerContr
 		CurrentScale = 1.0;
 	}
 
-	IconWidth = IconCoords.UL * (Canvas.ClipY / 768) * MapSize * MP.MapScale * CurrentScale * 0.33;
+	IconWidth = IconCoords.UL * (Canvas.ClipY / 768) * MapSize * CurrentScale * 0.33;
 	YoverX = IconCoords.VL / IconCoords.UL;
 	Canvas.SetPos(HudLocation.X - 0.5 * IconWidth, HudLocation.Y - 0.5 * IconWidth * YoverX);
 	DrawColor = ((Team == None) || (Team.TeamIndex == 0)) ? class'UTHUD'.default.RedLinearColor : class'UTHUD'.default.BlueLinearColor;
@@ -191,7 +194,7 @@ simulated function RenderMapIcon(UTMapInfo MP, Canvas Canvas, UTPlayerController
 		CurrentScale = 1.0;
 	}
 
-	DrawIcon(Canvas, HUDLocation, IconCoords.UL * (Canvas.ClipY / 768) * MapSize * MP.MapScale * CurrentScale * 0.33, 1.0);
+	DrawIcon(Canvas, HUDLocation, IconCoords.UL * (Canvas.ClipY / 768) * MapSize * CurrentScale * 0.33, 1.0);
 }
 
 simulated native function NativePostRenderFor(PlayerController PC, Canvas Canvas, vector CameraPosition, vector CameraDir);
@@ -220,7 +223,7 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 	local float Dist;
 
 	// failsafe check that orb is rendered
-	if ( bHome && bHidden )
+	if (bHome && bFinishedPreBuild && bHidden)
 	{
 		if ( (UTOnslaughtFlagBase(HomeBase) != None) && !UTOnslaughtFlagBase(HomeBase).bPlayOrbBuilding )
 		{
@@ -378,7 +381,7 @@ simulated event ReplicatedEvent(name VarName)
 	}
 	else
 	{
-		if (VarName == 'bHome')
+		if (VarName == 'bHome' || (VarName == 'bFinishedPreBuild' && bHome && bFinishedPreBuild))
 		{
 			// make sure home base animation is correctly updated
 			ONSBase = UTOnslaughtFlagBase(HomeBase);
@@ -482,6 +485,8 @@ function SetHolder(Controller C)
 {
 	Super.SetHolder(C);
 
+	if ( UTPawn(C.Pawn) != None )
+		UTPawn(C.Pawn).bJustDroppedOrb = false;
 	LastUsefulTime = WorldInfo.TimeSeconds;
 }
 
@@ -531,9 +536,19 @@ function OrbBuilt()
 	`log("OrbBuilt() called in  "$GetStateName());
 }
 
+function bool IsRebuilding()
+{
+	return false;
+}
+
 auto state Rebuilding
 {
 	ignores SendHome, KismetSendHome, Score, Drop;
+
+	function bool IsRebuilding()
+	{
+		return true;
+	}
 
 	function Reset()
 	{
@@ -547,6 +562,7 @@ auto state Rebuilding
 
 	function DoBuildOrb()
 	{
+		bFinishedPreBuild = true;
 		UTOnslaughtFlagBase(HomeBase).BuildOrb();
 		SetTimer(BuildTime, false, 'OrbBuilt');
 	}
@@ -566,6 +582,7 @@ auto state Rebuilding
 		SetRotation(HomeBase.Rotation);
 		SetBase(HomeBase);
 		SetHidden(true);
+		bFinishedPreBuild = false;
 		SetTimer(PrebuildTime, false, 'DoBuildOrb');
 		BuildStartTime = WorldInfo.TimeSeconds;
 		bForceNetUpdate = TRUE;
@@ -579,6 +596,7 @@ auto state Rebuilding
 	{
 		PrebuildTime = default.PrebuildTime;
 		bHome = false;
+		bFinishedPreBuild = false;
 	}
 }
 
@@ -598,9 +616,6 @@ state Home
 
 	function BeginState(Name PreviousStateName)
 	{
-		//if ( PreviousStateName != 'Rebuilding' )
-		//	scripttrace();
-
 		Super.BeginState(PreviousStateName);
 		SetLocation(HomeBase.Location + (HomeBaseOffset >> HomeBase.Rotation));
 		SetBase(HomeBase);

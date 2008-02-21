@@ -14,6 +14,8 @@ const UTUIBUTTONBAR_BUTTON_SPACING = -20;
 /** Array of actual label buttons for the button bar. */
 var instanced UTUIButtonBarButton		Buttons[UTUIBUTTONBAR_MAX_BUTTONS];
 
+`include(Core/Globals.uci)
+
 event PostInitialize()
 {
 	local int ButtonIdx;

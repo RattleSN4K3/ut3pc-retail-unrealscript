@@ -248,6 +248,14 @@ event bool ShowHostGamercard(byte ControllerIndex,int ListIndex)
 	}
 }
 
+/** 
+* Adds an offline placeholder server to the list of results
+* Used to keep history and favorites in the list after a search comes back without them
+* @param OwningPlayerId the id of the player who created this server (last known)
+* @param ServerName the description of the server (last known)
+*/
+native function AddOfflineServer(const out string OwningPlayerId, const out string ServerName);
+
 /** Tells this provider to rebuild it's array data */
 native function BuildSearchResults();
 

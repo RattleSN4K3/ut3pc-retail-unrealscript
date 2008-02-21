@@ -63,10 +63,6 @@ simulated event HitWall(vector HitNormal, Actor Wall, PrimitiveComponent WallCom
 		{
 			ImpactedActor = Wall;
 			SetPhysics(PHYS_None);
-			if (ProjEffects!=None)
-			{
-				ProjEffects.DeactivateSystem();
-			}
 		}
 	}
 	else if ( Wall != Instigator ) 	// Hit a different pawn, just explode
@@ -82,14 +78,7 @@ simulated function PhysicsVolumeChange( PhysicsVolume NewVolume )
 {
 	if ( WaterVolume(NewVolume) != none )
 	{
-		Velocity = vect(0,0,0);
-		if (ProjEffects!=None)
-		{
-			ProjEffects.DeactivateSystem();
-		}
-
-		// FIXME: Add water effects
-
+		Velocity *= 0.25;
 	}
 
 	Super.PhysicsVolumeChange(NewVolume);

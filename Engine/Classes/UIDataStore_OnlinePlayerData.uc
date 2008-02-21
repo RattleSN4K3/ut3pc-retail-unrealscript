@@ -12,6 +12,8 @@ class UIDataStore_OnlinePlayerData extends UIDataStore_Remote
 	config(Engine)
 	transient;
 
+`include(Core/Globals.uci)
+
 /** Provides access to the player's online friends list */
 var UIDataProvider_OnlineFriends FriendsProvider;
 
@@ -26,6 +28,24 @@ var LocalPlayer Player;
 
 /** The online nick name for the player */
 var string PlayerNick;
+
+/** The ranking value of the logged in player */
+var int PlayerRanking;
+
+/** The timestamp (sec) when the PlayerRanking was last successfully recorded */
+var float PlayerRankingLastQueryTime; 
+
+/** The OnlineStatsRead class that will retrieve the ranking value */
+var config string PlayerRankingQueryClassName;
+
+/** Class used to create an OnlineStatsRead object for the ranking query */
+var class<OnlineStatsRead> PlayerRankingQueryClass;
+
+/** An instance of the ranking query OnlineStatsRead class */
+var OnlineStatsRead CurrentRankingQuery;
+
+/** Are we in the middle of a query to get the player ranking */
+var bool bIsRankingQueryInProgress;
 
 /** The number of new downloads for this player */
 var int NumNewDownloads;
@@ -137,6 +157,12 @@ event OnUnregister()
 			// Clear the delegate for updating the downloadable content info
 			OnlineSub.ContentInterface.ClearQueryAvailableDownloadsComplete(Player.ControllerId,OnDownloadableContentQueryDone);
 		}
+
+		if (OnlineSub.StatsInterface != None)
+		{
+			// Clear the delete for updating the current player rating
+			OnlineSub.StatsInterface.ClearReadOnlineStatsCompleteDelegate(OnReadOnlinePlayerRankingComplete);
+		}
 	}
 }
 
@@ -165,6 +191,8 @@ function OnLoginChange()
 			PlayerNick = PlayerInterface.GetPlayerNickname(Player.ControllerId);
 			RefreshSubscribers();
 		}
+
+		QueryLoggedInPlayerRanking();
 	}
 }
 
@@ -246,6 +274,109 @@ event bool SaveProfileData()
 		return ProfileProvider.SaveProfileData();
 	}
 	return false;
+}
+
+/** Stores the player rating stored in the OnlineStatsRead **/
+native function StorePlayerRankingQueryValue(OnlineStatsRead RankingQuery);
+
+/** Delegate called when a player rating stats read has completed */
+function OnReadOnlinePlayerRankingComplete(bool bWasSuccessful)
+{
+	local OnlineSubsystem OnlineSub;
+	if (bWasSuccessful && CurrentRankingQuery != None)
+	{
+		StorePlayerRankingQueryValue(CurrentRankingQuery);
+		`log(`location@"Player ranking query success for player:"@CurrentRankingQuery.Rows[0].NickName@PlayerRanking@"at"@PlayerRankingLastQueryTime,,'DevOnline');
+	}
+	else
+	{
+		`log(`location@"Player ranking query failed.",,'DevOnline');
+	}
+	
+	// Consider this a newbie
+	if (PlayerRanking <= 0)
+	{
+		PlayerRanking = 1000;
+	}
+
+	//Tell the PRI (and potentially the server) of my ranking
+	Player.Actor.RegisterPlayerRanking(PlayerRanking);
+    //Tell anyone subscribed to this data store the value is updated
+	RefreshSubscribers();
+
+    //Cleanup
+	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
+	OnlineSub.StatsInterface.ClearReadOnlineStatsCompleteDelegate(OnReadOnlinePlayerRankingComplete);
+	bIsRankingQueryInProgress = false;
+}
+
+/** Queries the online system for this player's rating (1000 is new player) */
+function bool QueryLoggedInPlayerRanking()
+{
+	local array<UniqueNetId> Players;
+	local UniqueNetId ZeroNetId, LoggedInPlayerId;
+	local OnlineSubsystem OnlineSub;
+
+	if (bIsRankingQueryInProgress)
+	{
+		`log(`location@"Player ranking query already in progress.",,'DevOnline');
+		return false;
+	}
+
+	//Return valid cached data if possible (only valid for an hour)
+	if (PlayerRanking > 0 && class'Engine'.static.GetCurrentWorldInfo().RealTimeSeconds - PlayerRankingLastQueryTime < 3600)
+	{
+		`log(`location@"using cached value of"@ PlayerRanking,,'DevOnline');
+		//Tell the PRI (and potentially the server) of my ranking
+		Player.Actor.RegisterPlayerRanking(PlayerRanking);
+		return true;
+	}
+
+	// Figure out if we have an online subsystem registered
+	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
+	if (OnlineSub != None && OnlineSub.StatsInterface != None && OnlineSub.PlayerInterface != None)
+	{
+		if (OnlineSub.PlayerInterface.GetLoginStatus(Player.ControllerId) == LS_LoggedIn)
+		{
+			OnlineSub.PlayerInterface.GetUniquePlayerId(Player.ControllerId, LoggedInPlayerId);
+			if (LoggedInPlayerId != ZeroNetId)
+			{
+				// Get the player id of the local player and then read the stats
+				Players[0] = LoggedInPlayerId;
+
+				if (CurrentRankingQuery == None)
+				{
+					CurrentRankingQuery = new PlayerRankingQueryClass;
+				}
+
+				if (CurrentRankingQuery != None)
+				{
+					OnlineSub.StatsInterface.AddReadOnlineStatsCompleteDelegate(OnReadOnlinePlayerRankingComplete);
+					OnlineSub.StatsInterface.FreeStats(CurrentRankingQuery);
+					bIsRankingQueryInProgress = OnlineSub.StatsInterface.ReadOnlineStats(Players, CurrentRankingQuery);
+					if (!bIsRankingQueryInProgress)
+					{
+						OnReadOnlinePlayerRankingComplete(false);
+						CurrentRankingQuery = None;
+					}
+				}
+			}
+			else
+			{
+				`log(`location@"Player id is zero",,'DevOnline');
+			}
+		}
+		else
+		{
+			`log(`location@"Player not logged in",,'DevOnline');
+		}
+	}
+	else
+	{
+		`log(`location@"Online subsystem doesn't exist",,'DevOnline');
+	}
+
+	return bIsRankingQueryInProgress;
 }
 
 defaultproperties

@@ -26,9 +26,6 @@ var() bool bIsPassword;
 /** Will hold the resultant value the user input */
 var string StringReturnValue;
 
-/** Will hold the input read from keyboard and pass it to stringreturnvalue when ready to end action */
-var string TempStringReturnValue;
-
 /** Whether the async call is done or not */
 var bool bIsDone;
 
@@ -78,7 +75,7 @@ function OnKeyboardInputDone(bool bWasSuccessful)
 		{
 			if (bWasSuccessful == true)
 			{
-				TempStringReturnValue = PlayerInt.GetKeyboardInputResults(bWasCancelled);
+				StringReturnValue = PlayerInt.GetKeyboardInputResults(bWasCancelled);
 			}
 			else
 			{
@@ -93,14 +90,10 @@ defaultproperties
 {
 	ObjName="Get Keyboard Input"
 	ObjCategory="Online"
-	ObjClassVersion=2
 
 	bLatentExecution=TRUE
 
 	bShouldValidate=TRUE
-
-	OutputLinks(0)=(LinkDesc="Out")
-	OutputLinks(1)=(LinkDesc="Finished")
 
 	VariableLinks(0)=(ExpectedType=class'SeqVar_String',LinkDesc="Title Text",PropertyName="TitleText")
 	VariableLinks(1)=(ExpectedType=class'SeqVar_String',LinkDesc="Description Text",PropertyName="DescriptionText")

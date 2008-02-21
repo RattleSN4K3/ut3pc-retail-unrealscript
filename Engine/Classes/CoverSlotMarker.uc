@@ -21,11 +21,34 @@ event PostBeginPlay()
 	}
 }
 
-simulated native function Vector  GetSlotLocation();
-simulated native function Rotator GetSlotRotation();
+simulated function int ExtraPathCost( Controller AI )
+{
+	if( !OwningSlot.Link.IsValidClaim( AI, OwningSlot.SlotIdx, TRUE ) )
+	{
+		return class'ReachSpec'.const.BLOCKEDPATHCOST;
+	}
+	return 0;
+}
 
-/** Returns true if the specified controller is able to claim this slot. */
-final native function bool IsValidClaim( Controller ChkClaim, optional bool bSkipTeamCheck, optional bool bSkipOverlapCheck );
+simulated function Vector GetSlotLocation()
+{
+	if( OwningSlot.Link != None )
+	{
+		return OwningSlot.Link.GetSlotLocation(OwningSlot.SlotIdx);
+	}
+
+	return vect(0,0,0);
+}
+
+simulated function Rotator GetSlotRotation()
+{
+	if( OwningSlot.Link != None )
+	{
+		return OwningSlot.Link.GetSlotRotation(OwningSlot.SlotIdx);
+	}
+
+	return rot(0,0,0);
+}
 
 defaultproperties
 {
@@ -36,6 +59,7 @@ defaultproperties
 	// instead of along walls
 	Cost=300
 
+//test
 	Components.Remove(Sprite)
 	Components.Remove(Sprite2)
 	Components.Remove(Arrow)
@@ -44,6 +68,4 @@ defaultproperties
 		CollisionRadius=40.f
 		CollisionHeight=40.f
 	End Object
-
-	Abbrev="CSM"
 }

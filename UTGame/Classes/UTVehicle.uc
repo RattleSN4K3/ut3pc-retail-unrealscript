@@ -1001,6 +1001,9 @@ var array<SoundNodeWave> VehicleDestroyedSound;
 /** True if is Necris vehicle (used by single player campaign) */
 var bool bIsNecrisVehicle;
 
+/** true if being spectated (set temporarily in UTPlayerController.GetPlayerViewPoint() */
+var bool bSpectatedView;
+
 replication
 {
 	if (bNetDirty && !bNetOwner)
@@ -2209,9 +2212,13 @@ simulated event ReplicatedEvent(name VarName)
 			StopLinkedEffect();
 		}
 	}
+	else if ( VarName == 'bKeyVehicle' )
+	{
+	  if ( bKeyVehicle )
+		UTMapInfo(WorldInfo.GetMapInfo()).AddKeyVehicle(self);
+	}
 	else
 	{
-
 		// Ok, some magic occurs here.  The turrets/seat use a prefix system to determine
 		// which values to adjust. Here we decode those values and call the appropriate functions
 
@@ -2266,16 +2273,17 @@ simulated event ReplicatedEvent(name VarName)
 				}
 			}
 		}
-		else if ( VarName == 'bKeyVehicle' )
-		{
-			if ( bKeyVehicle )
-				UTMapInfo(WorldInfo.GetMapInfo()).AddKeyVehicle(self);
-		}
 		else
 		{
 			super.ReplicatedEvent(VarName);
 		}
 	}
+}
+
+event SetKeyVehicle()
+{
+	bKeyVehicle = true;
+	UTMapInfo(WorldInfo.GetMapInfo()).AddKeyVehicle(self);
 }
 
 /**
@@ -3360,8 +3368,9 @@ simulated function SendLockOnMessage(int Switch)
 		P = Seats[i].SeatPawn;
 
 		if( ( P != none )
-			&& ( PlayerController(P.Controller) != None)
-			&& ( P.IsLocallyControlled() )
+			&& (PlayerController(P.Controller) != None)
+			&& P.IsLocallyControlled() 
+			&& (P.Controller.Pawn == P) // for client side lock warnings
 			)
 		{
 			PlayerController(P.Controller).ReceiveLocalizedMessage(class'UTLockWarningMessage', Switch);
@@ -3803,6 +3812,7 @@ function PassengerLeave(int SeatIndex)
 event CheckReset()
 {
 	local Pawn P;
+	local Controller C;
 
 	if ( Occupied() )
 	{
@@ -3810,14 +3820,24 @@ event CheckReset()
 		return;
 	}
 
-	foreach WorldInfo.AllPawns(class'Pawn', P)
+	foreach WorldInfo.AllControllers(class'Controller', C)
 	{
-		if ( P != None && (P.Controller != None || (P.DrivenVehicle != None && !P.DrivenVehicle.bAttachDriver)) &&
-			WorldInfo.GRI.OnSameTeam(P, self) && VSize(Location - P.Location) < 2500.0 &&
-			FastTrace(P.Location + P.GetCollisionHeight() * vect(0,0,1), Location + GetCollisionHeight() * vect(0,0,1)) )
+		P = C.Pawn;
+		if ( P != None && WorldInfo.GRI.OnSameTeam(P, self) && (VSize(Location - P.Location) < 2500.0) )
 		{
-			ResetTime = WorldInfo.TimeSeconds + 10;
-			return;
+			if ( (PlayerController(C) != None) || (Instigator == C.Pawn) )
+			{
+				if ( FastTrace(P.Location + P.GetCollisionHeight() * vect(0,0,1), Location + GetCollisionHeight() * vect(0,0,1)) )
+				{
+					ResetTime = WorldInfo.TimeSeconds + 10;
+					return;
+				}
+			}
+			else if ( C.RouteGoal == self )
+			{
+				ResetTime = WorldInfo.TimeSeconds + 10;
+				return;
+			}
 		}
 	}
 
@@ -5108,8 +5128,10 @@ simulated function VehicleCalcCamera(float DeltaTime, int SeatIndex, out vector 
 	CamStart = GetCameraStart(SeatIndex);
 
 	// Get the rotation
-	if ( Seats[SeatIndex].SeatPawn.Controller != None )
+	if ( (Seats[SeatIndex].SeatPawn.Controller != None) && !bSpectatedView  )
+	{
 		out_CamRot = Seats[SeatIndex].SeatPawn.GetViewRotation();
+	}
 
 	// support debug 3rd person cam
 	if (P != None)
@@ -5830,7 +5852,7 @@ simulated function SitDriver( UTPawn UTP, int SeatIndex)
 		UTP.SetRelativeLocation( Seats[SeatIndex].SeatOffset );
 		UTP.SetRelativeRotation( Seats[SeatIndex].SeatRotation );
 		UTP.Mesh.SetCullDistance(5000);
-		UTP.Mesh.SetTranslation(UTP.default.Mesh.Translation);
+		UTP.Mesh.SetTranslation(vect(0,0,1) * UTP.BaseTranslationOffset);
 		UTP.SetHidden(false);
 	}
 	else

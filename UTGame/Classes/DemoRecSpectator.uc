@@ -139,6 +139,28 @@ reliable client function ClientSetRealViewTarget(PlayerReplicationInfo NewTarget
 	bFindPlayer = (NewTarget == None);
 }
 
+function bool SetPause(bool bPause, optional delegate<CanUnpause> CanUnpauseDelegate)
+{
+	// allow the spectator to pause demo playback
+	if (WorldInfo.NetMode == NM_Client)
+	{
+		WorldInfo.Pauser = (bPause) ? PlayerReplicationInfo : None;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+exec function Pause()
+{
+	if (WorldInfo.NetMode == NM_Client)
+	{
+		ServerPause();
+	}
+}
+
 auto state Spectating
 {
 	function BeginState(Name PreviousStateName)

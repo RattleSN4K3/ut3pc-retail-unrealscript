@@ -8,6 +8,7 @@ var UTOnslaughtTeamAI ONSTeamAI;
 var bool bDefendingSquad;
 var float LastFailedNodeTeleportTime;
 var float MaxObjectiveGetOutDist; //cached highest ObjectiveGetOutDist of all the vehicles available on this level
+var UTOnslaughtNodeObjective OrbObjective; // objective for bot with orb
 
 function Initialize(UTTeamInfo T, UTGameObjective O, Controller C)
 {
@@ -123,19 +124,20 @@ function bool ShouldUseAlternatePaths()
 	return (ONSObjective != None && ONSObjective.DefenderTeamIndex != Team.TeamIndex && ONSObjective.IsActive());
 }
 
-function bool MustCompleteOnFoot(Actor O)
+function bool MustCompleteOnFoot(Actor O, optional Pawn P)
 {
 	local UTOnslaughtNodeObjective Node;
 
 	Node = UTOnslaughtNodeObjective(O);
-	//@FIXME: only need to be on foot for non-neutral powernode if have orb
-	if (Node != None && (Node.IsNeutral() || UTOnslaughtPowerNode(Node) != None))
+
+	if ( (UTOnslaughtPowerNode(Node) != None) 
+		&& (Node.IsNeutral() || ((UTPlayerReplicationInfo(P.PlayerReplicationInfo) != None) && UTPlayerReplicationInfo(P.PlayerReplicationInfo).bHasFlag)) )
 	{
 		return true;
 	}
 	else
 	{
-		return (UTWarfareBarricade(O) != None || Super.MustCompleteOnFoot(O));
+		return (UTWarfareBarricade(O) != None || Super.MustCompleteOnFoot(O, P));
 	}
 }
 
@@ -185,7 +187,7 @@ function bool CheckVehicle(UTBot B)
 	local UTOnslaughtObjective ONSObjective;
 
 	ONSObjective = UTOnslaughtObjective(SquadObjective);
-	if (UTVehicle(B.Pawn) != None && (B.Skill + B.Tactics >= 5.0 || UTVehicle(B.Pawn).bKeyVehicle) && UTVehicle(B.Pawn).IsArtillery())
+	if (UTVehicle(B.Pawn) != None && UTVehicle(B.Pawn).IsArtillery())
 	{
 		DeployableVehicle = B.GetDeployableVehicle();
 		if (DeployableVehicle != None && DeployableVehicle.IsDeployed())
@@ -574,7 +576,7 @@ function bool GetOrbToDefendNode(UTBot B)
 
 	FlagPosition = Team.TeamFlag.Position();
 	if ( (B.RouteGoal != FlagPosition && B.RouteGoal != Team.TeamFlag.LastAnchor && VSize(FlagPosition.Location - B.Pawn.Location) > 1000.0) ||
-	 	ONSTeamAI.FinalCore.FindNodeLinkIndex(UTOnslaughtPowerNode(SquadObjective)) == INDEX_NONE || !OwnAllPowerNodes() )
+	 	ONSTeamAI.FinalCore.FindNodeLinkIndex(UTOnslaughtPowerNode(SquadObjective)) == INDEX_NONE )
 	{
 		return false;
 	}
@@ -610,15 +612,7 @@ function bool AssignSquadResponsibility(UTBot B)
 {
 	local bool bResult;
 
-	// if we have the flag, but we're not doing anything with a powernode, drop it
-	if ( B.PlayerReplicationInfo.bHasFlag && UTOnslaughtPowerNode(SquadObjective) == None &&
-		B.PlayerReplicationInfo.IsA('UTPlayerReplicationInfo') )
-	{
-		// can't drop flag during physics tick
-		UTPlayerReplicationInfo(B.PlayerReplicationInfo).GetFlag().SetTimer(0.01, false, 'Drop');
-	}
-
-	bResult =  Super.AssignSquadResponsibility(B);
+	bResult = Super.AssignSquadResponsibility(B);
 
 	if ( B.bSendFlagMessage )
 	{
@@ -631,14 +625,63 @@ function bool AssignSquadResponsibility(UTBot B)
 	return bResult;
 }
 
+function bool CheckOrbCarrierObjective(UTBot B)
+{
+	if (WorldInfo.TimeSeconds - B.Pawn.CreationTime < 5.0 && B.NeedWeapon() && B.FindInventoryGoal(0.0004))
+	{
+		B.GoalString = "Need weapon or ammo";
+		B.NoVehicleGoal = B.RouteGoal;
+		B.SetAttractionState();
+		return true;
+	}
+
+	if ( (Vehicle(B.Pawn) == None) && CheckHoverboard(B) )
+	{
+		return true;
+	}
+
+	// if bot has the orb, he wants to attack a primary objective, or defend a held enemy prime node
+	OrbObjective = ONSTeamAI.GetPriorityOrbObjectiveFor(B);
+
+	if ( OrbObjective != None )
+	{
+		if ( OrbObjective.PoweredBy(Team.TeamIndex) )
+		{
+			B.GoalString = "Disable Objective "$OrbObjective;
+			return (OrbObjective.DefenderTeamIndex == Team.TeamIndex ? OrbObjective.TellBotHowToHeal(B) : OrbObjective.TellBotHowToDisable(B));
+		}
+		else if ( !B.LineOfSightTo(OrbObjective) )
+		{
+			B.GoalString = "Take orb to "$OrbObjective;
+			return FindPathToObjective(B, OrbObjective);
+		}
+	}
+
+	return false;
+}
+
 function bool CheckSquadObjectives(UTBot B)
 {
 	local bool bResult;
 	local UTOnslaughtPowerNode ClosestNode;
-	local float Dist;
-	local int i;
 
-	if (B.Enemy != None && B.Enemy == ONSTeamAI.FinalCore.LastAttacker && !B.PlayerReplicationInfo.bHasFlag)
+	if ( B.PlayerReplicationInfo.bHasFlag )
+	{
+		return CheckOrbCarrierObjective(B);
+	}
+
+	// check if should pick up dropped orb
+	if ( (UTPawn(B.Pawn) != None) && UTPawn(B.Pawn).bJustDroppedOrb )
+	{
+		if (FindPathToObjective(B, Team.TeamFlag))
+		{
+			B.RouteGoal = Team.TeamFlag.LastAnchor;
+			return true;
+		}
+		UTPawn(B.Pawn).bJustDroppedOrb = false;
+	}
+
+	if (B.Enemy != None && B.Enemy == ONSTeamAI.FinalCore.LastAttacker )
 	{
 		if ( B.NeedWeapon() && B.FindInventoryGoal(0) )
 		{
@@ -664,8 +707,7 @@ function bool CheckSquadObjectives(UTBot B)
 	}
 
 	// consider stopping to attack enemy orb carrier
-	if ( B.Enemy != None && B.Enemy.PlayerReplicationInfo != None && B.Enemy.PlayerReplicationInfo.bHasFlag &&
-		!B.PlayerReplicationInfo.bHasFlag )
+	if ( B.Enemy != None && B.Enemy.PlayerReplicationInfo != None && B.Enemy.PlayerReplicationInfo.bHasFlag )
 	{
 		if (GetOrders() == 'Defend')
 		{
@@ -695,33 +737,15 @@ function bool CheckSquadObjectives(UTBot B)
 	}
 
 	// check if should defend node with orb
-	if ( GetOrders() == 'Defend' && UTOnslaughtPowerNode(SquadObjective) != None && SquadObjective.DefenderTeamIndex == Team.TeamIndex &&
-		Team.TeamFlag != None && Team.TeamFlag.Holder == None &&
-		GetOrbToDefendNode(B) )
+	if ( (GetOrders() == 'Defend' && UTOnslaughtPowerNode(SquadObjective) != None && SquadObjective.DefenderTeamIndex == Team.TeamIndex &&
+		Team.TeamFlag != None && Team.TeamFlag.Holder == None) && GetOrbToDefendNode(B) )
 	{
 		return true;
-	}
-	// if have flag, core is under attack, and prime node is closer, go there instead
-	else if ( B.PlayerReplicationInfo.bHasFlag && ONSTeamAI.FinalCore.bUnderAttack &&
-		ONSTeamAI.FinalCore.PoweredBy(Team.AI.EnemyTeam.TeamIndex) &&
-		(UTOnslaughtPowerNode(SquadObjective) == None || ONSTeamAI.FinalCore.FindNodeLinkIndex(UTOnslaughtPowerNode(SquadObjective)) == INDEX_NONE) )
-	{
-		Dist = (SquadObjective != None) ? VSize(B.Pawn.Location - SquadObjective.Location) : 1000000.0;
-		for (i = 0; i < ONSTeamAI.FinalCore.NumLinks; i++)
-		{
-			if ( ONSTeamAI.FinalCore.LinkedNodes[i] != None &&
-				VSize(ONSTeamAI.FinalCore.LinkedNodes[i].Location - B.Pawn.Location) < Dist &&
-				ONSTeamAI.FinalCore.LinkedNodes[i].DefenderTeamIndex != Team.TeamIndex )
-			{
-				SetObjective(ONSTeamAI.FinalCore.LinkedNodes[i], false);
-				break;
-			}
-		}
 	}
 
 	bResult = Super.CheckSquadObjectives(B);
 
-	if (!bResult && CurrentOrders == 'Freelance' && (B.Enemy == None || B.PlayerReplicationInfo.bHasFlag) && UTOnslaughtObjective(SquadObjective) != None)
+	if (!bResult && CurrentOrders == 'Freelance' && (B.Enemy == None) && UTOnslaughtObjective(SquadObjective) != None)
 	{
 		if ( UTOnslaughtObjective(SquadObjective).PoweredBy(Team.TeamIndex) )
 		{
@@ -927,6 +951,34 @@ function Actor GetTowingDestination(UTVehicle Towed)
 }
 
 function ModifyAggression(UTBot B, out float Aggression);
+
+/* FindPathToObjective()
+Returns path a bot should use moving toward a base
+*/
+function bool FindPathToObjective(UTBot B, Actor O)
+{
+	local bool bResult;
+
+	if ( (UTOnslaughtPowerNode(O) != None)
+		&& UTOnslaughtPowerNode(O).IsNeutral() 
+		&& (VSize(B.Pawn.Location - O.Location) < 2000) )
+	{
+		B.bForceNoDetours = true;
+	}
+	bResult = super.FindPathToObjective(B, O);
+	B.bForceNoDetours = false;
+	return bResult;
+}
+
+
+function actor FormationCenter(Controller C)
+{
+	if ( C.PlayerReplicationInfo.bHasFlag && (OrbObjective != None) )
+	{
+		return OrbObjective;
+	}
+	return Super.FormationCenter(C);
+}
 
 defaultproperties
 {

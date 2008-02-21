@@ -4,11 +4,7 @@
 class SeqAct_RandomSwitch extends SeqAct_Switch
 	native(Sequence);
 
-/** List of indices we've already used once and disabled (for when bLooping and bAutoDisableLinks are both checked) **/
-var array<INT> AutoDisabledIndices; 
-
 ;
-
 
 defaultproperties
 {

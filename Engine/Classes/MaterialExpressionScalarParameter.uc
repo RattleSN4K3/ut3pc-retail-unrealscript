@@ -6,6 +6,7 @@ class MaterialExpressionScalarParameter extends MaterialExpressionParameter
 	collapsecategories
 	hidecategories(Object);
 
+var() name	ParameterName;
 var() float	DefaultValue;
 
 

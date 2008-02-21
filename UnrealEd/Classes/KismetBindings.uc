@@ -9,7 +9,6 @@ struct native KismetKeyBind
 {
 	var config name		Key;
 	var config bool		bControl;
-	var config bool		bShift;
 	var config name		SeqObjClassName;
 };
 

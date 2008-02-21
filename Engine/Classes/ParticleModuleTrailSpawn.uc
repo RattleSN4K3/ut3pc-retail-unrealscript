@@ -7,6 +7,7 @@
 class ParticleModuleTrailSpawn extends ParticleModuleTrailBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
 //*************************************************************************************************
@@ -23,6 +24,7 @@ enum ETrail2SpawnMethod
 };
 
 /** 
+ *	SpawnDistanceMap
  *	This parameter will map a given distance range [MinInput..MaxInput]
  *	to the given spawn values [MinOutput..MaxOutput]
  *	Anything below the MinOutput will result in no particles being spawned
@@ -33,9 +35,10 @@ enum ETrail2SpawnMethod
 var(Spawn)	export noclear		distributionfloatparticleparameter	SpawnDistanceMap;
 
 /** 
+ *	MinSpawnVelocity
  *	The minimum velocity the source must be travelling at in order to spawn particles.
  */
-var(Spawn)						float								MinSpawnVelocity;
+var(Spawn)									float								MinSpawnVelocity;
 
 //*************************************************************************************************
 // C++ Text

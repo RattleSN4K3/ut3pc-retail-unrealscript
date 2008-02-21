@@ -54,5 +54,5 @@ defaultproperties
 	FontSize=2
 	MessageArea=2
 	DrawColor=(R=0,G=160,B=255,A=255)
-	AnnouncementPriority=9
+	AnnouncementPriority=12
 }

@@ -33,18 +33,6 @@ static function SpawnHitEffect(Pawn P, float Damage, vector Momentum, name BoneN
 	}
 }
 
-/**
- * @todo: We want
- *  [2007-04-17--13:54:47] msew@epic: so no gibbing but rip off some limbs and spawn those and then have the body go flying?
- * [2007-04-17--13:55:09] mattO: yeah maybe
- * [2007-04-17--13:55:29] mattO: like closest bone in the direction the vehicle is pointing, rip that off
- * [2007-04-17--13:55:36] mattO: or something
- * [2007-04-17--13:55:39] mattO: we can experiment
- * [2007-04-17--13:55:49] mattO: but I like the bodies flying around after you run into them so I'd hate to lose it
- * [2007-04-17--13:56:17] msew@epic: that makes sense.
- **/
-
-
 defaultproperties
 {
 	KillStatsName=EVENT_RANOVERKILLS

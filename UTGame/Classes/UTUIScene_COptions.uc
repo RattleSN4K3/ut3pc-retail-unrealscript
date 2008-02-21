@@ -11,6 +11,8 @@ var transient UIPanel LanGamePanel;
 var transient UICheckBox SkillLevels[4];
 var transient UICheckBox LanPlay;
 
+
+var transient bool bNetworkOk;
 var transient bool bNewGame;
 
 /** Reference to the settings datastore that we will use to create the game. */
@@ -20,50 +22,22 @@ var localized string SkillDescriptions[4];
 
 var transient string LaunchURL;
 
+var transient bool bWasPublic;
+
 var transient int ChapterToLoad;
 
 var transient bool bIgnoreChange;
 
 var string ChapterURLs[5];
 
-/**
- * @return	TRUE if the user is allowed to play internet games.
- */
-function bool AllowInternetPlay()
-{
-	local LocalPlayer LP;
-
-	LP = GetPlayerOwner();
-	if ( LP == None )
-	{
-		return false;
-	}
-
-	if ( !IsLoggedIn(LP.ControllerID,true) )
-	{
-		`log("[Network] Not Logged in!");
-		return false;
-	}
-
-	if (!CanPlayOnline(LP.ControllerID) )
-	{
-		`log("[Network] User Is Restricted from Online");
-		return false;
-	}
-
-	// Check NAT.  If we are behind a strict nat, disable internet play
-	if ( GetNATType() >= NAT_Strict )
-	{
-		`log("[Network] NAT configuration is incompatible");
-		return false;
-    }
-
-	return true;
-}
 
 event PostInitialize( )
 {
 	local int i;
+
+    bNetworkOk = HasLinkConnection();
+
+	`log("[Network]"@bNetworkOK ? "Network Is Available" : "Network is not Available");
 
 	Super.PostInitialize();
 
@@ -82,9 +56,6 @@ event PostInitialize( )
 
 	// this used to be set here, so we'll need to clear it in case it got serialized
 	OnPreRenderCallback=None;
-
-	// Created a scene closed delegate so we can clear the online delegate I added below
-	OnSceneDeactivated = None;
 }
 
 /**
@@ -94,7 +65,6 @@ function OnMainRegion_Show_UIAnimEnd( UIObject AnimTarget, int AnimIndex, UIAnim
 {
 	Super.OnMainRegion_Show_UIAnimEnd(AnimTarget, AnimIndex, AnimSeq);
 
-	`log(`location@`showobj(AnimTarget)@`showvar(AnimIndex)@`showobj(AnimSeq) @ `showvar(AnimTarget.AnimStack[AnimIndex].SeqRef.SeqName,SeqName),,'DevUI');
 	if ( AnimTarget.AnimStack[AnimIndex].SeqRef.SeqName == 'SceneShowInitial' )
 	{
 		// make sure we can't choose "internet" if we aren't signed in online
@@ -103,74 +73,95 @@ function OnMainRegion_Show_UIAnimEnd( UIObject AnimTarget, int AnimIndex, UIAnim
 }
 
 /**
- * Displays error messages and/or login ui to the user if the user is unable to play online.
+ * Enables / disables the "server type" control based on whether we are signed in online.
  */
-function ValidateServerType( optional bool bCheckLoginStatus=true )
+function ValidateServerType()
 {
-	local int PlayerControllerID;
+	local int PlayerIndex, PlayerControllerID;
+	local string OnlineProfileRequiredMessage;
 
-	PlayerControllerID = GetPlayerControllerId( GetPlayerIndex() );
+	OnlineProfileRequiredMessage = "<Strings:UTGameUI.Errors.OnlineRequiredForInternet_Message>";
 
-	`log(`location @ `showvar(PlayerControllerId) @ `showvar(bCheckLoginStatus) @ `showvar(IsLoggedIn(PlayerControllerId,true),LoggedInOnline)
-				@ `showvar(CanPlayOnline(PlayerControllerID)) @ `showenum(ENATType,GetNATType()),,'DevUI');
+	// find the "MatchType" control (contains the "LAN" and "Internet" options);  if we aren't signed in online,
+	// don't have a link connection, or not allowed to play online, don't allow them to select one.
+	PlayerIndex = GetPlayerIndex();
+	PlayerControllerID = GetPlayerControllerId( PlayerIndex );
 
-	if ( ((!bCheckLoginStatus && IsLoggedIn(PlayerControllerId, true)) || (bCheckLoginStatus && CheckLoginAndError(PlayerControllerId, true, , "<Strings:UTGameUI.Errors.OnlineRequiredForInternet_Message>")))
-	&&	 CheckOnlinePrivilegeAndError(PlayerControllerID) )
+	if (!CheckLoginAndError(PlayerControllerID,true,,OnlineProfileRequiredMessage) || !CheckOnlinePrivilegeAndError( PlayerControllerID ) )
+	{
+		if ( LanPlay != None )
+		{
+			// check the lan checkbox
+			LanPlay.SetValue(true, PlayerIndex);
+
+			// now disable it
+			LanPlay.DisableWidget(PlayerIndex);
+		}
+
+		if ( LanGamePanel != None )
+		{
+			LanGamePanel.DisableWidget(PlayerIndex);
+		}
+	}
+	else
 	{
 		CheckNatTypeAndDisplayError(PlayerControllerID);
-	}
-
-	UpdateNetworkChoices();
-}
-
-/**
- * Updates the visibility and enabled state of the LAN checkbox (and its owner panel) based on whether the user is
- * allowed to play online and has a valid internet connection.
- */
-function UpdateNetworkChoices()
-{
-	local int PlayerIndex;
-	local bool bAllowNetworkChoice, bShowLANOption;
-
-	bShowLANOption = HasLinkConnection();
-	bAllowNetworkChoice = bShowLANOption && AllowInternetPlay();
-
-	PlayerIndex = GetPlayerIndex();
-	if ( LanPlay != None )
-	{
-		LanPlay.SetVisibility(bShowLANOption);
-		LanPlay.SetEnabled(bAllowNetworkChoice, PlayerIndex);
-	}
-
-	if ( LanGamePanel != None )
-	{
-		LanGamePanel.SetVisibility(bShowLANOption);
-		LanGamePanel.SetEnabled(bAllowNetworkChoice, PlayerIndex);
 	}
 }
 
 /** Callback for when the login changes after showing the login UI. */
 function OnLoginUI_LoginChange()
 {
+	local int PlayerIndex, PlayerControllerId;
+	local bool bCanPlayOnline;
+	local UIPanel SkillContainerPanel;
+
+	PlayerIndex = GetPlayerIndex();
+	PlayerControllerID = GetPlayerControllerId( PlayerIndex );
+
+	if ( IsLoggedIn(PlayerControllerId, true) )
+	{
+		// we just connected to the online service
+		// check online parental restrictions and NAT settings
+		bCanPlayOnline = CanPlayOnline(PlayerControllerId) && GetNATType() < NAT_Strict;
+		if ( bCanPlayOnline )
+		{
+			if ( LanPlay != None )
+			{
+				LanPlay.EnableWidget(PlayerIndex);
+			}
+
+			if ( LanGamePanel != None )
+			{
+				LanGamePanel.EnableWidget(PlayerIndex);
+			}
+		}
+	}
+
+	if ( !bCanPlayOnline )
+	{
+		if ( LanPlay != None )
+		{
+			if ( LanPlay.IsFocused(PlayerIndex) )
+			{
+				SkillContainerPanel = UIPanel(FindChild('OptionPanel', true));
+				SkillContainerPanel.SetFocus(None, PlayerIndex);
+			}
+
+			// check the lan checkbox
+			LanPlay.SetValue(true, PlayerIndex);
+
+			// now disable it
+			LanPlay.DisableWidget(PlayerIndex);
+		}
+
+		if ( LanGamePanel != None )
+		{
+			LanGamePanel.DisableWidget(PlayerIndex);
+		}
+	}
+
 	Super.OnLoginUI_LoginChange();
-
-	ValidateServerType(false);
-	SetupButtonBar();
-}
-
-
-/**
- * Delegate used in notifying the UI/game that the manual login failed after showing the login UI.
- *
- * @param ControllerId	the controller number of the associated user
- * @param ErrorCode		the async error code that occurred
- */
-function OnLoginUI_LoginFailed( byte ControllerId,EOnlineServerConnectionStatus ErrorCode)
-{
-	Super.OnLoginUI_LoginFailed(ControllerId, ErrorCode);
-
-	ValidateServerType(false);
-	SetupButtonBar();
 }
 
 function SkillLevelChanged( UIObject Sender, int PlayerIndex )
@@ -200,6 +191,40 @@ function SkillLevelChanged( UIObject Sender, int PlayerIndex )
 	}
 }
 
+function bool AllowInternetPlay()
+{
+//	local OnlineSubsystem OnlineSub;
+	local LocalPlayer LP;
+
+	// Check NAT.  If we are behind a strict nat, disable internet play
+/*
+	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
+	if ( OnlineSub != None && OnlineSub.SystemInterface.GetNATType() >= NAT_Strict )
+	{
+    	return false;
+    }
+*/
+	LP = GetPlayerOwner();
+
+	if ( LP == None )
+	{
+		return false;
+	}
+	if ( !IsLoggedIn(LP.ControllerID,true) )
+	{
+		`log("[Network] Not Logged in!");
+		return false;
+	}
+
+	if (!CanPlayOnline(LP.ControllerID) )
+	{
+		`log("[Netowrk] User Is Restricted from Online");
+		return false;
+	}
+
+	return true;
+}
+
 
 /** Sets up the button bar for the scene. */
 function SetupButtonBar()
@@ -210,9 +235,9 @@ function SetupButtonBar()
 		ButtonBar.Clear();
 		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", OnButtonBar_Back);
 
-		if ( HasLinkConnection() )
+		if ( bNetworkOk )
 		{
-			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.StartGame>", OnButtonBar_Start);
+			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.StartPrivateGame>", OnButtonBar_Start);
 			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.StartPublicGame>", OnButtonBar_StartPublic);
 		}
 		else
@@ -239,16 +264,17 @@ function Configure(bool bIsNewGame, int InChapterToLoad)
     GetTitleLabel().SetDataStoreBinding(Caps(s));
 
 	Profile = GetPlayerProfile();
-	if ( Profile != None )
+	if ( bIsNewGame )
 	{
-		if ( bIsNewGame )
+		if ( Profile != none )
 		{
 			Profile.NewGame();
 		}
-		Skill = Profile.GetCampaignSkillLevel();
 	}
 
+	Skill = Profile.GetCampaignSkillLevel();
 	SkillLevels[Skill].SetValue( true );
+
 	ChapterToLoad = InChapterToLoad;
 }
 
@@ -270,11 +296,13 @@ function StartGame(int InPlayerIndex, bool bPublic)
 {
 	local UTProfileSettings Profile;
 	local int Skill;
+	local bool bInternetAllowed;
 
 	Profile = GetPlayerProfile();
 	if ( Profile != none )
 	{
 		Skill = Profile.GetCampaignSkillLevel();
+		SavePlayerProfile(0);
 	}
 
 	Skill *= 2;
@@ -295,17 +323,38 @@ function StartGame(int InPlayerIndex, bool bPublic)
 		}
 	}
 
-	if ( HasLinkConnection() )
+	bWasPublic = bPublic;
+
+	if ( bNetworkOk )
 	{
 		LaunchURL $= "?Listen";
 
-		// if we're able to play online, or the lan checkbox is checked, create the match.
-		CreateOnlineGame(InPlayerIndex, bPublic, LanPlay.IsChecked() || !AllowInternetPlay());
+		// We have a profile, see if we can play on the net....
+		bInternetAllowed = AllowInternetPlay();
+		if ( LanPlay.IsChecked() || bInternetAllowed )
+		{
+			CreateOnlineGame(InPlayerIndex, bPublic, LanPlay.IsChecked() || !bInternetAllowed);
+		}
+		else
+		{
+			ShowOnlinePrivilegeError();
+		}
 	}
 	else
 	{
 		ConsoleCommand(LaunchURL);
 	}
+}
+
+function ShowOnlinePrivilegeError()
+{
+	DisplayMessageBox("<Strings:UTGameUI.Errors.CampaignOnlineFailure>","<Strings:UTGameUI.Errors.CampaignOnlineFailure_Title>");
+	GetMessageBoxScene().OnClosed = MessageBoxClosed;
+}
+
+function MessageBoxClosed()
+{
+	CreateOnlineGame(0, bWasPublic, true);
 }
 
 
@@ -415,29 +464,7 @@ function OnGameCreated(bool bWasSuccessful)
 	}
 }
 
-function bool HasPushedUp( const InputEventParameters EventParms )
-{
-	if( (EventParms.InputKeyName == 'Up') || (EventParms.InputKeyName == 'XboxTypeS_DPad_Up') || (EventParms.InputKeyName == 'Gamepad_LeftStick_Up') )
-	{
-		if ( EventParms.EventType==IE_Released )
-		{
-			return true;
-		}
-	}
-	return false;
-}
 
-function bool HasPushedDown( const InputEventParameters EventParms )
-{
-	if( (EventParms.InputKeyName == 'Down') || (EventParms.InputKeyName == 'XboxTypeS_DPad_Down') || (EventParms.InputKeyName == 'Gamepad_LeftStick_Down') )
-	{
-		if ( EventParms.EventType==IE_Released )
-		{
-			return true;
-		}
-	}
-	return false;
-}
 
 /**
  * Provides a hook for unrealscript to respond to input using actual input key names (i.e. Left, Tab, etc.)
@@ -453,20 +480,8 @@ function bool HasPushedDown( const InputEventParameters EventParms )
  */
 function bool HandleInputKey( const out InputEventParameters EventParms )
 {
-	if ( HasPushedUp(EventParms) )
+	if(EventParms.InputKeyName=='XboxTypeS_Y')
 	{
-		ChangeSkill(false);
-		return true;
-	}
-
-	if ( HasPushedDown(EventParms) )
-	{
-		ChangeSkill(true);
-		return true;
-	}
-
-    if( EventParms.InputKeyName=='XBoxTypeS_A' )
-    {
 		if (EventParms.EventType==IE_Released)
 		{
 			StartGame(EventParms.PlayerIndex,false);
@@ -474,20 +489,9 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 		return true;
 	}
 
-    if( EventParms.InputKeyName=='XboxTypeS_LeftShoulder')
-    {
-    	if ( AllowInternetPlay() && EventParms.EventType==IE_Released )
-    	{
-    		LanPlay.SetValue( !LanPlay.IsChecked() );
-    	}
-
-		return true;
-	}
-
-
-	if( EventParms.InputKeyName=='XboxTypeS_X' )
+	if( EventParms.InputKeyName=='XboxTypeS_X' && bNetworkOk )
 	{
-		if ( EventParms.EventType==IE_Released && HasLinkConnection() )
+		if (EventParms.EventType==IE_Released)
 		{
 			StartGame(EventParms.PlayerIndex,true);
 		}
@@ -506,27 +510,6 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 	return Super.HandleInputKey(EventParms);
 }
 
-function ChangeSkill( bool bSelectionDown )
-{
-	local UTProfileSettings Profile;
-	local int Skill;
-
-	Profile = GetPlayerProfile();
-	if ( Profile != none )
-	{
-		Skill = Profile.GetCampaignSkillLevel() + (bSelectionDown ? 1 : -1);
-		if (Skill > 3)
-		{
-			Skill = 0;
-		}
-		else if (Skill < 0)
-		{
-			Skill = 3;
-		}
-
-		SkillLevels[Skill].SetValue(true);
-	}
-}
 
 /** Buttonbar Callbacks. */
 function bool OnButtonBar_Back(UIScreenObject InButton, int PlayerIndex)

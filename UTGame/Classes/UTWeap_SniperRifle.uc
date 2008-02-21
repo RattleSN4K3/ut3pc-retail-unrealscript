@@ -571,9 +571,4 @@ defaultproperties
 	TeamSkins[1]=MaterialInterface'WP_SniperRifle.Materials.M_WP_SniperRifle_Blue'
 
 	bDisplaycrosshair = true;
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
-		Samples(0)=(LeftAmplitude=30,RightAmplitude=50,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.200)
-	End Object
-	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

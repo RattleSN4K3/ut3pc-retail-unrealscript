@@ -62,8 +62,9 @@ event ApplyCameraModifiers(float DeltaTime, out TPOV OutPOV)
 /** Native version of ApplyCameraModifiers */
 simulated private native function ApplyCameraModifiersNative(float DeltaTime, out TPOV OutPOV);
 
+// @fixme: need to return linkage to a particular instance?
 /** Play the indicated CameraAnim on this camera. */
-simulated native function bool PlayCameraAnim(CameraAnim Anim, optional float Rate=1.f, optional float Scale=1.f, optional float BlendInTime, optional float BlendOutTime, optional bool bLoop, optional bool bRandomStartTime, optional float Duration);
+simulated native function bool PlayCameraAnim(CameraAnim Anim, optional float Rate=1.f, optional float Scale=1.f, optional float BlendInTime, optional float BlendOutTime, optional bool bLoop, optional bool bRandomStartTime);
 
 /** 
  * Stop playing all instances of the indicated CameraAnim. 

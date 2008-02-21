@@ -235,7 +235,7 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 			if( Profile.GetProfileSettingValueIdByName( ProfileSettingToUE3BindingMapping360[BindingIdx].ProfileSettingName, OutIntValue) )
 			{
 				//`log( "  RetrieveSettingsFromProfile: FOUND: " $ ProfileSettingToUE3BindingMapping360[BindingIdx].ProfileSettingName );
-				UpdateControllerSettings_Worker( ProfileSettingToUE3BindingMapping360[BindingIdx].UE3BindingName, class'UTProfileSettings'.default.DigitalButtonActionsToCommandMapping[OutIntValue] );	
+				UpdateControllerSettings_Worker( ProfileSettingToUE3BindingMapping360[BindingIdx].UE3BindingName, class'UTProfileSettings'.default.DigitalButtonActionsToCommandMapping[OutIntValue] );
 			}
 		}
 	}
@@ -250,58 +250,34 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 		switch(EAnalogStickActions(OutIntValue))
 		{
 		case ESA_Legacy:
-
-			UpdateControllerSettings_Worker( 'GBA_TurnLeft_Gamepad', "Axis aTurn Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_MoveForward_Gamepad', "Axis aBaseY Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_StrafeLeft_Gamepad', "Axis aStrafe Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_Look_Gamepad', "Axis aLookup Speed=0.65 DeadZone=0.2" );
-
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_TurnLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_MoveForward_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_StrafeLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_Look_Gamepad" );
 			break;
 		case ESA_SouthPaw:
-			UpdateControllerSettings_Worker( 'GBA_TurnLeft_Gamepad', "Axis aTurn Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_Look_Gamepad', "Axis aLookup Speed=-0.65 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_StrafeLeft_Gamepad', "Axis aStrafe Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_MoveForward_Gamepad', "Axis aBaseY Speed=-1.0 DeadZone=0.2" );
-
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_TurnLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_Look_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_StrafeLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_MoveForward_Gamepad" );
 			break;
 		case ESA_LegacySouthPaw:
-			UpdateControllerSettings_Worker( 'GBA_StrafeLeft_Gamepad', "Axis aStrafe Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_Look_Gamepad', "Axis aLookup Speed=-0.65 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_TurnLeft_Gamepad', "Axis aTurn Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_MoveForward_Gamepad', "Axis aBaseY Speed=-1.0 DeadZone=0.2" );
-
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_StrafeLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_Look_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_TurnLeft_Gamepad" );
 			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_MoveForward_Gamepad" );
 			break;
 		case ESA_Normal: default:
-			UpdateControllerSettings_Worker( 'GBA_StrafeLeft_Gamepad', "Axis aStrafe Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_MoveForward_Gamepad', "Axis aBaseY Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_TurnLeft_Gamepad', "Axis aTurn Speed=1.0 DeadZone=0.2" );
-			UpdateControllerSettings_Worker( 'GBA_Look_Gamepad', "Axis aLookup Speed=0.65 DeadZone=0.2" );
-
-			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_StrafeLeft_Gamepad" ); // Axis aStrafe Speed=1.0 DeadZone=0.2
-			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_MoveForward_Gamepad" ); //  Axis aBaseY Speed=1.0 DeadZone=0.2
-			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_TurnLeft_Gamepad" ); // Axis aTurn Speed=1.0 DeadZone=0.2 
-			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_Look_Gamepad" ); //  Axis aLookup Speed=0.65 DeadZone=0.2
+			UpdateControllerSettings_Worker( 'XboxTypeS_LeftX', "GBA_StrafeLeft_Gamepad" ); // Axis aStrafe Speed=1.0 DeadZone=0.3
+			UpdateControllerSettings_Worker( 'XboxTypeS_LeftY', "GBA_MoveForward_Gamepad" ); //  Axis aBaseY Speed=1.0 DeadZone=0.3
+			UpdateControllerSettings_Worker( 'XboxTypeS_RightX', "GBA_TurnLeft_Gamepad" ); // Axis aTurn Speed=1.0 DeadZone=0.3
+			UpdateControllerSettings_Worker( 'XboxTypeS_RightY', "GBA_Look_Gamepad" ); //  Axis aLookup Speed=0.65 DeadZone=0.3
 			break;
 		}
 	}
 
 	// make sure to call the super version after, since it updates the current pawn as well.
 	Super.LoadSettingsFromProfile(bLoadCharacter);
-
-	// Bind menu button
-	UpdateControllerSettings_Worker( 'XboxTypeS_Start', class'UTProfileSettings'.default.DigitalButtonActionsToCommandMapping[DBA_ShowMenu] );	
 }
 
 

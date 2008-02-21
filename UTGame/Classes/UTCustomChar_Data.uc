@@ -167,6 +167,9 @@ var() config array<FactionInfo>			Factions;
 
 /** Array of info for each family (eg IRNM) */
 var() array< class<UTFamilyInfo> >		Families;
+/** full path to mod families. These will be added to the Families list on the first FindFamilyInfo() */
+var() config array<string> ModFamilies;
+var bool bAddedModFamilies;
 
 var() config array<SourceTexture2DRegion>	HeadRegions; // head, eyes, teeth, stump, eyewear, facemask, helmet/hair
 var() config array<SourceTexture2DRegion>	BodyRegions; // chest, thighs, shoulder pads, arms, boots

@@ -94,7 +94,7 @@ event PostInitialize()
 	{
 		ViewTypeLabel.SetDataStoreBinding(string(LBSettings.GetStringSettingValueName(LF_PlayerFilterType, CurrentValueIndex)));
 	}
-
+	
 	// Stats list submitting a selection
 	StatsList = UIList(FindChild('lstStats', true));
 	StatsList.OnSubmitSelection = OnStatsList_SubmitSelection;
@@ -173,7 +173,7 @@ function OnToggleView()
 	//Tell the UI the new view type name
 	if(LBSettings.GetStringSettingValue(LF_PlayerFilterType, CurrentValueIndex))
 	{
-		ViewType = string(LBSettings.GetStringSettingValueName(LF_PlayerFilterType, CurrentValueIndex));
+		ViewType = string(LBSettings.GetStringSettingValueName(LF_PlayerFilterType, CurrentValueIndex)); 
 		ViewTypeLabel.SetDataStoreBinding(ViewType);
 	}
 
@@ -189,17 +189,17 @@ function OnToggleMatchType()
 	local string MatchType;
     local int CurrentValueIndex;
 
-
+	
 	LBSettings = UTLeaderboardSettings(StatsDataStore.LeaderboardSettings);
 	LBSettings.MoveToNextSettingValue(LF_MatchType);
 
     //Tell the UI the new match type name
 	if(LBSettings.GetStringSettingValue(LF_MatchType, CurrentValueIndex))
 	{
-        MatchType = string(LBSettings.GetStringSettingValueName(LF_MatchType, CurrentValueIndex));
+        MatchType = string(LBSettings.GetStringSettingValueName(LF_MatchType, CurrentValueIndex)); 
 		MatchTypeLabel.SetDataStoreBinding(MatchType);
 	}
-
+	
     `Log("UTUIFrontEnd_Leaderboards::OnToggleMatchType() - Moving to next match type"@MatchType);
 	RefreshStats();
 }
@@ -333,6 +333,4 @@ function OnStatsList_SubmitSelection( UIList Sender, optional int PlayerIndex )
 defaultproperties
 {
 	DetailsScene="UI_Scenes_FrontEnd.Scenes.PlayerStatsDetails"
-	bRequiresNetwork=true
-	bRequiresOnlineService=true
 }

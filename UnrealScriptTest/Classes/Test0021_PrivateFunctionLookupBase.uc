@@ -4,6 +4,7 @@
  * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
  */
 class Test0021_PrivateFunctionLookupBase extends TestClassBase;
+`include(Core/Globals.uci)
 
 function Test0021()
 {

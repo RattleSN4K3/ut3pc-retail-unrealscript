@@ -38,6 +38,11 @@ var bool						bGameRestarted;
 var bool						bLevelChange;			// level transition in progress
 var globalconfig	bool		bKickLiveIdlers;		// if true, even playercontrollers with pawns can be kicked for idling
 
+/** If the server doesn't hear a response regarding a cd hash key request, kick them */
+var globalconfig bool bKickMissingCDHashKeys;
+/** Timeout value while waiting for a response to teh cd hash key request */
+var globalconfig float TimeToWaitForHashKey;
+
 /** Whether this match is going to use arbitration or not */
 var bool bUsingArbitration;
 
@@ -66,35 +71,6 @@ var bool bAutomatedPerfTesting;
 var int AutomatedPerfRemainingTime;
 /** This will auto continue to the next round.  Very useful doing soak testing and testing traveling to next level **/
 var bool bAutoContinueToNextRound;
-/** Whether or not we are using the Automated Testing Map list **/
-var bool bUsingAutomatedTestingMapList;
-/** If TRUE, use OpenMap to transition; if FALSE, use SeamlessTravel **/
-var bool bAutomatedTestingWithOpen;
-/**
- *	The index of the current automated testing map.
- *	If < 0 we are in the transition map.
- **/
-var int AutomatedTestingMapIndex;
-
-/** List of maps that we are going to be using for the AutomatedMapTesting **/
-var globalconfig array<string> AutomatedMapTestingList;
-
-/** Number of times to run through the list.  (0 in infinite) **/
-var globalconfig int NumAutomatedMapTestingCycles;
-
-/**
- *	Number of matches played (maybe remove this before shipping)
- *	This is really useful for doing soak testing and such to see how long you lasted!
- *	NOTE:  This is not replicated out to clients atm.
- **/
-var int NumberOfMatchesPlayed;
-/** Keeps track of the current run so when we have repeats and such we know how far along we are **/
-var int NumMapListCyclesDone;
-
-/** This will be run at the start of each start match **/
-var string AutomatedTestingExecCommandToRunAtStartMatch;
-/** This will be the 'transition' map used w/ OpenMap runs **/
-var string AutomatedMapTestingTransitionMap;
 
 /** Whether game is doing a fly through or not.  This is separate from automatedPerfTesting which is going to probably spawn bots / effects **/
 var bool bDoingAFlyThrough;
@@ -187,6 +163,8 @@ var() class<GameReplicationInfo> GameReplicationInfoClass;
 var GameReplicationInfo GameReplicationInfo;
 
 var globalconfig float MaxIdleTime;		// maximum time players are allowed to idle before being kicked
+/** if > 0, maximum time in seconds players are allowed to take travelling to a new map before they are kicked */
+var globalconfig float MaxClientTravelTime;
 
 // speed hack detection
 var globalconfig	float					MaxTimeMargin;
@@ -400,7 +378,13 @@ function NotifyNavigationChanged(NavigationPoint N);
 // Called when game shutsdown.
 event GameEnding()
 {
-	EndLogging("serverquit");
+	if (OnlineSub != None)
+	{
+		if (OnlineSub.SystemInterface != None)
+		{
+			OnlineSub.SystemInterface.ClearConnectionStatusChangeDelegate(OnConnectionStatusChange);
+		}
+	}
 }
 
 /* KickIdler() called if
@@ -643,7 +627,7 @@ static function int GetIntOption( string Options, string ParseString, int Curren
 }
 
 
-static event class<GameInfo> SetGameType(string MapName, string Options, string Portal)
+static event class<GameInfo> SetGameType(string MapName, string Options)
 {
 	return Default.Class;
 }
@@ -752,83 +736,20 @@ event InitGame( string Options, out string ErrorMessage )
 		GameInterface = OnlineSub.GameInterface;
 	}
 
+	// Cache this so it can be used later by async processes
+	ServerOptions = Options;
 	if (WorldInfo.NetMode != NM_Standalone &&
 		// Don't register the session if the UI already has
 		OnlineSub != None &&
 		OnlineSub.GameInterface != None &&
 		GameInterface.GetGameSettings() == None)
 	{
-		// Cache this so it can be used later by async processes
-		ServerOptions = Options;
 		// If there isn't a login to process, immediately register the server
 		// Otherwise the server will be registered when the login completes
 		if (ProcessServerLogin() == false)
 		{
 			RegisterServer();
 		}
-	}
-}
-
-function ParseAutomatedTestingOptions(string Options)
-{
-	local string InOpt;
-
-	InOpt = ParseOption( Options, "bUsingAutomatedTestingMapList");
-	if( InOpt != "" )
-	{
-		`log("bUsingAutomatedTestingMapList: "$bool(InOpt));
-		bUsingAutomatedTestingMapList = bool(InOpt);
-	}
-
-	if (bUsingAutomatedTestingMapList == true)
-	{
-		if (AutomatedMapTestingList.length == 0)
-		{
-			`log("*** No maps in automated test map list... Disabling bUsingAutomatedTestingMapList");
-			bUsingAutomatedTestingMapList = false;
-		}
-	}
-
-	InOpt = ParseOption( Options, "bAutomatedTestingWithOpen");
-	if( InOpt != "" )
-	{
-		`log("bAutomatedTestingWithOpen: "$bool(InOpt));
-		bAutomatedTestingWithOpen = bool(InOpt);
-	}
-
-	AutomatedTestingExecCommandToRunAtStartMatch = ParseOption( Options, "AutomatedTestingExecCommandToRunAtStartMatch");
-	`log("AutomatedTestingExecCommandToRunAtStartMatch: "$AutomatedTestingExecCommandToRunAtStartMatch);
-	AutomatedMapTestingTransitionMap = ParseOption( Options, "AutomatedMapTestingTransitionMap");
-	`log("AutomatedMapTestingTransitionMap: "$AutomatedMapTestingTransitionMap);
-
-	InOpt = ParseOption(Options, "AutomatedTestingMapIndex");
-	if (InOpt != "")
-	{
-		`log("AutomatedTestingMapIndex: " $ int(InOpt));
-		AutomatedTestingMapIndex = int(InOpt);
-	}
-
-	if (bAutomatedTestingWithOpen == true)
-	{
-		InOpt = ParseOption(Options, "NumberOfMatchesPlayed");
-		if (InOpt != "")
-		{
-			`log("NumberOfMatchesPlayed: " $ int(InOpt));
-			NumberOfMatchesPlayed = int(InOpt);
-		}
-
-		InOpt = ParseOption(Options, "NumMapListCyclesDone");
-		if (InOpt != "")
-		{
-			`log("NumMapListCyclesDone: " $ int(InOpt));
-			NumMapListCyclesDone = int(InOpt);
-		}
-	}
-	else
-	{
-		// Server travel uses a transition map automatically...
-		`log("*** Disabling automated transition map for ServerTravel");
-		AutomatedMapTestingTransitionMap = "";
 	}
 }
 
@@ -950,7 +871,6 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 	local int OptionStart;
 
 	bLevelChange = true;
-	EndLogging("mapchange");
 
 	// force an old style load screen if the server has been up for a long time so that TimeSeconds doesn't overflow and break everything
 	bSeamless = (bUseSeamlessTravel && WorldInfo.TimeSeconds < 172800.0f); // 172800 seconds == 48 hours
@@ -980,7 +900,8 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 	{
 		if (NetConnection(P.Player) != None)
 		{
-			P.ClientTravel(URL, TRAVEL_Relative, bSeamless, NextMapGuid);
+			P.ClientSetTravelGuid(NextMapGuid);
+			P.ClientTravel(URL, TRAVEL_Relative, bSeamless);
 		}
 		else
 		{
@@ -1895,91 +1816,6 @@ function SendPlayer( PlayerController aPlayer, string URL )
 /** @return the map we should travel to for the next game */
 function string GetNextMap();
 
-/** @return the map we should travel to during automated testing */
-function string GetNextAutomatedTestingMap()
-{
-	local string MapName;
-	local PlayerController PC;
-	local bool bResetMapIndex;
-
-	if (bUsingAutomatedTestingMapList)
-	{
-		// check to see if we are over the end of the list and then increment num cycles and restart
-		if ((AutomatedTestingMapIndex >= 0) && (Len(AutomatedMapTestingTransitionMap) > 0))
-		{
-			// If the testing map index is >= 0, we are in the transition map
-			// Increment the map index now... this is to avoid ever trying to set -0
-			AutomatedTestingMapIndex++;
-			//
-			AutomatedTestingMapIndex *= -1;
-			MapName = AutomatedMapTestingTransitionMap;
-		}
-		else
-		{
-			// Remove the negative if we are using a transition map
-			if (Len(AutomatedMapTestingTransitionMap) > 0)
-			{
-				AutomatedTestingMapIndex *= -1;
-			}
-
-			if (AutomatedTestingMapIndex >= AutomatedMapTestingList.Length)
-			{
-				AutomatedTestingMapIndex = 0;
-				NumMapListCyclesDone++;
-				bResetMapIndex = true;
-			}
-			MapName = AutomatedMapTestingList[AutomatedTestingMapIndex];
-		}
-
-		if (bAutomatedTestingWithOpen == true)
-		{
-			// see if we have done all of the cycles we were asked to do
-			if ((NumMapListCyclesDone >= NumAutomatedMapTestingCycles) && (NumAutomatedMapTestingCycles != 0))
-			{
-				if (bCheckingForMemLeaks == TRUE)
-				{
-					ConsoleCommand( "STOPTRACKING" );
-					ConsoleCommand( "DUMPALLOCSTOFILE" );
-				}
-
-				// Uncomment this to force exit the application after dumping
-				//ConsoleCommand( "EXIT" );
-			}
-		}
-		else
-		{
-			foreach WorldInfo.AllControllers(class'PlayerController', PC)
-			{
-				// check to see if we are over the end of the list and then increment num cycles and restart
-				if (bResetMapIndex)
-				{
-					PC.PlayerReplicationInfo.AutomatedTestingData.NumMapListCyclesDone++;
-				}
-
-				// see if we have done all of the cycles we were asked to do
-				if ((PC.PlayerReplicationInfo.AutomatedTestingData.NumMapListCyclesDone >= NumAutomatedMapTestingCycles)
-					&& (NumAutomatedMapTestingCycles != 0)
-					)
-				{
-					if( bCheckingForMemLeaks == TRUE )
-					{
-						ConsoleCommand( "STOPTRACKING" );
-						ConsoleCommand( "DUMPALLOCSTOFILE" );
-					}
-
-					// Uncomment this to force exit the application after dumping
-					//ConsoleCommand( "EXIT" );
-				}
-			}
-		}
-
-		`log("NextAutomatedTestingMap: " $ MapName);
-		return MapName;
-	}
-
-	return "";
-}
-
 /**
  * Returns true if we want to travel_absolute
  */
@@ -1993,10 +1829,6 @@ function bool GetTravelType()
 function RestartGame()
 {
 	local string NextMap;
-	local string TransitionMapCmdLine;
-	local string URLString;
-	local int URLMapLen;
-	local int MapNameLen;
 
 	// If we are using arbitration and haven't done the end game handshaking,
 	// do that process first and then come back here afterward
@@ -2023,46 +1855,11 @@ function RestartGame()
 		// get the next map and start the transition
 		bAlreadyChanged = true;
 
-		if (bUsingAutomatedTestingMapList)
-		{
-			NextMap = GetNextAutomatedTestingMap();
-		}
-		else
-		{
-			NextMap = GetNextMap();
-		}
+		NextMap = GetNextMap();
 
 		if (NextMap != "")
 		{
-			if (bUsingAutomatedTestingMapList == false)
-			{
-				WorldInfo.ServerTravel(NextMap,GetTravelType());
-			}
-			else
-			{
-				if (bAutomatedTestingWithOpen == false)
-				{
-					URLString = WorldInfo.GetLocalURL();
-					URLMapLen = Len(URLString);
-
-					MapNameLen = InStr(URLString, "?");
-					if (MapNameLen != -1)
-					{
-						URLString = Right(URLString, URLMapLen - MapNameLen);
-					}
-
-					// The ENTIRE url needs to be recreated here...
-					TransitionMapCmdLine = NextMap$URLString$"?AutomatedTestingMapIndex="$AutomatedTestingMapIndex;
-					`log(">>> Issuing server travel on " $ TransitionMapCmdLine);
-					WorldInfo.ServerTravel(TransitionMapCmdLine,GetTravelType());
-				}
-				else
-				{
-					TransitionMapCmdLine = "?AutomatedTestingMapIndex="$AutomatedTestingMapIndex$"?NumberOfMatchesPlayed="$NumberOfMatchesPlayed$"?NumMapListCyclesDone="$NumMapListCyclesDone;
-					`log(">>> Issuing open command on " $ NextMap $ TransitionMapCmdLine);
-					ConsoleCommand( "open " $ NextMap $ TransitionMapCmdLine);
-				}
-			}
+			WorldInfo.ServerTravel(NextMap,GetTravelType());
 			return;
 		}
 	}
@@ -2208,11 +2005,8 @@ function EndGame( PlayerReplicationInfo Winner, string Reason )
 	}
 
 	bGameEnded = true;
-	EndLogging(Reason);
 }
 
-
-function EndLogging(string Reason);	// Stub function
 
 /** returns whether the given Controller StartSpot property should be used as the spawn location for its Pawn */
 function bool ShouldSpawnAtStartSpot(Controller Player)
@@ -2560,6 +2354,7 @@ event GetSeamlessTravelActorList(bool bToEntry, out array<Actor> ActorList)
 	for (i = 0; i < WorldInfo.GRI.PRIArray.Length; i++)
 	{
 		WorldInfo.GRI.PRIArray[i].bFromPreviousLevel = true;
+		WorldInfo.GRI.PRIArray[i].bFromPreviousLevel_Replicated = true;
 		ActorList[ActorList.length] = WorldInfo.GRI.PRIArray[i];
 	}
 
@@ -2613,6 +2408,10 @@ event PostSeamlessTravel()
 				{
 					HandleSeamlessTravelPlayer(C);
 				}
+				else if (MaxClientTravelTime > 0)
+				{
+					C.SetTimer(MaxClientTravelTime, false, 'ClientTravelTimeExpired');
+				}
 			}
 		}
 	}
@@ -2662,13 +2461,11 @@ event HandleSeamlessTravelPlayer(out Controller C)
 			}
 			else
 			{
-				PC.CleanUpAudioComponents();
 				PC.SeamlessTravelTo(NewPC);
 				NewPC.SeamlessTravelFrom(PC);
 				SwapPlayerControllers(PC, NewPC);
 				PC = NewPC;
 				C = NewPC;
-				//PC.CleanUpAudioComponents();
 			}
 		}
 		else
@@ -2678,6 +2475,7 @@ event HandleSeamlessTravelPlayer(out Controller C)
 	}
 	else
 	{
+		C.ClearTimer('ClientTravelTimeExpired');
 		// clear out data that was only for the previous game
 		C.PlayerReplicationInfo.Reset();
 		// create a new PRI and copy over info; this is necessary because the old gametype may have used a different PRI class
@@ -2714,8 +2512,6 @@ event HandleSeamlessTravelPlayer(out Controller C)
 
 	if (PC != None)
 	{
-		PC.CleanUpAudioComponents();
-
 		// tell the player controller to register its data stores again
 		PC.ClientInitializeDataStores();
 
@@ -2723,6 +2519,7 @@ event HandleSeamlessTravelPlayer(out Controller C)
 		if (PC.PlayerReplicationInfo.bOnlySpectator)
 		{
 			PC.GotoState('Spectating');
+			PC.ClientGotoState('Spectating'); // needed because Spectating state doesn't send client adjustments
 			PC.PlayerReplicationInfo.bIsSpectator = true;
 			PC.PlayerReplicationInfo.bOutOfLives = true;
 			NumSpectators++;
@@ -2974,6 +2771,9 @@ auto State PendingMatch
 	{
 		local int FoundIndex;
 
+		if (!bUsingArbitration)
+			return;
+
 		// Search for the specified PC and remove if found
 		FoundIndex = PendingArbitrationPCs.Find(PC);
 		if (FoundIndex != INDEX_NONE)
@@ -3051,6 +2851,9 @@ function ProcessClientDataWriteCompletion(PlayerController PC)
 {
 	local int FoundIndex;
 
+	if (!bUsingArbitration)
+		return;
+
 	// Search for the specified PC and remove if found
 	FoundIndex = PendingArbitrationPCs.Find(PC);
 	if (FoundIndex != INDEX_NONE)
@@ -3070,6 +2873,9 @@ function ProcessClientDataWriteCompletion(PlayerController PC)
  */
 function ServerWriteArbitrationEndGameData()
 {
+	if (!bHasEndGameHandshakeBegun)
+		return;
+
 	SetTimer(0.0,false,'ServerWriteArbitrationEndGameData');
 	// Write all of the game stats
 	WriteOnlineStats();
@@ -3168,6 +2974,7 @@ function bool ProcessServerLogin()
 		{
 			OnlineSub.PlayerInterface.AddLoginChangeDelegate(OnLoginChange);
 			OnlineSub.PlayerInterface.AddLoginFailedDelegate(0,OnLoginFailed);
+			OnlineSub.SystemInterface.AddConnectionStatusChangeDelegate(OnConnectionStatusChange);
 			// Check the command line for login information and login async
 			if (OnlineSub.PlayerInterface.AutoLogin() == false)
 			{
@@ -3272,49 +3079,18 @@ function OnServerCreateComplete(bool bWasSuccessful)
 	}
 }
 
-/*
- *	Start the AutomatedMapTest transition timer
+/**
+ * Delegate fired when the online server connection state changes
+ *
+ * @param ConnectionStatus the new connection status
  */
-event StartAutomatedMapTestTimer()
+function OnConnectionStatusChange(EOnlineServerConnectionStatus ConnectionStatus)
 {
-	if ((WorldInfo != none) && (AutomatedTestingMapIndex < 0) && (bCheckingForMemLeaks == TRUE))
+	// Any error other than we are connected means destroy the game
+	if (ConnectionStatus != OSCS_Connected)
 	{
-		WorldInfo.DoMemoryTracking();
+		OnlineSub.GameInterface.DestroyOnlineGame();
 	}
-	SetTimer(15.0,false,'CloseAutomatedMapTestTimer');
-}
-
-function CloseAutomatedMapTestTimer()
-{
-	if (AutomatedTestingMapIndex < 0)
-	{
-		RestartGame();
-	}
-}
-
-function IncrementAutomatedTestingMapIndex()
-{
-	if (bUsingAutomatedTestingMapList)
-	{
-		if (bAutomatedTestingWithOpen == true)
-		{
-			`log( "  NumMapListCyclesDone: " $ NumMapListCyclesDone $ " / " $ NumAutomatedMapTestingCycles );
-		}
-		else
-		{
-			if (AutomatedTestingMapIndex >= 0)
-			{
-				AutomatedTestingMapIndex++;
-			}
-		}
-		`log( "  NextIncrementAutomatedTestingMapIndex: " $ AutomatedTestingMapIndex $ " / " $ AutomatedMapTestingList.Length );
-	}
-}
-
-function IncrementNumberOfMatchesPlayed()
-{
-	`log( "  Num Matches Played: " $ NumberOfMatchesPlayed );
-	NumberOfMatchesPlayed++;
 }
 
 defaultproperties

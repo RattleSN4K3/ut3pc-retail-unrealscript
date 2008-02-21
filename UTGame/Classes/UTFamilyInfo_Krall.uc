@@ -22,4 +22,7 @@ defaultproperties
 	Gibs[3]=(BoneName=b_RightLeg,GibClass=class'UTGib_KrallLeg',bHighDetailOnly=false)
 	Gibs[4]=(BoneName=b_Spine,GibClass=class'UTGib_KrallTorso',bHighDetailOnly=false)
 	Gibs[5]=(BoneName=b_RightClav,GibClass=class'UTGib_KrallBone',bHighDetailOnly=false)
+	
+	DefaultMeshScale=1.0
+	BaseTranslationOffset=2.0
 }

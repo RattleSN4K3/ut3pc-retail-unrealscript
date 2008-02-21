@@ -46,8 +46,6 @@ event InitGame( string Options, out string ErrorMessage )
 		AccessControl = Spawn(AccessControlClass);
 	}
 
-	ParseAutomatedTestingOptions(Options);
-
 	InOpt = ParseOption( Options, "SPResult");
 	if ( InOpt != "" )
 	{
@@ -67,8 +65,6 @@ event InitGame( string Options, out string ErrorMessage )
 	{
 		SinglePlayerMissionID = INDEX_NONE;
 	}
-
-	bAllowKeyboardAndMouse = true;
 
 	// Cache a pointer to the online subsystem
 	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
@@ -159,7 +155,7 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 	local int i, NoChildren;
 	local EMissionCondition Condition;
 	local EMissionInformation Mission;
-	local bool bNeedsProfileSaved;
+	local bool bNeedsProfileSaved, bForceSaveProfile;
 	local string work;
 	local name Card;
 
@@ -230,6 +226,34 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 
 	if ( PreviousMissionObj != none )
 	{
+		// Mark the mission's as being visited
+
+		if ( MGRI.GetMission(PreviousMissionObj.MissionID, Mission) )
+		{
+			Profile.BoneHasBeenVisited(Mission.GlobeBoneName);
+			bNeedsProfileSaved = true;
+
+			// If this was any of the containment maps, flag it
+
+		    if ( InStr(Mission.Map,"Containment") > INDEX_None || PreviousMissionObj.MissionID == 33 || PreviousMissionObj.MissionID == 143)
+	        {
+	        	Profile.AddPersistentKey(ESPKey_DarkWalkerUnlock);
+	        	Profile.AddPersistentKey(ESPKey_CanStealNecris);
+				bForceSaveProfile = true;
+	        }
+		}
+
+		// If we aren't a cutsequence or the first mission, we need to save the profile for the the mission progress
+		if (bForceSaveProfile || (!PreviousMissionObj.bCutSequence && PreviousMissionObj.MissionID != 0) )
+		{
+			Profile.BoneHasBeenVisited(Mission.GlobeBoneName);
+			bNeedsProfileSaved = true;
+		}
+		else
+		{	// Otherwise don't save the profile
+			bNeedsProfileSaved = false;
+		}
+
 		// We have to subtract 1 from UnlockChapterIndex because Jim used 1-X instead of 0-X.
 		// This is also done in Profile.UnlockChapter
 
@@ -240,6 +264,7 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 
 			work = Localize("Campaign","Chapter"$PreviousMissionObj.UnlockChapterIndex-1$"Unlock","UTGameUI");
 			class'UTUIScene'.static.ShowOnlineToast(Work);
+			bNeedsProfileSaved = true;
 		}
 
 		// Look to see if we should be clearing the cards
@@ -247,22 +272,7 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 		if ( PreviousMissionObj.bClearCards )
 		{
 			Profile.ClearModifierCards();
-		}
-
-		// Mark the mission's as being visited
-
-		if ( MGRI.GetMission(PreviousMissionObj.MissionID, Mission) )
-		{
-			Profile.BoneHasBeenVisited(Mission.GlobeBoneName);
 			bNeedsProfileSaved = true;
-
-			// If this was any of the containment maps, flag it
-
-		    if ( InStr(Mission.Map,"Containment") > INDEX_None || PreviousMissionObj.MissionID == 33)
-	        {
-	        	Profile.AddPersistentKey(ESPKey_DarkWalkerUnlock);
-	        	Profile.AddPersistentKey(ESPKey_CanStealNecris);
-	        }
 		}
 
 
@@ -462,6 +472,16 @@ function AcceptMission()
 	local int i;
 	local UTPlayerController PC;
 	local UTProfileSettings Profile;
+	local UTBot B;
+
+	// Log any bots still hanging around
+	foreach WorldInfo.AllControllers(class'UTBot', B)
+	{
+		`Warn("BOT STILL AROUND!" @ B.PlayerReplicationInfo.PlayerName @ B);
+		//@hack: pretty sure the right fix is to prevent Logout() from adding a bot to replace an exiting human
+		//	when we haven't accepted the mission yet, but this is a safer fix at this point
+		B.Destroy();
+	}
 
 	MGRI = UTMissionGRI(GameReplicationInfo);
 	if ( MGRI != none && MGRI.GetCurrentMission(Mission) )
@@ -488,6 +508,10 @@ function AcceptMission()
 		GameDifficulty = Profile.GetCampaignSkillLevel() * 2;
 
 		URL = Mission.Map $ Mission.URL $ "?SPI="$Mission.MissionID$"?PlayersMustBeReady=1?Difficulty="$GameDifficulty$"?MaxPlayers="$MaxPlayers;
+		if (InStr(Caps(URL), "?TIMELIMIT=") == INDEX_NONE)
+		{
+			URL $= "?TimeLimit=20";
+		}
 
 		if ( Profile == none  || !Profile.HasPersistentKey(ESPKey_CanStealNecris) )
 		{
@@ -691,6 +715,9 @@ function ProcessModifierCard(name GameModifierCard, UTProfileSettings Profile, o
 	}
 	else if (GameModifierCard == 'TacticalDiversion')
 	{
+		if ( Mission.RequiredOpponents.length <= Mission.RequiredTeammates.length + 1 )
+			RemoveCount = Min(1, Mission.RequiredOpponents.length - 1);
+		else
 		RemoveCount = Min(2, Mission.RequiredOpponents.length - 1);
 		if (RemoveCount > 0)
 		{

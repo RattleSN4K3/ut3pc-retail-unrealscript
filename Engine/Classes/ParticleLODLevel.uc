@@ -19,7 +19,7 @@ var	const				int						LevelSetting;
 var						bool					bEnabled;
 
 /** The required module for this LOD level											*/
-var editinline export	ParticleModuleRequired	RequiredModule;
+var editinline			ParticleModuleRequired	RequiredModule;
 
 /** An array of particle modules that contain the adjusted data for the LOD level	*/
 var editinline export	array<ParticleModule>	Modules;

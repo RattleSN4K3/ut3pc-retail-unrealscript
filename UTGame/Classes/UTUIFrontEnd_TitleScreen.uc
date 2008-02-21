@@ -156,10 +156,17 @@ native function UpdateGamePlayersArray();
 function CheckTitleSkip()
 {
 	local string OutValue;
+	local bool bShouldAutologin;
+	local string Username, UserPassword;
 
-	if(GetDataStoreStringValue("<Registry:GoStraightToMainMenu>", OutValue))
+	//See if we specified a user/pass for login on the command line
+	//We want to skip the title screen and immediately login
+	bShouldAutologin = CheckForAutoLogin(Username, UserPassword);
+
+	//Only bypass the title screen if we are trying to autologin OR have been there once before
+	if(GetDataStoreStringValue("<Registry:GoStraightToMainMenu>", OutValue) || bShouldAutologin)
 	{
-		if(OutValue=="1")
+		if(OutValue=="1" || bShouldAutologin)
 		{
 			OpenSceneByName(MainMenuScene, true);
 			UpdateProfileLabels();

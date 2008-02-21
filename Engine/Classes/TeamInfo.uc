@@ -6,6 +6,8 @@ class TeamInfo extends ReplicationInfo
 	native
 	nativereplication;
 
+`include(Core/Globals.uci)
+
 var databinding localized string TeamName;
 var databinding int Size; //number of players on this team in the level
 var databinding float Score;

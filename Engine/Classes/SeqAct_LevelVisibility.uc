@@ -14,8 +14,6 @@ var() LevelStreaming Level;
 /** LevelStreaming object name */
 var() Name LevelName;
 
-var transient bool bStatusIsOk;
-
 ;
 
 defaultproperties

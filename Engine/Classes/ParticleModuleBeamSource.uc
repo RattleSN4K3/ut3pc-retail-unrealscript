@@ -9,37 +9,38 @@
 class ParticleModuleBeamSource extends ParticleModuleBeamBase
 	native(Particle)
 	editinlinenew
+	dontcollapsecategories
 	hidecategories(Object);
 
-/** The method flag. */
-var(Source)			Beam2SourceTargetMethod			SourceMethod;
+/** The method flag																			*/
+var(Source)									Beam2SourceTargetMethod			SourceMethod;
 
-/** The strength of the tangent from the source point for each beam. */
-var(Source)			name							SourceName;
+/** The strength of the tangent from the source point for each beam							*/
+var(Source)									name							SourceName;
 
-/** Whether to treat the as an absolute position in world space. */
-var(Source)			bool							bSourceAbsolute;
+/** Whether to treat the as an absolute position in world space.							*/
+var(Source)									bool							bSourceAbsolute;
 
-/** Default source-point to use. */
-var(Source)			rawdistributionvector			Source;
+/** Default source-point to use																*/
+var(Source)									rawdistributionvector			Source;
 
-/** Whether to lock the source to the life of the particle. */
-var(Source)			bool							bLockSource;
+/** Whether to lock the source to the life of the particle									*/
+var(Source)									bool							bLockSource;
 
-/** The method to use for the source tangent. */
-var(Source)			Beam2SourceTargetTangentMethod	SourceTangentMethod;
+/** The method to use for the source tangent.												*/
+var(Source)									Beam2SourceTargetTangentMethod	SourceTangentMethod;
 
-/** The tangent for the source point for each beam. */
-var(Source)			rawdistributionvector			SourceTangent;
+/** The tangent for the source point for each beam											*/
+var(Source)									rawdistributionvector			SourceTangent;
 
-/** Whether to lock the source to the life of the particle. */
-var(Source)			bool							bLockSourceTangent;
+/** Whether to lock the source to the life of the particle									*/
+var(Source)									bool							bLockSourceTangent;
 
-/** The strength of the tangent from the source point for each beam. */
-var(Source)			rawdistributionfloat			SourceStrength;
+/** The strength of the tangent from the source point for each beam							*/
+var(Source)									rawdistributionfloat			SourceStrength;
 
-/** Whether to lock the source to the life of the particle. */
-var(Source)			bool							bLockSourceStength;
+/** Whether to lock the source to the life of the particle									*/
+var(Source)									bool							bLockSourceStength;
 
 
 

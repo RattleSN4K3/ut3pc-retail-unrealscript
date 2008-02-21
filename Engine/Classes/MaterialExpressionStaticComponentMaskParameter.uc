@@ -6,6 +6,7 @@ class MaterialExpressionStaticComponentMaskParameter extends MaterialExpressionP
 	collapsecategories
 	hidecategories(Object);
 
+var() name			ParameterName;
 var ExpressionInput	Input;
 var() bool	DefaultR,
 			DefaultG,

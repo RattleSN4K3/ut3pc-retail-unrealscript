@@ -138,7 +138,7 @@ function SetMessageOfTheDay()
 					{
 						MenuItems.GetValueFromProviderSet('Maps','Description',Index,MOTDText);
 					}
-					ServerName.SetDataStoreBinding(X);
+					ServerName.SetDataStoreBinding(WI.GetMapName());
 				}
 			}
 			else
@@ -162,7 +162,7 @@ function TabTick(float DeltaTime)
 	local string Work;
 
 	// Update the Console
-	if ( bShowingVotes )
+	if ( bShowingVotes && ConText != None )
 	{
 		Con = UTConsole(GetPlayerOwner().ViewportClient.ViewportConsole);
 		if ( Con != none && ConsoleTextCnt != Con.TextCount )
@@ -200,6 +200,7 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 {
 	local worldinfo WI;
 	local UTGameReplicationInfo GRI;
+	local UTPlayerController UTPC;
 
 	WI = UTUIScene(GetScene()).GetWorldInfo();
 	Super.SetupButtonBar(ButtonBar);
@@ -207,7 +208,9 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 	if ( WI != none )
 	{
 		GRI = UTGameReplicationInfo(WI.GRI);
-		if ( GRI != none && GRI.CanChangeTeam() )
+		UTPC = UTUIScene(GetScene()).GetUTPlayerOwner();
+		if ( GRI != none && GRI.CanChangeTeam() 
+			&& ((UTPC == None) || (UTPC.PlayerReplicationInfo == None) || !UTPC.PlayerReplicationInfo.bOnlySpectator) )
 		{
 			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ChangeTeam>",OnChangeTeam) ;
 		}
@@ -389,11 +392,6 @@ function BeginVoting(UTVoteReplicationInfo VoteRI)
 		MapVoteList.AddItem(VoteRI.Maps[I].Map);
 	}
 
-	if ( IsActivePage() )
-	{
-	//Make sure the vote list has the active focus
-	    MapVoteList.SetFocus(none);
-	}
 }
 
 function FindWinningMap()
@@ -423,7 +421,7 @@ function FindWinningMap()
 			LastBestVoteIndex = BestIdx;
 			if (BestIdx>=0)
 			{
-			s = GetMapFriendlyName(VoteRI.Maps[BestIdx].Map)@"<strings:UTGameUI.MidGameMenu.BestVoteA>"@string(int(VoteRI.Maps[BestIdx].NoVotes))@"<strings:UTGameUI.MidGameMenu.BestVoteB>";
+				s = GetMapFriendlyName(VoteRI.Maps[BestIdx].Map)@"<strings:UTGameUI.MidGameMenu.BestVoteA>"@string(int(VoteRI.Maps[BestIdx].NoVotes))@"<strings:UTGameUI.MidGameMenu.BestVoteB>";
 			}
 			else
 			{
@@ -443,7 +441,7 @@ function string GetMapFriendlyName(string Map)
 	// try to use a friendly name from the UI if we can find it
 	for (i = 0; i < LocalMapList.length; i++)
 	{
-		if (LocalMapList[i].MapName ~= Map)
+		if (LocalMapList[i] != None && LocalMapList[i].MapName ~= Map)
 		{
 			// try to resolve the UI string binding into a readable name
 			StartIndex = InStr(Caps(LocalMapList[i].FriendlyName), "<STRINGS:");
@@ -473,6 +471,18 @@ function string GetMapFriendlyName(string Map)
 		Map = Right(Map, Len(Map) - P - 1);
 	}
 	return Map;
+}
+
+/** OBSOLETE - used GetMapFriendlyName */
+function string TrimGameType(string Map)
+{
+	local int p;
+	p = InStr(Map,"-");
+	if (P>INDEX_None)
+	{
+		Map = Right(Map,Len(Map)-P-1);
+	}
+	return map;
 }
 
 function bool DrawVote(UTSimpleList SimpleList,int ItemIndex, float XPos, out float YPos)

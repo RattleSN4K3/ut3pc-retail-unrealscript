@@ -113,7 +113,7 @@ function bool GoPickupFlag(UTBot B)
 	return false;
 }
 
-function actor FormationCenter()
+function actor FormationCenter(Controller C)
 {
 	if ( (SquadObjective != None) && (SquadObjective.DefenderTeamIndex == Team.TeamIndex) )
 		return SquadObjective;

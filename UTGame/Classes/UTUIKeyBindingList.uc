@@ -418,7 +418,6 @@ function bool OnClicked( UIScreenObject Sender, int PlayerIndex )
 	local UILabelButton BindingButton;
 	local string FinalMsg;
 	local int ObjectIdx;
-	local UIObject MessageBoxChild;
 
 	// Cancel the object we were previously binding.
 	if(CurrentlyBindingObject==None && MessageBoxReference==None)
@@ -444,16 +443,6 @@ function bool OnClicked( UIScreenObject Sender, int PlayerIndex )
 				FinalMsg = Repl(FinalMsg, "`Binding`", UILabel(GeneratedObjects[ObjectIdx].LabelObj).GetDataStoreBinding());
 
 				MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene(NonIntrusiveMessageBoxScene);
-
-				MessageBoxChild = MessageBoxReference.FindChild('pnlScrollFrame', true);
-				MessageBoxChild.KillFocus(None, PlayerIndex);
-				MessageBoxChild.SetPrivateBehavior(PRIVATE_NotFocusable, true);
-
-				MessageBoxChild = MessageBoxReference.FindChild('pnlSafeRegionLong', true);
-				MessageBoxChild.KillFocus(None, PlayerIndex);
-				MessageBoxChild.SetPrivateBehavior(PRIVATE_NotFocusable, true);
-
-				MessageBoxReference.SetFocus(None, PlayerIndex);
 				MessageBoxReference.OnMBInputKey = OnBindKey_InputKey;
 				MessageBoxReference.FadeDuration = 0.125f;
 				MessageBoxReference.DisplayModalBox(FinalMsg,"<Strings:UTGameUI.MessageBox.BindKey_Title>",0.0f);

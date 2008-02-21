@@ -69,90 +69,6 @@ function OnMainRegion_Show_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnima
 	}
 }
 
-/** Displays the login interface using the online subsystem. */
-function bool ShowLoginUI(optional bool bOnlineOnly=false)
-{
-	local bool bResult;
-	local int PlayerIndex;
-
-	bResult = Super.ShowLoginUI(bOnlineOnly);
-
-	if ( bResult )
-	{
-		// while waiting for the login to complete, don't allow the player to go anywhere
-		PlayerIndex = GetPlayerIndex();
-		ButtonBar.Buttons[0].DisableWidget(PlayerIndex);
-		ButtonBar.Buttons[1].DisableWidget(PlayerIndex);
-	}
-
-	return bResult;
-}
-
-/**
- * Executes a action based on the currently selected menu item.
- */
-function OnSelectItem(int PlayerIndex=GetPlayerIndex())
-{
-	local int SelectedItem, ControllerId;
-
-	if ( ButtonBar.Buttons[1].IsEnabled(PlayerIndex) )
-	{
-		SelectedItem = MenuList.GetCurrentItem();
-		ControllerId = class'UIInteraction'.static.GetPlayerControllerId(PlayerIndex);
-		switch(SelectedItem)
-		{
-		case MULTIPLAYER_OPTION_QUICKMATCH:
-			if ( CheckLinkConnectionAndError() && CheckLoginAndError(ControllerId, true) )
-			{
-				OpenSceneByName(QuickMatchScene);
-			}
-			break;
-
-		case MULTIPLAYER_OPTION_HOSTGAME:
-			if ( CheckLinkConnectionAndError() )
-			{
-				OpenSceneByName(HostScene);
-			}
-			break;
-
-		case MULTIPLAYER_OPTION_JOINGAME:
-			if ( CheckLinkConnectionAndError() )
-			{
-				OpenSceneByName(Joinscene);
-			}
-			break;
-		}
-	}
-}
-
-/** Callback for when the user wants to back out of this screen. */
-function OnBack()
-{
-	if ( ButtonBar.Buttons[0].IsEnabled(GetPlayerIndex()) )
-	{
-		Super.OnBack();
-	}
-}
-
-event SceneDeactivated()
-{
-	local OnlinePlayerInterface PlayerInt;
-
-	Super.SceneDeactivated();
-
-	// make sure that we completely unsubscribed from all login change notifications (this can happen if the player closes
-	// this menu immediately after signing in, before the subsystem has fired the notification)
-	PlayerInt = GetPlayerInterface();
-
-	if(PlayerInt != none)
-	{
-		PlayerInt.ClearLoginChangeDelegate(OnLoginUI_LoginChange, GetPlayerOwner().ControllerId);
-		PlayerInt.ClearLoginFailedDelegate(GetPlayerOwner().ControllerId, OnLoginUI_LoginFailed);
-	}
-
-	UTGameUISceneClient(GetSceneClient()).bDimScreen=false;
-}
-
 /**
  * Checks various conditions required to play online and displays the relevant messages to the user if any online features
  * will be disabled.
@@ -212,18 +128,8 @@ function PerformMultiplayerChecks()
 /** Callback for when the login changes after showing the login UI. */
 function OnLoginUI_LoginChange()
 {
-	local int PlayerIndex;
-
-	// re-enable the buttons
-	PlayerIndex = GetPlayerIndex();
-
-	ButtonBar.Buttons[0].EnableWidget(PlayerIndex);
-	ButtonBar.Buttons[1].EnableWidget(PlayerIndex);
-
 	Super.OnLoginUI_LoginChange();
 
-	// regenerate the list of available options - some options are shown depending on our login status
-	MenuList.RefreshSubscriberValue();
 	PerformMultiplayerChecks();
 }
 
@@ -235,14 +141,6 @@ function OnLoginUI_LoginChange()
  */
 function OnLoginUI_LoginFailed(byte LocalUserNum,EOnlineServerConnectionStatus ErrorCode)
 {
-	local int PlayerIndex;
-
-	// re-enable the buttons
-	PlayerIndex = GetPlayerIndex();
-
-	ButtonBar.Buttons[0].EnableWidget(PlayerIndex);
-	ButtonBar.Buttons[1].EnableWidget(PlayerIndex);
-
 	Super.OnLoginUI_LoginFailed(LocalUserNum, ErrorCode);
 
 	PerformMultiplayerChecks();
@@ -363,6 +261,40 @@ function OnFirstTimeCharacter_Confirm(UTUIScene_MessageBox MessageBox, int Selec
 		break;
 	case 2:	// Close this scene
 		CloseScene(self);
+		break;
+	}
+}
+
+/**
+ * Executes a action based on the currently selected menu item.
+ */
+function OnSelectItem(int PlayerIndex=GetPlayerIndex())
+{
+	local int SelectedItem, ControllerId;
+
+	SelectedItem = MenuList.GetCurrentItem();
+	ControllerId = class'UIInteraction'.static.GetPlayerControllerId(PlayerIndex);
+	switch(SelectedItem)
+	{
+	case MULTIPLAYER_OPTION_QUICKMATCH:
+		if ( CheckLinkConnectionAndError() && CheckLoginAndError(ControllerId, true) )
+		{
+			OpenSceneByName(QuickMatchScene);
+		}
+		break;
+
+	case MULTIPLAYER_OPTION_HOSTGAME:
+		if ( CheckLinkConnectionAndError() )
+		{
+			OpenSceneByName(HostScene);
+		}
+		break;
+
+	case MULTIPLAYER_OPTION_JOINGAME:
+		if ( CheckLinkConnectionAndError() )
+		{
+			OpenSceneByName(Joinscene);
+		}
 		break;
 	}
 }

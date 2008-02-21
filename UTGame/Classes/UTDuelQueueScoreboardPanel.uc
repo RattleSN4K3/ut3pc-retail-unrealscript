@@ -33,3 +33,8 @@ function float DrawScore(UTPlayerReplicationInfo PRI, float YPos, int FontIndex,
 {
 	return Canvas.ClipX;
 }
+
+defaultproperties
+{
+	bMustDrawLocalPRI=false
+}

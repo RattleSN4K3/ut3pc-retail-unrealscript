@@ -1254,4 +1254,6 @@ defaultproperties
 
 	HornSounds[1]=SoundCue'A_Vehicle_leviathan.Soundcues.A_Vehicle_leviathan_horn' // Big axon
 	HornIndex=1
+
+	DeployIconOffset=0.92
 }

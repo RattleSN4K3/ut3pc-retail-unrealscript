@@ -50,9 +50,4 @@ defaultproperties
 
 	bRecommendSplashDamage=true
 	bInstantHit=false
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
-		Samples(0)=(LeftAmplitude=50,RightAmplitude=80,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.200)
-	End Object
-	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

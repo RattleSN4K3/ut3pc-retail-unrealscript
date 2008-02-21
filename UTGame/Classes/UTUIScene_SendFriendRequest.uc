@@ -15,8 +15,6 @@ var transient UniqueNetId TargetPlayerNetId;
 
 event PostInitialize()
 {
-	local UIObject ButtonBarSafeRegion;
-
 	Super.PostInitialize();
 
 	UserNameEditBox = UIEditBox(FindChild('txtUserName',true));
@@ -34,13 +32,6 @@ event PostInitialize()
 	MessageEditBox.MaxCharacters = GS_MESSAGE_MAXLENGTH;
 	MessageEditBox.SetDataStoreBinding(Localize("PlayerCard","DefaultFriendRequestMessage", "UTGameUI"));
 	MessageEditBox.SetValue(Localize("PlayerCard","DefaultFriendRequestMessage", "UTGameUI"));
-
-	if ( IsConsole() )
-	{
-		// this must be done to prevent the
-		ButtonBarSafeRegion = FindChild('pnlSafeRegionLong',true);
-		ButtonBarSafeRegion.SetPrivateBehavior(PRIVATE_NotFocusable, true);
-	}
 }
 
 

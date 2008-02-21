@@ -8,6 +8,8 @@ class GameUISceneClient extends UISceneClient
 	native(UIPrivate)
 	config(UI);
 
+`include(Core/Globals.uci)
+
 /**
  * the list of scenes currently open.  A scene corresponds to a top-level UI construct, such as a menu or HUD
  * There is always at least one scene in the stack - the transient scene.  The transient scene is used as the

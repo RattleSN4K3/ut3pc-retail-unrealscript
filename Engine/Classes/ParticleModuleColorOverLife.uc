@@ -4,13 +4,11 @@
 class ParticleModuleColorOverLife extends ParticleModuleColorBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/** The color to apply to the particle, as a function of the particle RelativeTime. */
 var(Color)					rawdistributionvector	ColorOverLife;
-/** The alpha to apply to the particle, as a function of the particle RelativeTime. */
 var(Color)					rawdistributionfloat	AlphaOverLife;
-/** If TRUE, the alpha value will be clamped to the [0..1] range. */
 var(Color)					bool					bClampAlpha;
 
 

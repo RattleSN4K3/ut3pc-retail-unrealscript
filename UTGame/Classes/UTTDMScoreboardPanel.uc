@@ -67,7 +67,7 @@ function DrawTeamScore()
 		ScoreStr = "0";
 
 		Canvas.Font = Font'UI_Fonts_Final.HUD.MF_Large';
-		if ( WI != none && WI.GRI != none && WI.GRI.Teams[AssociatedTEamIndex] != none )
+		if ( WI != none && WI.GRI != none && (WI.GRI.Teams.Length > AssociatedTeamIndex) && (WI.GRI.Teams[AssociatedTeamIndex] != None) )
 		{
 			ScoreToDraw = Min(WI.GRI.Teams[AssociatedTeamIndex].Score, 9999);
 			ScoreStr = string(ScoreToDraw);

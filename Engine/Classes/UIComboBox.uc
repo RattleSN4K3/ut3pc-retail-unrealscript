@@ -15,6 +15,8 @@ class UIComboBox extends UIObject
 	placeable
 	implements(UIDataStorePublisher);
 
+`include(Core/Globals.uci)
+
 /*
 	Kismet events needed:
 		- [N/A] selected item changed (wouldn't be necessary if sequence events were propagated up the parent chain)

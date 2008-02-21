@@ -13,6 +13,9 @@ event Activated()
 	}
 	else
 	{
+		if ( NewVisibilityModifier < 1.0 )
+			MapInfo.VisibilityModifier = 0.8 * NewVisibilityModifier;
+		else
 		MapInfo.VisibilityModifier = NewVisibilityModifier;
 	}
 }

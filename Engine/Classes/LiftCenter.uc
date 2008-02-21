@@ -58,7 +58,6 @@ event bool SuggestMovePreparation(Pawn Other)
 	// make sure LiftCenter is correctly positioned on the lift
 	if ( (Base != MyLift) || (Location != MyLift.Location + LiftOffset) )
 	{
-		`log(self$" drifted!!!");
 		SetLocation(MyLift.Location + LiftOffset);
 		SetBase(MyLift);
 	}

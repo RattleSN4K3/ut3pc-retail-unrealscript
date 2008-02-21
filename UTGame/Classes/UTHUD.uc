@@ -16,8 +16,8 @@ var class<UTLocalMessage> WeaponSwitchMessage;
 var array<Actor> PostRenderedActors;
 
 /** Cached reference to the another hud texture */
-var const Texture2D AltHudTexture;
-var const Texture2D IconHudTexture;
+var Texture2D AltHudTexture;
+var Texture2D IconHudTexture;
 
 /** Holds a reference to the font to use for a given console */
 var config string ConsoleIconFontClassName;
@@ -299,9 +299,6 @@ var textureCoordinates QuickPickSelCoords;
 var Texture2D QuickPickCircleImage;
 var TextureCoordinates QuickPickCircleCoords;
 
-/** controller rumble to play when switching weapons. */
-var ForceFeedbackWaveform QuickPickWaveForm;
-
 /******************************************************************************************
  Widget Locations / Visibility flags
  ******************************************************************************************/
@@ -404,6 +401,10 @@ var bool bIsSplitscreen;
 
 /** This will be true if this is the first player */
 var bool bIsFirstPlayer;
+
+
+/** Configurable crosshair scaling */
+var float ConfiguredCrosshairScaling;
 
 /**
  * Draw a glowing string
@@ -702,7 +703,7 @@ exec function SetShowScores(bool bNewValue)
 {
 	local UTGameReplicationInfo GRI;
 
-	if (!bNewValue && (WorldInfo.IsInSeamlessTravel() || (UTPlayerOwner != None && UTPlayerOwner.bDedicatedServerSpectator)))
+	if (!bNewValue && WorldInfo.IsInSeamlessTravel() )
 	{
 		return;
 	}
@@ -717,7 +718,7 @@ exec function SetShowScores(bool bNewValue)
 
 function GetScreenCoords(float PosY, out float ScreenX, out float ScreenY, out HudLocalizedMessage InMessage )
 {
-	local float Offset;
+	local float Offset, MapSize;
 
 	if ( PosY > 1.0 )
 	{
@@ -737,6 +738,18 @@ function GetScreenCoords(float PosY, out float ScreenX, out float ScreenY, out H
 
     ScreenX -= InMessage.DX * 0.5;
     ScreenY -= InMessage.DY * 0.5;
+
+	// make sure not behind minimap    
+   	if ( bHasMap && bShowMap && (!bIsSplitScreen || bIsFirstPlayer) )
+   	{
+		MapSize = MapDefaultSize * Canvas.ClipY/768;
+		if ( (ScreenY < MapPosition.Y*Canvas.ClipY + MapSize)
+			&& (ScreenX + InMessage.DX > MapPosition.X*Canvas.ClipX - MapSize) )
+		{
+			// adjust left from minimap
+			ScreenX = FMax(1, MapPosition.X*Canvas.ClipX - MapSize - InMessage.DX);
+		}
+	}
 }
 
 
@@ -844,7 +857,7 @@ event PostRender()
 	HUDScaleY = Canvas.ClipX/1280;
 
 	ResolutionScaleX = Canvas.ClipX/1024;
-	ResolutionScale = Canvas.ClipY / 768;
+	ResolutionScale = Canvas.ClipY/768;
 
 	GetTeamColor(TeamIndex, TeamHUDColor, TeamTextColor);
 
@@ -996,6 +1009,7 @@ function DrawGameHud()
 	local float xl, yl, ypos;
 	local float TempResScale;
 	local Pawn P;
+	local int i, len;
 
 	// Draw any spectator information
 	if (UTOwnerPRI != None)
@@ -1085,8 +1099,25 @@ function DrawGameHud()
 
 	Canvas.Font = GetFontSizeIndex(1);
 
+	// Check if any remote players are using VOIP
+	if ( (CharPRI == None) && (PlayerOwner.VoiceInterface != None) && (WorldInfo.NetMode != NM_Standalone) 
+		&& (WorldInfo.GRI != None) )
+	{
+		len = WorldInfo.GRI.PRIArray.Length;
+		for ( i=0; i<len; i++ )
+		{
+			if ( PlayerOwner.VoiceInterface.IsRemotePlayerTalking(WorldInfo.GRI.PRIArray[i].UniqueID) 
+				&& (WorldInfo.GRI.PRIArray[i] != PlayerOwner.PlayerReplicationInfo) 
+				&& (UTPlayerReplicationInfo(WorldInfo.GRI.PRIArray[i]) != None) )
+			{
+				ShowPortrait(UTPlayerReplicationInfo(WorldInfo.GRI.PRIArray[i]));
+				break;
+			}
+		}
+	}
+
 	// Draw the character portrait
-	if ( CharPRI != none  )
+	if ( CharPRI != None  )
 	{
 		DisplayPortrait(RenderDelta);
 	}
@@ -1310,7 +1341,7 @@ function DisplayMap()
 		// reduce font size if too big
 		if( XL > 0.0f )
 		{
-			OrdersScale = FMin(1.0, 0.3*Canvas.ClipX/XL);
+			OrdersScale = FMin(1.0, 0.315*Canvas.ClipX/XL);
 		}
 
 		// scale in initially
@@ -1484,22 +1515,6 @@ static simulated function GetTeamColor(int TeamIndex, optional out LinearColor I
 /************************************************************************************************************
  Damage Indicator
 ************************************************************************************************************/
-`if(`notdefined(ShippingPC))
-exec function TestDamage(float f)
-{
-	local rotator r;
-	r.Yaw = Rand(65535);
-	DisplayHit(vector(r), f, class'UTDmgType_Enforcer');
-}
-
-exec function TestPRI(bool b)
-{
-	local int i;
-
-	i = Rand(Worldinfo.GRI.PRIArray.Length);
-	ShowPortrait(UTPlayerReplicationInfo(Worldinfo.GRI.PRIArray[i]),,b);
-}
-`endif
 
 /**
  * Called from various functions.  It allows the hud to track when a hit is scored
@@ -1855,7 +1870,15 @@ simulated function ShowPortrait(UTPlayerReplicationInfo ShowPRI, optional float 
 		// See if there is a current speaker
 		if ( CharPRI != none )  // See if we should override this speaker
 		{
-			if ( bOverrideCurrentSpeaker && (ShowPRI != CharPRI) )
+			if ( ShowPRI == CharPRI )
+			{
+				if ( CharPortraitTime >= CharPortraitSlideTime * CharPortraitSlideTransitionTime )
+				{
+					CharPortraitSlideTime += 2.0;
+					CharPortraitTime = FMax(CharPortraitTime, CharPortraitSlideTime * CharPortraitSlideTransitionTime);
+				}
+			}
+			else if ( bOverrideCurrentSpeaker )
 			{
 				CharPendingPRI = ShowPRI;
 				HidePortrait();
@@ -1924,9 +1947,14 @@ simulated function DisplayPortrait(float DeltaTime)
 		LocalPos = CurrentPos / CharPortraitSlideTransitionTime;
 		XPos = FCubicInterp((W * -1), 0.0, (Canvas.ClipX * CharPortraitXPerc), 0.0, LocalPos);
 	}
-	else if ( CurrentPos < 1.0 - CharPortraitSlideTransitionTime )	// Sitting there
+	else if ( (CurrentPos < 1.0 - CharPortraitSlideTransitionTime) )	// Sitting there
 	{
 		XPos = Canvas.ClipX * CharPortraitXPerc;
+	}
+	else if ( PlayerOwner.VoiceInterface.IsRemotePlayerTalking(CharPRI.UniqueID) )
+	{
+		XPos = Canvas.ClipX * CharPortraitXPerc;
+		CharPortraitTime = (1.0 - CharPortraitSlideTransitionTime) * CharPortraitSlideTime;
 	}
 	else if ( CurrentPos < 1.0 )	// Sliding out
 	{
@@ -2266,8 +2294,9 @@ function DisplayFragCount(vector2d POS)
 function DisplayLeaderBoard(vector2d POS)
 {
 	local string Work,MySpreadStr;
-	local int i, MySpread, MyPosition;
+	local int i, MySpread, MyPosition, LeaderboardCount;
 	local float XL,YL;
+	local bool bTravelling;
 
 	if ( (UTGRI == None) || (UTOwnerPRI == None) )
 	{
@@ -2278,18 +2307,29 @@ function DisplayLeaderBoard(vector2d POS)
 	POS.Y += 50 * ResolutionScale;
 
 	// Figure out your Spread
-	if ( UTGRI.PRIArray[0] == UTOwnerPRI )
+	bTravelling = WorldInfo.IsInSeamlessTravel() || UTOwnerPRI.bFromPreviousLevel;
+	for (i = 0; i < UTGRI.PRIArray.length; i++)
 	{
-		MySpread = 0;
-		if ( UTGRI.PRIArray.Length>1 )
+		if (bTravelling || !UTGRI.PRIArray[i].bFromPreviousLevel)
 		{
-			MySpread = UTOwnerPRI.Score - UTGRI.PRIArray[1].Score;
+			break;
+		}
+	}
+	if ( UTGRI.PRIArray[i] == UTOwnerPRI )
+	{
+		if ( UTGRI.PRIArray.Length > i + 1 )
+		{
+			MySpread = UTOwnerPRI.Score - UTGRI.PRIArray[i + 1].Score;
+		}
+		else
+		{
+			MySpread = 0;
 		}
 		MyPosition = 0;
 	}
 	else
 	{
-		MySpread = UTOwnerPRI.Score - UTGRI.PRIArray[0].Score;
+		MySpread = UTOwnerPRI.Score - UTGRI.PRIArray[i].Score;
 		MyPosition = UTGRI.PRIArray.Find(UTOwnerPRI);
 	}
 
@@ -2319,15 +2359,18 @@ function DisplayLeaderBoard(vector2d POS)
 		// Draw the leaderboard
 		Canvas.Font = GetFontSizeIndex(1);
 		Canvas.SetDrawColor(200,200,200,255);
-		for (i=0;i<3 && i < UTGRI.PRIArray.Length;i++)
+		for (i = 0; i < UTGRI.PRIArray.Length && LeaderboardCount < 3; i++)
 		{
-			if ( (UTGRI.PRIArray[i] != none) && !UTGRI.PRIArray[i].bOnlySpectator )
+			if ( UTGRI.PRIArray[i] != None && !UTGRI.PRIArray[i].bOnlySpectator &&
+				(bTravelling || !UTGRI.PRIArray[i].bFromPreviousLevel) )
 			{
 				Work = string(i+1) $ PlaceMarks[i] $ ":" @ UTGRI.PRIArray[i].GetPlayerAlias();
 				Canvas.StrLen(Work,XL,YL);
 				Canvas.SetPos(POS.X-XL,POS.Y);
 				Canvas.DrawTextClipped(Work);
 				POS.Y += YL;
+
+				LeaderboardCount++;
 			}
 		}
 	}
@@ -2431,10 +2474,6 @@ simulated function DisplayQuickPickMenu()
 			bShowQuickPick = false;
 		}
 	}
-	else
-	{
-		bShowQuickPick = false;
-	}
 }
 
 simulated function DisplayQuickPickCell(QuickPickCell Cell, float Angle, bool bSelected)
@@ -2499,11 +2538,6 @@ simulated function QuickPick(int Quad)
 		if ( QuickPickCurrentSelection != Quad )
 		{
 			PlayerOwner.ClientPlaySound(soundcue'A_interface.Menu.UT3MenuWeaponSelect01Cue');
-
-			if( UTPlayerController(PlayerOwner) != None )
-			{
-				UTPlayerController(PlayerOwner).ClientPlayForceFeedbackWaveform(QuickPickWaveForm);
-			}
 		}
 		QuickPickCurrentSelection = Quad;
 		bQuickPickMadeNewSelection = true;
@@ -2808,8 +2842,5 @@ defaultproperties
 
     WeaponSwitchMessage=class'UTWeaponSwitchMessage'
 
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformQuickPick
-		Samples(0)=(LeftAmplitude=25,RightAmplitude=0,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.07)
-	End Object
-	QuickPickWaveForm=ForceFeedbackWaveformQuickPick
+	ConfiguredCrosshairScaling=1.0
 }

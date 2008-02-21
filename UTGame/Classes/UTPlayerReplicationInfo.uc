@@ -816,7 +816,7 @@ simulated event ReplicatedEvent(name VarName)
 
 	if ( VarName == 'Team' )
 	{
-		if (GetTeamNum() != CharacterMeshTeamNum)
+		if (LastReceivedCharacterDataTime != WorldInfo.TimeSeconds && GetTeamNum() != CharacterMeshTeamNum)
 		{
 			// try to recreate custom character mesh as they are team specific
 			UTGRI = UTGameReplicationInfo(WorldInfo.GRI);

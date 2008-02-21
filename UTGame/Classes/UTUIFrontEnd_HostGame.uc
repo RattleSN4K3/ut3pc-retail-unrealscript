@@ -96,9 +96,9 @@ function ValidateServerType()
 	// don't have a link connection, or not allowed to play online, don't allow them to select one.
 	PlayerIndex = GetPlayerIndex();
 	PlayerControllerID = GetPlayerControllerId( PlayerIndex );
-	if (!IsLoggedIn(PlayerControllerId, true)
-	||	!CheckOnlinePrivilegeAndError( PlayerControllerID )
-	||	!CheckNatTypeAndDisplayError(PlayerControllerID) )
+
+
+	if (!IsLoggedIn(PlayerControllerId, true) || !CheckOnlinePrivilegeAndError( PlayerControllerID ) )
 	{
 		ServerTypeOption = FindChild('ServerType', true);
 		if ( ServerTypeOption != None )
@@ -115,6 +115,53 @@ function ValidateServerType()
 			UTUIOptionList(ServerTypeOption.GetOwner()).EnableItem(PlayerIndex, ServerTypeOption, false);
 		}
 	}
+	else
+	{
+		CheckNatTypeAndDisplayError(PlayerControllerID);
+	}
+}
+
+/** OBSOLETE - use GenerateMutatorURLString */
+function int GenerateMutatorBitmask()
+{
+	local DataStoreClient DSClient;
+	local UTUIDataStore_MenuItems MenuDataStore;
+	local int Idx, MutatorIdx, EnabledMutatorBitmask;
+	local string OfficialMutatorString, GameModeString;
+
+	DSClient = class'UIInteraction'.static.GetDataStoreClient();
+	if ( DSClient != None )
+	{
+		MenuDataStore = UTUIDataStore_MenuItems(DSClient.FindDataStore('UTMenuItems'));
+		if ( MenuDataStore != None )
+		{
+			// Some mutators are filtered out based on the currently selected gametype, so in order to guarantee
+			// that our bitmasks always match up (i.e. between a client and server), clear the setting that mutators
+			// use for filtering so that we always get the complete list.  We'll restore it once we're done.
+			class'UIRoot'.static.GetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
+			class'UIRoot'.static.SetDataStoreStringValue("<Registry:SelectedGameMode>", "");
+
+			// EnabledMutators should have already been set by UTUITabPage_Mutators
+			for ( Idx=0; Idx < MenuDataStore.EnabledMutators.Length; Idx++ )
+			{
+				MutatorIdx = MenuDataStore.EnabledMutators[Idx];
+
+				// get the value of the bOfficialMutator property for the UTUIDataProvider_Mutator instance at Idx in the
+				// UTUIDataStore_MenuItems's list of mutator data providers.
+				if ( MenuDataStore.GetValueFromProviderSet('Mutators', 'bOfficialMutator', MutatorIdx, OfficialMutatorString) )
+				{
+					if ( bool(OfficialMutatorString) )
+					{
+						EnabledMutatorBitmask = EnabledMutatorBitmask | (1 << MutatorIdx);
+					}
+				}
+			}
+
+			class'UIRoot'.static.SetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
+		}
+	}
+
+	return EnabledMutatorBitmask;
 }
 
 function string GenerateMutatorURLString()
@@ -371,14 +418,8 @@ function OnGameCreated(bool bWasSuccessful)
 				// Setup server options based on server type.
 				GameSettings = SettingsDataStore.GetCurrentGameSettings();
 
-				GameSettings.bIsDedicated = StringListDataStore.GetCurrentValueIndex('DedicatedServer') == 1;
-
 				// append options from the OnlineGameSettings class
 				GameSettings.BuildURL(TravelURL);
-				if ( IsConsole(CONSOLE_PS3) && GameSettings.bIsDedicated )
-				{
-					TravelURL $= "?Dedicated";
-				}
 
 				if(IsConsole(CONSOLE_Ps3))
 				{
@@ -539,7 +580,7 @@ function OnStartGame()
 {
 	// Make sure the user wants to start the game.
 	local OnlineGameSettings GameSettings;
-	local UTUIScene_MessageBox MessageBoxReference;
+//	local UTUIScene_MessageBox MessageBoxReference;
 //	local array<string> MessageBoxOptions;
 
 	if(MapTab.CanBeginMatch())
@@ -554,8 +595,9 @@ function OnStartGame()
 		}
 		else if(ConditionallyCheckNumControllers())
 		{
-			MessageBoxReference = GetMessageBoxScene();
-			OnStartGame_Confirm(MessageBoxReference, 0, 0);
+//			MessageBoxReference = GetMessageBoxScene();
+//			OnStartGame_Confirm(MessageBoxReference, 0, 0);
+			OnStartGame_Confirm(None, 0, GetBestPlayerIndex());
 			/*
 			if(MessageBoxReference != none)
 			{

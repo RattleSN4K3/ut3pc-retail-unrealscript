@@ -1,31 +1,29 @@
 ﻿//=============================================================================
 // GameReplicationInfo.
 // Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
-//
-// Every GameInfo creates a GameReplicationInfo, which is always relevant, to replicate
-// important game data to clients (as the GameInfo is not replicated).
 //=============================================================================
 class GameReplicationInfo extends ReplicationInfo
 	config(Game)
 	native nativereplication;
 
-/** Class of the server's gameinfo, assigned by GameInfo. */
-var class<GameInfo> GameClass;
+`include(Core/Globals.uci)
 
-/** The data store instance responsible for presenting state data for the current game session. */
+var class<GameInfo> GameClass;				// Class of the server's gameinfo, assigned by GameInfo.
+
+/**
+ * The data store instance responsible for presenting state data for the current game session.
+ */
 var	private		CurrentGameDataStore		CurrentGameData;
 
 var bool bStopCountDown;
 var repnotify bool bMatchHasBegun;
 var repnotify bool bMatchIsOver;
-
 /**
  * Used to determine if the end of match/session clean up is needed. Game invites
  * might have already cleaned up the match/session so doing so again would break
  * the traveling to the invited game
  */
 var bool bNeedsOnlineCleanup;
-
 /** Used to determine who handles session ending */
 var bool bIsArbitrated;
 
@@ -47,10 +45,9 @@ var() databinding globalconfig string MessageOfTheDay;
 
 var databinding Actor Winner;			// set by gameinfo when game ends
 
-/** Array of all PlayerReplicationInfos, maintained on both server and clients (PRIs are always relevant) */
 var		array<PlayerReplicationInfo> PRIArray;
 
-/** This list mirrors the GameInfo's list of inactive PRI objects */
+/** This list mirror's the GameInfo's list of inactive PRI objects */
 var		array<PlayerReplicationInfo> InactivePRIArray;
 
 // stats
@@ -535,12 +532,6 @@ simulated function bool IsCoopMultiplayerGame()
 simulated function bool PreventPause()
 {
 	return false;
-}
-
-/** Should players show gore? */
-simulated function bool ShouldShowGore()
-{
-	return TRUE;
 }
 
 defaultproperties

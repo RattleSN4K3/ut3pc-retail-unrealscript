@@ -14,129 +14,41 @@ var transient UTUITabPage_MyContent MyContentTab;
 /** PostInitialize event - Sets delegates for the scene. */
 event PostInitialize( )
 {
-	local int PlayerIndex, ControllerId;
-
 	Super.PostInitialize();
 
-	PlayerIndex = GetPlayerIndex();
-	ControllerId = GetPlayerControllerId(PlayerIndex);
 
 	// Add tab pages to tab control
 	NewsTab = UTUITabPage_News(FindChild('pnlNews', true));
-	if ( NewsTab != none && IsLoggedIn(ControllerId, true) )
+	if(NewsTab != none)
 	{
 		TabControl.InsertPage(NewsTab, 0, 0, false);
 	}
 
 	EpicContentTab = UTUITabPage_EpicContent(FindChild('pnlEpicContent', true));
-	if ( EpicContentTab != none && IsLoggedIn(ControllerId, true) )
+	if(EpicContentTab != none)
 	{
 		TabControl.InsertPage(EpicContentTab, 0, 1, false);
 	}
 
 	MyContentTab = UTUITabPage_MyContent(FindChild('pnlMyContent', true));
-	if ( MyContentTab != none )
+	if(MyContentTab != none)
 	{
 		TabControl.InsertPage(MyContentTab, 0, 2, false);
 	}
-}
-
-/** Called when a tab page has finished showing. */
-function OnMainRegion_Show_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimationSeq AnimSeq)
-{
-	local int PlayerIndex, ControllerId;
-
-	Super.OnMainRegion_Show_UIAnimEnd(AnimTarget, AnimIndex, AnimSeq);
-
-	PlayerIndex = GetPlayerIndex();
-	ControllerId = GetPlayerControllerId(PlayerIndex);
 
 	// Disable content tabs for now
-	if ( IsGame() )
+	if(IsGame())
 	{
-		// @todo: Enable when we show the epic content tab on PC.
-		EpicContentTab.StopUIAnimation('TabPageExitLeft', , true);
-		EpicContentTab.StopUIAnimation('TabPageExitRight', , true);
-		TabControl.RemovePage(EpicContentTab,PlayerIndex);
-
-		// in case the tab pages were added in the editor, attempt to remove them again if we're not logged in
-		if ( !IsLoggedIn(ControllerId, true) )
+		if(true)
 		{
-			NewsTab.StopUIAnimation('TabPageExitLeft', , true);
-			NewsTab.StopUIAnimation('TabPageExitRight', , true);
-			TabControl.RemovePage(NewsTab, PlayerIndex);
+			TabControl.RemovePage(EpicContentTab,0);
+			TabControl.RemovePage(MyContentTab,0);
 		}
-
-		if ( !IsConsole(CONSOLE_PS3) )	// Only show content tabs on ps3 for now.
+		else  // @todo: This is for later when we show the content tabs.
 		{
-			MyContentTab.StopUIAnimation('TabPageExitLeft', , true);
-			MyContentTab.StopUIAnimation('TabPageExitRight', , true);
-			TabControl.RemovePage(MyContentTab,PlayerIndex);
-
-			// @todo: Enable when we show the epic content tab on PC.
-			//EpicContentTab.ReadContent();
+			EpicContentTab.ReadContent();
 		}
 	}
-}
-
-/**
- * Notification that the player's connection to the platform's online service is changed.
- */
-function NotifyOnlineServiceStatusChanged( EOnlineServerConnectionStatus NewConnectionStatus )
-{
-	local int PlayerIndex;
-
-	// if bRequiresOnlineService is true, this page will be closed by UIScene.NotifyOnlineServiceStatusChanged anyway
-	if ( TabControl != None && NewConnectionStatus != OSCS_Connected && !bRequiresOnlineService )
-	{
-		PlayerIndex = GetPlayerIndex();
-
-		if ( NewsTab != None && TabControl.ContainsChild(NewsTab,true) )
-		{
-			NewsTab.StopUIAnimation('TabPageExitLeft', , true);
-			NewsTab.StopUIAnimation('TabPageExitRight', , true);
-			TabControl.RemovePage(NewsTab, PlayerIndex);
-		}
-
-		if ( EpicContentTab != None && TabControl.ContainsChild(MyContentTab, true) )
-		{
-			MyContentTab.StopUIAnimation('TabPageExitLeft', , true);
-			MyContentTab.StopUIAnimation('TabPageExitRight', , true);
-			TabControl.RemovePage(EpicContentTab, PlayerIndex);
-		}
-	}
-
-	Super.NotifyOnlineServiceStatusChanged(NewConnectionStatus);
-}
-
-/**
- * Called when the status of the platform's network connection changes.
- */
-function NotifyLinkStatusChanged( bool bConnected )
-{
-	local int PlayerIndex;
-
-	// if !bConnected and bRequiresNetwork == true, then this page will be closed by UIScene.NotifyLinkStatusChanged anyway
-	if ( TabControl != None && !bConnected && !bRequiresNetwork )
-	{
-		PlayerIndex = GetPlayerIndex();
-
-		if ( NewsTab != None && TabControl.ContainsChild(NewsTab,true) )
-		{
-			NewsTab.StopUIAnimation('TabPageExitLeft', , true);
-			NewsTab.StopUIAnimation('TabPageExitRight', , true);
-			TabControl.RemovePage(NewsTab, PlayerIndex);
-		}
-
-		if ( EpicContentTab != None && TabControl.ContainsChild(MyContentTab, true) )
-		{
-			MyContentTab.StopUIAnimation('TabPageExitLeft', , true);
-			MyContentTab.StopUIAnimation('TabPageExitRight', , true);
-			TabControl.RemovePage(EpicContentTab, PlayerIndex);
-		}
-	}
-
-	Super.NotifyLinkStatusChanged(bConnected);
 }
 
 /** Sets up the scene's button bar. */
@@ -147,10 +59,13 @@ function SetupButtonBar()
 		ButtonBar.Clear();
 		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", OnButtonBar_Back);
 
-		if( IsConsole(CONSOLE_PS3) && UTTabPage(TabControl.ActivePage).Class == class'UTUITabPage_MyContent')
+		/** - @todo: Enable after patch
+		if(IsConsole(CONSOLE_PS3))
 		{
 			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ImportContent>", OnButtonBar_ImportContent);
 		}
+		*/
+
 		UTTabPage(TabControl.ActivePage).SetupButtonBar(ButtonBar);
 	}
 }
@@ -214,14 +129,13 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 			OnBack();
 			bResult=true;
 		}
+		/** - @todo: Enable after patch
 		else if(EventParms.InputKeyName=='XboxTypeS_X')
 		{
-			if ( IsConsole(CONSOLE_PS3) && UTTabPage(TabControl.ActivePage).Class == class'UTUITabPage_MyContent' )
-			{
-				OnImportContent();
-				bResult=true;
-			}
+			OnImportContent();
+			bResult=true;
 		}
+		*/
 	}
 
 	return bResult;

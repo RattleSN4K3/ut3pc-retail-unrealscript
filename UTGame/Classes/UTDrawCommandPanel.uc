@@ -689,6 +689,7 @@ defaultproperties
 
 	CategoryNames(0)=(Category="Order")
 	CategoryNames(1)=(Category="Taunt")
+	CategoryNames(2)=(Category="Status")
 
 	AllCaption="[All]"
 	MoreCaption="[More]"

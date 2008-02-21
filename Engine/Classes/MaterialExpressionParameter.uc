@@ -6,9 +6,6 @@ class MaterialExpressionParameter extends MaterialExpression
 	collapsecategories
 	hidecategories(Object);
 
-/** The name of the parameter */
-var() name			ParameterName;
-
 /** GUID that should be unique within the material, this is used for parameter renaming. */
 var	  const	guid	ExpressionGUID;
 

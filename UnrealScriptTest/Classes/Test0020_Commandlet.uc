@@ -6,6 +6,7 @@
  * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
  */
 class Test0020_Commandlet extends TestCommandletBase;
+`include(Core/Globals.uci)
 
 event int Main( string Parms )
 {

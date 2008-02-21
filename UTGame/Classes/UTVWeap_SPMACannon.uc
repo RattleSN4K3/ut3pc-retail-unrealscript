@@ -112,6 +112,19 @@ simulated function Projectile ProjectileFire()
 	local UTProj_SPMAShell ShellProj;
 	local PlayerController PC;
 	local float ImpactDelay;
+	local vector SpawnLoc, BarrelLoc, HitLocation, HitNormal;
+	local Actor HitActor;
+
+	// make sure gun isn't clipping through wall
+	SpawnLoc = MyVehicle.GetPhysicalFireStartLoc(self);
+	BarrelLoc = MyVehicle.Mesh.GetBoneLocation('MainTurret_BarrelA');
+	
+	HitActor = Trace(HitLocation, HitNormal, SpawnLoc, BarrelLoc, false,,,TRACEFLAG_Bullet);
+	if ( HitActor != None )
+	{
+		// barrel was clipping
+		return None;
+	}
 
 	// Tweak the projectile afterwards
 	// Check to see if it's a camera.  If it is, set the view from it
@@ -173,7 +186,7 @@ function PlayIncomingSound()
 
 	foreach WorldInfo.AllControllers(class'PlayerController',PC)
 	{
-		if ( (PC.Viewtarget != None) && (VSize(PC.ViewTarget.Location - IncomingTargetLoc) < 1500) )
+		if ( (PC.Viewtarget != None) && (VSize(PC.ViewTarget.Location - IncomingTargetLoc) < 2200) )
 			PC.ClientPlaySound(IncomingSound);
 	}
 }

@@ -657,7 +657,7 @@ function AdjustDriverDamage(out int Damage, Controller InstigatedBy, Vector HitL
  	}
 }
 
-function ThrowActiveWeapon( optional class<DamageType> DamageType ) {}
+function ThrowActiveWeapon() {}
 
 function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLocation)
 {

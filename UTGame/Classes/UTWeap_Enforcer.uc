@@ -841,19 +841,6 @@ simulated function PlayFireEffects( byte FireModeNum, optional vector HitLocatio
 	// Start muzzle flash effect
 	CauseMuzzleFlash();
 
-	// Play controller vibration
-	if( WorldInfo.NetMode != NM_DedicatedServer )
-	{
-		// only do rumble if we are a player controller
-		if( (Instigator != None) && ( Instigator.IsHumanControlled() ) )
-		{
-			if( UTPlayerController(Instigator.Controller) != None )
-			{
-				UTPlayerController(Instigator.Controller).ClientPlayForceFeedbackWaveform( WeaponFireWaveForm );
-			}
-		}
-	}
-
 	ShakeView();
 
 	TrackShotCount();
@@ -1488,9 +1475,4 @@ defaultproperties
 
 	PivotTranslation=(Y=-10.0)
 	DualIconCoordinates=(U=600,V=515,UL=126,VL=75)
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
-		Samples(0)=(LeftAmplitude=50,RightAmplitude=60,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.120)
-	End Object
-	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

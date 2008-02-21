@@ -356,8 +356,6 @@ function OnResetToDefaults()
 {
 	LoadINIDefaults();
 	InitializeWeaponList();
-
-	MarkDirty();
 }
 
 /** Button bar callbacks. */

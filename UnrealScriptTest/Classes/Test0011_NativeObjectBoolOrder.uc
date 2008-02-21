@@ -8,6 +8,8 @@
 class Test0011_NativeObjectBoolOrder extends Object
 	native;
 
+`include(Core/Globals.uci)
+
 var()	bool	bMemberBoolA, bMemberBoolB, bMemberBoolC;
 
 native function PerformBoolOrderTest();

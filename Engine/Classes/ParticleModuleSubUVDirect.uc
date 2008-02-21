@@ -4,17 +4,10 @@
 class ParticleModuleSubUVDirect extends ParticleModuleSubUVBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/**
- *	The upper-left corner of the texture coordinates desired.
- *	Value is retrieved using RelativeTime of the particle.
- */
 var(SubUV) rawdistributionvector	SubUVPosition;
-/**
- *	The size of the texture sample desired.
- *	Value is retrieved using RelativeTime of the particle.
- */
 var(SubUV) rawdistributionvector	SubUVSize;
 
 

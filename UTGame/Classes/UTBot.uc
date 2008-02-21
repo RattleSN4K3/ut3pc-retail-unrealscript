@@ -66,6 +66,7 @@ var		bool		bJumpOverWall;					// true when jumping to clear obstacle
 var		bool							bEnemyAcquired;
 var		bool		bScriptedFrozen;
 var		bool		bSendFlagMessage;
+var		bool		bForceNoDetours;
 
 var		int								AcquisitionYawRate;
 
@@ -678,6 +679,24 @@ function bool ValidTranslocationTarget(Actor NewTranslocationTarget)
 	}
 }
 
+event TimeDJReset()
+{
+	SetTimer(12.0, false, 'ResetDoubleJump');
+}
+
+function ResetDoubleJump()
+{
+	local UTPawn P;
+
+	P = UTPawn(Pawn);
+	if ( (P == None) && (Vehicle(Pawn) != None) )
+	{
+		P = UTPawn(Vehicle(Pawn).Driver);
+	}
+	if ( P != None )
+		P.bCanDoubleJump = true;
+}
+
 /** performs an impact jump; assumes the impact hammer is already equipped and ready to fire */
 function ImpactJump()
 {
@@ -711,15 +730,34 @@ function ImpactJump()
 //Wait for Mover M to tell me it has completed its move
 function WaitForMover(InterpActor M)
 {
-	// vehicles can't activate lifts
-	if (Vehicle(Pawn) != None && LiftCenter(Pawn.Anchor) != None)
-	{
-		LeaveVehicle(false);
-	}
+	ReadyForLift();
+
 	if ( (Enemy != None) && (WorldInfo.TimeSeconds - LastSeenTime < 3.0) )
 		Focus = Enemy;
 	StopStartTime = WorldInfo.TimeSeconds;
 	Super.WaitForMover(M);
+}
+
+function ReadyForLift()
+{
+	local float Dist;
+
+	// vehicles can't activate lifts
+	if (Vehicle(Pawn) != None )
+	{
+		if ( UTVehicle_Hoverboard(Pawn) != None )
+		{
+			LeaveVehicle(false);
+		}
+		else
+		{
+			Pawn.SetAnchor(Pawn.GetBestAnchor(Pawn, Pawn.Location, true, true, Dist));
+			if ( LiftCenter(Pawn.Anchor) != None )
+			{
+				LeaveVehicle(false);
+			}
+		}
+	}
 }
 
 /* WeaponFireAgain()
@@ -908,6 +946,14 @@ function bool FireWeaponAt(Actor A)
 
 function bool CanAttack(Actor Other)
 {
+	local UTMapInfo WorldMapInfo;
+
+	WorldMapInfo = UTMapInfo(WorldInfo.GetMapInfo());
+	if ( (WorldMapInfo != None) && (WorldMapInfo.VisibilityModifier < 1.0) 
+		&& (WorldMapInfo.VisibilityModifier * Pawn.SightRadius < VSize(Other.Location - Pawn.Location)) )
+	{
+		return false;
+	}
 	// return true if in range of current weapon
 	return Pawn.CanAttack(Other);
 }
@@ -1876,8 +1922,6 @@ function Initialize(float InSkill, const out CharacterInfo BotInfo)
 
 function ResetSkill()
 {
-	local float AdjustedYaw;
-
 	if (Skill >= 0 )
 	{
 		TrackingReactionTime = BaseTrackingReactionTime * 7/(Skill+2);
@@ -1900,15 +1944,24 @@ function ResetSkill()
 	else
 	{
 		if ( Skill + ReactionTime >= 7 )
+		{
+			SightCounterInterval = 0.2;
 			RotationRate.Yaw = 110000;
+		}
 		else if ( Skill + ReactionTime >= 4 )
+		{
 			RotationRate.Yaw = 7000 + 10000 * (skill + ReactionTime);
+			SightCounterInterval = 0.3;
+		}
 		else
-			RotationRate.Yaw = 30000 + 4000 * (skill + ReactionTime);
+		{
+			RotationRate.Yaw = 31000 + 4000 * (skill + ReactionTime);
+			SightCounterInterval = 0.4;
+		}
 	}
 	RotationRate.Pitch = RotationRate.Yaw;
-	AdjustedYaw = (0.75 + 0.05 * ReactionTime) * RotationRate.Yaw;
-	AcquisitionYawRate = AdjustedYaw;
+	AcquisitionYawRate = FMin(1.0,(0.75 + 0.05 * ReactionTime)) * RotationRate.Yaw;
+
 	SetMaxDesiredSpeed();
 }
 
@@ -1923,8 +1976,14 @@ function SetMaxDesiredSpeed()
 		}
 		else if ( Skill >= 4 )
 			Pawn.MaxDesiredSpeed = 1;
+		else if ( (PlayerReplicationInfo != None) && PlayerReplicationInfo.bHasFlag )
+		{
+			Pawn.MaxDesiredSpeed = 0.8 + 0.05 * Skill;
+		}
 		else
+		{
 			Pawn.MaxDesiredSpeed = 0.6 + 0.1 * Skill;
+		}
 	}
 }
 
@@ -2988,7 +3047,7 @@ function bool FindBestPathToward(Actor A, bool bCheckedReach, bool bAllowDetour)
 	}
 	else
 	{
-		MoveTarget = FindPathToward(A, (bAllowDetour && Pawn.bCanPickupInventory && (Vehicle(Pawn) == None) && (NavigationPoint(A) != None)));
+		MoveTarget = FindPathToward(A, (bAllowDetour && Pawn.bCanPickupInventory && (Vehicle(Pawn) == None) && (NavigationPoint(A) != None) && !bForceNoDetours));
 	}
 
 	if ( MoveTarget != None )
@@ -3067,7 +3126,7 @@ event float AdjustAimError(float TargetDist, bool bInstantProj )
 
 	// if we can't really see the enemy due to fog or whatever, increase error
 	MapInfo = UTMapInfo(WorldInfo.GetMapInfo());
-	if (MapInfo.VisibilityModifier < 1.0 && TargetDist > Pawn.SightRadius * 0.75 * MapInfo.VisibilityModifier)
+	if ( (MapInfo != None) && (MapInfo.VisibilityModifier < 1.0) && (TargetDist > Pawn.SightRadius * 0.75 * MapInfo.VisibilityModifier) )
 	{
 		LowVisibilityMult = (TargetDist > Pawn.SightRadius * MapInfo.VisibilityModifier) ? 4.0 : 2.0;
 		// not as much of a modifier against large targets
@@ -3104,9 +3163,9 @@ event float AdjustAimError(float TargetDist, bool bInstantProj )
 			aimerror *= 0.75;
 
 		if ( UTWeapon(Pawn.Weapon) != None && UTWeapon(Pawn.Weapon).bSniping )
-			aimerror *= FClamp((2.6 - 0.15 * FMin(skill,7) - 0.8 * FRand())/(WorldInfo.TimeSeconds - StopStartTime),0.5,1.0);
+			aimerror *= FClamp((1.5 - 0.08 * FMin(skill,7) - 0.8 * FRand())/(WorldInfo.TimeSeconds - StopStartTime + 0.4),0.3,1.0);
 		else
-			aimerror *= FClamp((2.6 - 0.15 * FMin(skill,7) - FRand())/(WorldInfo.TimeSeconds - StopStartTime),0.7,1.0);
+			aimerror *= FClamp((2 - 0.08 * FMin(skill,7) - FRand())/(WorldInfo.TimeSeconds - StopStartTime + 0.4),0.7,1.0);
 	}
 
 	// adjust aim error based on skill
@@ -3114,7 +3173,7 @@ event float AdjustAimError(float TargetDist, bool bInstantProj )
 		aimerror *= (3.3 - 0.4 * (FClamp(skill+Accuracy,0,8) + 0.3 * FRand()));
 
 	// Bots don't aim as well if recently hit, or if they or their target is flying through the air
-	if ( (skill < 5 + 2*FRand()) && (WorldInfo.TimeSeconds - Pawn.LastPainTime < 0.2) )
+	if ( ( skill < 5 + 2*FRand()) && (WorldInfo.TimeSeconds - Pawn.LastPainTime < 0.2) )
 		aimerror *= 1.3;
 	if (Pawn.Physics == PHYS_Falling) // don't consider target physics here because native tracking covers it
 		aimerror *= (1.6 - 0.04*(Skill+Accuracy));
@@ -3371,8 +3430,16 @@ event DelayedWarning()
 		return;
 	}
 
-	// check if still on target, else ignore
+	if ( UTVehicle_Hoverboard(Pawn) != None )
+	{
+		if ( (FRand() < 0.5) && (Skill >= 1.0) )
+		{
+			LeaveVehicle(true);
+		}
+		return;
+	}
 
+	// check if still on target, else ignore
 	Dir = Normal(WarningProjectile.Velocity);
 	FuturePos = Pawn.Location + Pawn.Velocity * VSize(WarningProjectile.Location - Pawn.Location)/VSize(WarningProjectile.Velocity);
 	LineDist = FuturePos - (WarningProjectile.Location + (Dir Dot (FuturePos - WarningProjectile.Location)) * Dir);
@@ -3462,6 +3529,7 @@ function ReceiveProjectileWarning(Projectile Proj)
 			if ((Normal(enemyDir) Dot Normal(X)) < 0.7)
 				return;
 		}
+
 		if ( Skill + ReactionTime >= 7 )
 			WarningDelay = WorldInfo.TimeSeconds + FMax(0.08,FMax(0.35 - 0.025*(Skill + ReactionTime)*(1 + FRand()), ProjTime - 0.65));
 		else
@@ -3547,6 +3615,16 @@ event ReceiveWarning(Pawn shooter, float projSpeed, vector FireDir)
 			Squad.SetEnemy(self, shooter);
 		return;
 	}
+
+	if ( UTVehicle_Hoverboard(Pawn) != None )
+	{
+		if ( (FRand() < 0.5) && (Skill >= 1.0) )
+		{
+			LeaveVehicle(true);
+		}
+		return;
+	}
+
 	if ((Skill < 4.0) || (Pawn.Physics == PHYS_Swimming) || (FRand() > 0.2 * skill - 0.33))
 		return;
 
@@ -3867,7 +3945,7 @@ function bool ShouldStrafeTo(Actor WayPoint)
 	if ( (UTVehicle(Pawn) != None) && !UTVehicle(Pawn).bFollowLookDir )
 		return true;
 
-	if ( Skill + StrafingAbility < 3 )
+	if ( (Skill + StrafingAbility < 3) && !PlayerReplicationInfo.bHasFlag )
 		return false;
 
 	if ( WayPoint == Enemy )
@@ -4276,10 +4354,10 @@ state Defending
 		{
 			Focus = None;
 
-			FormationCenter = Squad.FormationCenter();
+			FormationCenter = Squad.FormationCenter(self);
 			if (FormationCenter != None)
 			{
-				CenterDir = Normal(Squad.FormationCenter().Location - Pawn.Location);
+				CenterDir = Normal(Squad.FormationCenter(self).Location - Pawn.Location);
 
 				// temp pick randomly from among reachspecs not facing formation center
 				for ( i=0; i<DefenseAnchor.PathList.Length; i++ )
@@ -4305,7 +4383,7 @@ state Defending
 	{
 		local Actor NextMoveTarget;
 
-		if (DefensePoint == None)
+		if (DefensePoint == None || PlayerReplicationInfo.bHasFlag )
 		{
 			// if in good position, tend to stay there
 			if ( (WorldInfo.TimeSeconds - FMax(LastSeenTime, AcquireTime) < 5.0 || FRand() < 0.85)
@@ -4318,7 +4396,7 @@ state Defending
 			DefensivePosition = Squad.FindDefensivePositionFor(self);
 			if ( DefensivePosition == None )
 			{
-				RouteGoal = Squad.FormationCenter();
+				RouteGoal = Squad.FormationCenter(self);
 			}
 			else
 			{
@@ -4340,7 +4418,7 @@ state Defending
 				DefensivePosition = Squad.FindDefensivePositionFor(self);
 				if ( DefensivePosition == None )
 				{
-					RouteGoal = Squad.FormationCenter();
+					RouteGoal = Squad.FormationCenter(self);
 				}
 				else
 				{
@@ -4381,7 +4459,7 @@ state Defending
 		Pawn.bWantsToCrouch = false;
 		if ( (Vehicle(Pawn) != None) && (Pawn.GetVehicleBase() != None) )
 			StartMonitoring(Pawn.GetVehicleBase(),Squad.FormationSize);
-		else if ( (Squad.SquadLeader != self) && (Squad.SquadLeader.Pawn != None) && (Squad.FormationCenter() == Squad.SquadLeader.Pawn) )
+		else if ( (Squad.SquadLeader != self) && (Squad.SquadLeader.Pawn != None) && (Squad.FormationCenter(self) == Squad.SquadLeader.Pawn) )
 			StartMonitoring(Squad.SquadLeader.Pawn,Squad.FormationSize);
 		else
 			MonitoredPawn = None;
@@ -4469,7 +4547,7 @@ function ForceGiveWeapon()
 		if ( (TossVel Dot LeaderVel) > 0.7 )
 				TossVel = LeaderVel;
 		TossVel = TossVel * ((Pawn.Velocity Dot TossVel) + 500) + Vect(0,0,200);
-		Pawn.TossInventory(Pawn.Weapon, TossVel);
+		Pawn.TossWeapon(Pawn.Weapon, TossVel);
 		SwitchToBestWeapon();
     }
 }
@@ -6005,7 +6083,8 @@ ignores SeePlayer, HearNoise, Bump;
 			WhatToDoNext();
 	}
 
-	function NotifyKilled(Controller Killer, Controller Killed, Pawn KilledPawn)
+	// really not sure how this function manages to get into an infinite loop in rare cases...
+	singular function NotifyKilled(Controller Killer, Controller Killed, Pawn KilledPawn)
 	{
 		if (Focus == KilledPawn && Killed != self)
 		{

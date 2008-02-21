@@ -9,6 +9,8 @@ class UIScreenObject extends UIRoot
 	abstract
 	placeable;
 
+`include(Core/Globals.uci)
+
 /** The location of this screen object */
 var(Presentation)			UIScreenValue_Bounds	Position;
 

@@ -237,13 +237,13 @@ function bool TooCloseToAttack(Actor Other)
 	else
 	{
 		Other.GetBoundingCylinder(OtherRadius, OtherHeight);
-		return (VSize2D(Other.Location - Location) < OtherRadius + CylinderComponent.CollisionRadius + 50.0);
+		return (VSize2D(Other.Location - Location) < OtherRadius + CylinderComponent.CollisionRadius + 150.0);
 	}
 }
 
 defaultproperties
 {
-	Health=160
+	Health=200
 	MeleeRange=-100.0
 	ExitRadius=160.0
 	bTakeWaterDamageWhileDriving=false
@@ -277,7 +277,7 @@ defaultproperties
 	ObjectiveGetOutDist=750.0
 	MaxDesireability=0.6
 	SpawnRadius=125.0
-	MomentumMult=3.0
+	MomentumMult=3.2
 
 	bStayUpright=true
 	StayUprightRollResistAngle=5.0
@@ -294,8 +294,8 @@ defaultproperties
 		MaxThrustForce=325.0
 		MaxReverseForce=250.0
 		LongDamping=0.3
-		MaxStrafeForce=260.0
-		DirectionChangeForce=375.0
+		MaxStrafeForce=275.0
+		DirectionChangeForce=400.0
 		LatDamping=0.3
 		MaxRiseForce=0.0
 		UpDamping=0.0

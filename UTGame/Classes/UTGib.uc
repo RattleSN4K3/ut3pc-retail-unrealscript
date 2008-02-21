@@ -408,6 +408,7 @@ defaultproperties
  		bCastShadows=FALSE
 		bDynamic=TRUE // we might want to change this to FALSE as it should be good to grab the light where the spawning occurs
 		AmbientGlow=(R=0.5,G=0.5,B=0.5)
+		AmbientShadowColor=(R=0.3,G=0.3,B=0.3)
  	End Object
  	GibLightEnvironment=GibLightEnvironmentComp
  	Components.Add(GibLightEnvironmentComp)

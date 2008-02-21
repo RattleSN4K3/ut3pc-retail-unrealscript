@@ -26,6 +26,7 @@ var transient UTUIScene_MessageBox MBScene;
 
 
 
+
 event SceneActivated( bool bInitialActivation )
 {
 	local WorldInfo WI;
@@ -58,7 +59,7 @@ event SceneActivated( bool bInitialActivation )
 				}
 			}
 
-			if (!WI.GRI.bMatchIsOver && Cnt < 2)
+			if ((!WI.GRI.bMatchIsOver && Cnt < 2) || (WI.NetMode == NM_Client && DemoRecSpectator(UTPC) != None))
 			{
 				bPauseGameWhileActive = true;
 			}
@@ -81,7 +82,8 @@ event SceneDeactivated()
 
 	if (bNeedsProfileSave)
 	{
-		SaveProfile();
+		UTPC.SaveProfile(GetPlayerIndex());
+		UTPC.LoadSettingsFromProfile(false);
 	}
 
 	GRI = UTGameReplicationInfo(WI.GRI);
@@ -98,62 +100,11 @@ event SceneDeactivated()
 }
 
 /**
- * Opens the 'save profile' scene, which takes care of saving the player's profile.
- */
-function SaveProfile()
-{
-	local OnlineSubsystem OnlineSub;
-	local UTPlayerController UTPC;
-	local UTUIScene_SaveProfile SaveProfileScene;
-
-	UTPC = GetUTPlayerOwner();
-
-	SaveProfileScene = UTPC.SaveProfile(GetPlayerIndex());
-	if ( SaveProfileScene != None )
-	{
-		OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
-		if (OnlineSub != None && OnlineSub.PlayerInterface != None)
-		{
-			// Register the call back so we can shut down the scene upon completion
-			OnlineSub.PlayerInterface.AddWriteProfileSettingsCompleteDelegate(GetPlayerIndex(),OnSaveProfileComplete);
-		}
-		SaveProfileScene.PerformSave();
-	}
-}
-
-/**
- * Called when the save has completed the async operation
- *
- * @param bWasSuccessful whether the save worked ok or not
- */
-function OnSaveProfileComplete(bool bWasSuccessful)
-{
-	local OnlineSubsystem OnlineSub;
-	local UTPlayerController UTPC;
-
-	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
-	if (OnlineSub != None && OnlineSub.PlayerInterface != None)
-	{
-		// Register the call back so we can shut down the scene upon completion
-		OnlineSub.PlayerInterface.ClearWriteProfileSettingsCompleteDelegate(GetPlayerIndex(),OnSaveProfileComplete);
-	}
-
-	UTPC = GetUTPlayerOwner();
-	if ( UTPC != None )
-	{
-		UTPC.LoadSettingsFromProfile(false);
-	}
-}
-
-/**
  * Setup the delegates for the scene and cache all of the various UI Widgets
  */
 event PostInitialize( )
 {
 	local class<UTGame> GameClass;
-	local WorldInfo WI;
-
-	WI = GetWorldInfo();
 
 	Super.PostInitialize();
 
@@ -171,7 +122,7 @@ event PostInitialize( )
 
 	TabControl = UTUITabControl( FindChild('TabControl',true) );
 
-	if ( TabControl != none && WI != none )
+	if ( TabControl != none )
 	{
 
 		GameClass = Class<UTGame>( GetWorldInfo().GRI.GameClass);
@@ -182,20 +133,15 @@ event PostInitialize( )
 
 		TabControl.OnPageActivated = OnPageActivated;
 
-		if ( WI.NetMode == NM_StandALone || IsConsole() )
+		if ( GetWorldInfo().NetMode == NM_StandALone || IsConsole() )
 		{
 			TabControl.RemoveTabByTag('ChatTab');
 		}
 
-		if ( WI.NetMode == NM_StandALone)
+		if ( GetWorldInfo().NetMode == NM_StandALone)
 		{
 			TabControl.RemoveTabByTag('FriendsTab');
 			TabControl.RemoveTabByTag('MessageTab');
-		}
-
-		if ( WI.GRI.bMatchIsOver )
-		{
-			TabControl.RemoveTabByTag('SettingsTab');
 		}
 	}
 
@@ -249,11 +195,12 @@ function SetupButtonBar()
 {
 	local UTGameReplicationInfo GRI;
 	local WorldInfo WI;
+	local UTPlayerController UTPC;
+
 	if(ButtonBar != none)
 	{
-
-    	WI = GetWorldInfo();
-    	GRI = UTGameReplicationInfo(WI.GRI);
+	    	WI = GetWorldInfo();
+    		GRI = UTGameReplicationInfo(WI.GRI);
 
 		ButtonBar.Clear();
 
@@ -263,7 +210,6 @@ function SetupButtonBar()
 		{
 			if ( !WI.IsInSeamlessTravel() )
 			{
-
 				if ( bWaitingForReady )
 				{
 				    ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Ready>", ButtonBarBack);
@@ -273,22 +219,40 @@ function SetupButtonBar()
 				    ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", ButtonBarBack);
 				}
 
-			    if ( WI.NetMode == NM_StandAlone || GRI.bStoryMode )
-			    {
-					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.Forfeit>",ButtonBarDisconnect) ;
+				if (WI.NetMode == NM_StandAlone || (GRI != None && GRI.bStoryMode))
+				{
+					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.Forfeit>",ButtonBarDisconnect);
 				}
 				else
-			    {
-					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.LeaveGame>",ButtonBarDisconnect) ;
+				{
+					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.LeaveGame>",ButtonBarDisconnect);
 				}
 
-                ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ExitGame>",ButtonBarExitGame);
+				ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ExitGame>",ButtonBarExitGame);
 
-				if(!bWaitingForReady && TabControl != none)
+				if (TabControl != None && (!bWaitingForReady || UTUITabPage_InGame(TabControl.ActivePage) != None))
 				{
 					// Let the current tab page try to setup the button bar
 					UTTabPage(TabControl.ActivePage).SetupButtonBar(ButtonBar);
 				}
+
+				UTPC = GetUTPlayerOwner();
+				if ( (UTPC != None) && (UTPC.PlayerReplicationInfo != None) && UTPC.PlayerReplicationInfo.bOnlySpectator )
+				{
+				    ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.JoinServer>", ButtonBarJoin);
+				}
+			}
+			else
+			{
+				if (WI.NetMode == NM_StandAlone || (GRI != None && GRI.bStoryMode))
+				{
+					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.Forfeit>", ButtonBarDisconnect);
+				}
+				else
+				{
+					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.LeaveGame>", ButtonBarDisconnect);
+				}
+				ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ExitGame>", ButtonBarExitGame);
 			}
 		}
 	}
@@ -307,6 +271,18 @@ function OnPageActivated( UITabControl Sender, UITabPage NewlyActivePage, int Pl
 	// Anytime the tab page is changed, update the buttonbar.
 	SetupButtonBar();
 	bOkToAutoClose = false;
+}
+
+function UTUIScene_MessageBox GetMessageBoxScene(optional UIScene SceneReference = None)
+{
+	local UTUIScene_MessageBox Result;
+
+	Result = Super.GetMessageBoxScene(SceneReference);
+	if (Result != None)
+	{
+		Result.bCloseOnLevelChange = bCloseOnLevelChange;
+	}
+	return Result;
 }
 
 /**
@@ -334,6 +310,19 @@ function bool ButtonBarDisconnect(UIScreenObject InButton, int InPlayerIndex)
 
 }
 
+function bool ButtonBarJoin(UIScreenObject InButton, int InPlayerIndex)
+{
+	local UTPlayerController UTPC;
+
+	UTPC = GetUTPlayerOwner();
+	if ( UTPC != None )
+	{
+		UTPC.BecomeActive();
+		SceneClient.CloseScene(self);
+	}
+	return true;
+}
+
 function bool ButtonBarExitGame(UIScreenObject InButton, int InPlayerIndex)
 {
 	MBScene = GetMessageBoxScene();
@@ -341,7 +330,7 @@ function bool ButtonBarExitGame(UIScreenObject InButton, int InPlayerIndex)
 	{
 		TabControl.PlayUIAnimation('FadeOut',,5.0);
 		ButtonBar.PlayUIAnimation('FadeOut',,5.0);
-		MBScene.DisplayAcceptCancelBox("<Strings:UTGameUI.MidGameMenu.QuitGameWarning>","<Strings:UTGameUI.Campaign.Confirmation", MB_ExitSelection);
+		MBScene.DisplayAcceptCancelBox("<Strings:UTGameUI.MessageBox.ExitGame_Message>","<Strings:UTGameUI.Campaign.Confirmation", MB_ExitSelection);
 	}
 
 	return true;
@@ -494,7 +483,7 @@ function string ParseScrollback(const out array<string> Scrollback)
 
 	Result = "";
 
-	Start = (Scrollback.Length < 150) ? 0 : Scrollback.Length-150;
+	Start = (Scrollback.Length < 75) ? 0 : (Scrollback.Length - 75);
 	for (i=Start;i<Scrollback.Length;i++)
 	{
 		if ( (Left(Scrollback[i],7) ~= ">>> Say") || (Left(Scrollback[i],11) ~= ">>> TeamSay") )
@@ -540,7 +529,7 @@ event BeginLoading()
 	bLoading = true;
 	LoadingPanel.SetVisibility(true);
 	LoadingRotator.RotateWidget(r,false);
-	ButtonBar.SetVisibility(false);
+	SetupButtonBar();
 }
 
 event EndLoading()
@@ -566,3 +555,4 @@ defaultproperties
 	bSaveSceneValuesOnClose=false
 	bDisableWorldRendering=true
 }
+

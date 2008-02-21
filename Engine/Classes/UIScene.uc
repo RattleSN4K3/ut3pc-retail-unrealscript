@@ -8,6 +8,8 @@
 class UIScene extends UIScreenObject
 	native(UIPrivate);
 
+`include(Core/Globals.uci)
+
 /**
  * Semi-unique non-localized name for this scene which is used to reference the scene from unrealscript.
  * For scenes which are gametype specific, each scene may wish to use the same SceneName (for example, if each game
@@ -461,27 +463,7 @@ event SceneActivated( bool bInitialActivation )
 /** Called just after this scene is removed from the active scenes array */
 event SceneDeactivated()
 {
-	local GameUISceneClient GameSceneClient;
-	local int SubscriberIndex;
-	local UIObject UIObj;
-
 	ActivateEventByClass( LastPlayerIndex,class'UIEvent_SceneDeactivated', Self, true );
-
-	GameSceneClient = GetSceneClient();
-	if (GameSceneClient != none)
-	{
-		for (SubscriberIndex = GameSceneClient.AnimSubscribers.length - 1; SubscriberIndex >= 0; SubscriberIndex--)
-		{
-			UIObj = GameSceneClient.AnimSubscribers[SubscriberIndex];
-			if (UIObj != none)
-			{
-				if (UIObj.GetScene() == self)
-				{
-					GameSceneClient.AnimUnSubscribe(UIObj);
-				}
-			}
-		}
-	}
 }
 
 /**

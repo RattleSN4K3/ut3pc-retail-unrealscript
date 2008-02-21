@@ -39,9 +39,6 @@ var array<float> MinReloadPct;
 /** camera anim to play when firing (for camera shakes) */
 var array<CameraAnim> FireCameraAnim;
 
-/** controller rumble to play when firing. */
-var ForceFeedbackWaveform WeaponFireWaveForm;
-
 var array<name> EffectSockets;
 
 var int IconX, IconY, IconWidth, IconHeight;
@@ -92,6 +89,10 @@ var globalconfig databinding bool bSmallWeapons;
 
 /** offset for dropped pickup mesh */
 var float DroppedPickupOffsetZ;
+
+var config bool bUseCustomCoordinates;
+
+var config UIRoot.TextureCoordinates CustomCrosshairCoordinates;
 
 /*********************************************************************************************
  Zooming
@@ -502,6 +503,11 @@ simulated function PostBeginPlay()
 	// make sure small weapons matches config
 	// this is needed because if the UI modifies UTWeapon's defaults at runtime, it won't propagate to the child classes
 	bSmallWeapons = class'UTWeapon'.default.bSmallWeapons;
+
+	if ( bUseCustomCoordinates )
+	{
+		SimpleCrosshairCoordinates = CustomCrosshairCoordinates;
+	}
 }
 
 /**
@@ -726,7 +732,7 @@ simulated function DrawWeaponCrosshair( Hud HUD )
 		PickupScale = 1.0;
 	}
 
- 	CrosshairSize.Y = CrosshairScaling * CrossHairCoordinates.VL * PickupScale * H.Canvas.ClipY/768;
+ 	CrosshairSize.Y = H.ConfiguredCrosshairScaling * CrosshairScaling * CrossHairCoordinates.VL * PickupScale * H.Canvas.ClipY/768;
   	CrosshairSize.X = CrosshairSize.Y * ( CrossHairCoordinates.UL / CrossHairCoordinates.VL );
 
 	X = H.Canvas.ClipX * 0.5;
@@ -766,7 +772,7 @@ simulated function DrawLockedOn( HUD H )
 		LockedOnTime = WorldInfo.TimeSeconds - LockedStartTime;
 		CurrentLockedScale = (LockedOnTime > LockedScaleTime) ? FinalLockedScale : (StartLockedScale * (LockedScaleTime - LockedOnTime) + FinalLockedScale * LockedOnTime)/LockedScaleTime;
 	}
- 	CrosshairSize.Y = CurrentLockedScale * CrosshairScaling * LockedCrossHairCoordinates.VL * H.Canvas.ClipY/768;
+ 	CrosshairSize.Y = UTHUD(H).ConfiguredCrosshairScaling * CurrentLockedScale * CrosshairScaling * LockedCrossHairCoordinates.VL * H.Canvas.ClipY/768;
   	CrosshairSize.X = CrosshairSize.Y * ( LockedCrossHairCoordinates.UL / LockedCrossHairCoordinates.VL );
 
 	X = H.Canvas.ClipX * 0.5;
@@ -920,13 +926,6 @@ simulated function ShakeView()
 	if (PC != None && LocalPlayer(PC.Player) != None && CurrentFireMode < FireCameraAnim.length && FireCameraAnim[CurrentFireMode] != None)
 	{
 		PC.PlayCameraAnim(FireCameraAnim[CurrentFireMode], (GetZoomedState() > ZST_ZoomingOut) ? PC.FOVAngle / PC.DefaultFOV : 1.0);
-	}
-
-	// Play controller vibration
-	if( PC != None && LocalPlayer(PC.Player) != None )
-	{
-		// only do rumble if we are a player controller
-		UTPlayerController(Instigator.Controller).ClientPlayForceFeedbackWaveform( WeaponFireWaveForm );
 	}
 }
 
@@ -1389,10 +1388,11 @@ simulated event SetPosition(UTPawn Holder)
 {
 	local vector DrawOffset, ViewOffset, FinalSmallWeaponsOffset, FinalLocation;
 	local EWeaponHand CurrentHand;
-	local rotator NewRotation, FinalRotation;
+	local rotator NewRotation, FinalRotation, SpecRotation;
 	local PlayerController PC;
 	local vector2D ViewportSize;
 	local bool bIsWideScreen;
+	local vector SpecViewLoc;
 
 	if ( !Holder.IsFirstPerson() )
 		return;
@@ -1493,7 +1493,32 @@ simulated event SetPosition(UTPawn Holder)
 	// Calculate the draw offset
 	if ( Holder.Controller == None )
 	{
-		DrawOffset = (ViewOffset >> Holder.GetBaseAimRotation()) + Holder.GetEyeHeight() * vect(0,0,1);
+		if ( DemoRecSpectator(PC) != None )
+		{
+			PC.GetPlayerViewPoint(SpecViewLoc, SpecRotation);
+			DrawOffset = ViewOffset >> SpecRotation;
+			DrawOffset += Holder.WeaponBob(BobDamping, JumpDamping);
+			FinalLocation = SpecViewLoc + DrawOffset;
+			SetLocation(FinalLocation);
+			SetBase(Holder);
+
+			// Add some rotation leading
+			SpecRotation.Yaw = LagRot(SpecRotation.Yaw & 65535, LastRotation.Yaw & 65535, MaxYawLag, 0);
+			SpecRotation.Pitch = LagRot(SpecRotation.Pitch & 65535, LastRotation.Pitch & 65535, MaxPitchLag, 1);
+			LastRotUpdate = WorldInfo.TimeSeconds;
+			LastRotation = SpecRotation;
+
+			if ( bIsWideScreen )
+			{
+				SpecRotation += WidescreenRotationOffset;
+			}
+			SetRotation(SpecRotation);
+			return;
+		}
+		else
+		{
+			DrawOffset = (ViewOffset >> Holder.GetBaseAimRotation()) + Holder.GetEyeHeight() * vect(0,0,1);
+		}
 	}
 	else
 	{
@@ -1531,6 +1556,7 @@ simulated event SetPosition(UTPawn Holder)
 	{
 		FinalRotation.Yaw = LagRot(NewRotation.Yaw & 65535, LastRotation.Yaw & 65535, MaxYawLag, 0);
 		FinalRotation.Pitch = LagRot(NewRotation.Pitch & 65535, LastRotation.Pitch & 65535, MaxPitchLag, 1);
+		FinalRotation.Roll = NewRotation.Roll;
 	}
 	else
 	{
@@ -1666,8 +1692,8 @@ simulated function float GetWeaponRating()
  */
 function bool CanAttack(Actor Other)
 {
-	local float Dist, CheckDist, OtherRadius, OtherHeight;
-	local vector HitLocation, HitNormal, projStart;
+	local float Dist, CheckDist, OtherHeight;
+	local vector HitLocation, HitNormal, projStart, TargetLoc;
 	local Actor HitActor, TestActor;
 	local class<Projectile> ProjClass;
 	local int i;
@@ -1737,17 +1763,23 @@ function bool CanAttack(Actor Other)
 	}
 
 	// check that would hit target, and not a friendly
-	Other.GetBoundingCylinder(OtherRadius,OtherHeight);
+	TargetLoc = Other.GetTargetLocation(Instigator);
+	if ( Pawn(Other) != None )
+	{
+		OtherHeight = Pawn(Other).GetCollisionHeight();
+		TargetLoc.Z += 0.9 * OtherHeight;
+	}
+
 	// perform the trace
 	if ( bInstantHit )
 	{
-		HitActor = GetTraceOwner().Trace(HitLocation, HitNormal, Other.Location + OtherHeight * vect(0,0,0.8), projStart, true,,, TRACEFLAG_Bullet);
+		HitActor = GetTraceOwner().Trace(HitLocation, HitNormal, TargetLoc, projStart, true,,, TRACEFLAG_Bullet);
 	}
 	else
 	{
 		// for non-instant hit, ignore actors beyond a small distance that may move out of the way
 		foreach GetTraceOwner().TraceActors( class'Actor', TestActor, HitLocation, HitNormal,
-							Other.Location + OtherHeight * vect(0,0,0.8), projStart,,, TRACEFLAG_Bullet )
+							TargetLoc, projStart,,, TRACEFLAG_Bullet )
 		{
 			if ( (TestActor.bBlockActors || TestActor.bProjTarget) &&
 				(VSize(HitLocation - projStart) <= CheckDist || TestActor.IsStationary()) )
@@ -2233,9 +2265,10 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact )
 
 	if (Impact.HitActor != None && !Impact.HitActor.bStatic && (Impact.HitActor != Instigator) )
 	{
-		if ( Impact.HitActor.bProjTarget && !WorldInfo.GRI.OnSameTeam(Instigator, Impact.HitActor)
-			&& (Impact.HitActor.Instigator != Instigator)
-			&& (PhysicsVolume(Impact.HitActor) == None) )
+		if ( Impact.HitActor.Role == ROLE_Authority && Impact.HitActor.bProjTarget
+			&& !WorldInfo.GRI.OnSameTeam(Instigator, Impact.HitActor)
+			&& Impact.HitActor.Instigator != Instigator
+			&& PhysicsVolume(Impact.HitActor) == None )
 		{
 			HitEnemy++;
 			LastHitEnemyTime = WorldInfo.TimeSeconds;
@@ -3357,10 +3390,5 @@ defaultproperties
 
 	SmallWeaponsOffset=(X=16.0,Y=6.0,Z=-6.0)
 	WideScreenOffsetScaling=0.8
-	SimpleCrossHairCoordinates=(U=256,V=64,UL=64,VL=64)
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
-		Samples(0)=(LeftAmplitude=30,RightAmplitude=20,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.100)
-	End Object
-	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
+	SimpleCrossHairCoordinates=(U=276,V=84,UL=22,VL=25)
 }

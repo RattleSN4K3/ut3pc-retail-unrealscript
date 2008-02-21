@@ -115,6 +115,11 @@ var() float ClanMultiplier;
 var() float MiscPosAdjust;
 var() float MiscMultiplier;
 
+var localized string PingString;
+
+/** whether or not this list should always attempt to include the local player's PRI, skipping other players if necessary to make it fit */
+var bool bMustDrawLocalPRI;
+
 event PostInitialize()
 {
 	local UTPlayerController PC;
@@ -227,7 +232,6 @@ event DrawPanel()
 	local int FontIndex;
 
 	/** Finally, if we must, scale it */
-
 	local float FontScale;
 
 	local LinearColor LC;
@@ -272,7 +276,6 @@ event DrawPanel()
 		MiscFontIndex = EFT_Small;
 	}
 
-
     OrgX = Canvas.OrgX;
     OrgY = Canvas.OrgY;
     ClipX = Canvas.ClipX;
@@ -311,11 +314,9 @@ event DrawPanel()
 	}
 
 	// Adjust font
-
 	FontScale = 1.0f;
 
 	// Attempt to AutoFit the text.
-
 	CellHeight = AutoFit(GRI, FontIndex, ClanTagFontIndex, MiscFontIndex, FontScale, true);
 	LastCellHeight = CellHeight;
 
@@ -324,7 +325,7 @@ event DrawPanel()
 	YPos = 0.0;
 
 	NumPRIsToDraw = Min( (Canvas.ClipY-YPos)/CellHeight, PRIList.length );
-	bHasDrawnLocalPRI = false;
+	bHasDrawnLocalPRI = !bMustDrawLocalPRI;
 
 	for (i=0;i<PRIList.length;i++)
 	{
@@ -462,7 +463,6 @@ function float AutoFit(UTGameReplicationInfo GRI, out int FontIndex,out int Clan
 	local bool bRecurse;
 
 	// We need to prime our list, so do that first.
-
 	if ( bPrimeList )
 	{
 		if ( UTHudSceneOwner.IsGame() )
@@ -471,7 +471,6 @@ function float AutoFit(UTGameReplicationInfo GRI, out int FontIndex,out int Clan
 
 			if (bInteractive)
 			{
-
 				if (SelectedPI != INDEX_None )
 				{
 					CheckSelectedPRI();
@@ -481,7 +480,6 @@ function float AutoFit(UTGameReplicationInfo GRI, out int FontIndex,out int Clan
 		else
 		{
 			// Create Fake Entries for the editor
-
 			PRIList.Length = EditorTestNoPlayers;
 		}
 	}
@@ -496,23 +494,22 @@ function float AutoFit(UTGameReplicationInfo GRI, out int FontIndex,out int Clan
 	{
 		bRecurse = false;		// By default, don't recurse
 
-
-		// MiscFontIndex is the first to go
-		if ( MiscFontIndex > 0 || (ClanTagFontIndex == 0 && MiscFontIndex == 0) )
+		if ( FontScale > 0.75 )
 		{
+			FontScale = FClamp( (Canvas.ClipY/(CellHeight * PRIList.Length)), 0.75f, 1.0f );
+			bRecurse = (FontScale <= 0.75);
+		}
+		else if ( MiscFontIndex > 0 || (ClanTagFontIndex == 0 && MiscFontIndex == 0) )
+		{
+			// MiscFontIndex is the first to go
 			MiscFontIndex--;
 			bRecurse = true;
 		}
-
-		// Then the Clan Tag
 		else if ( ClanTagFontIndex >= 0 )
 		{
+			// Then the Clan Tag
 			ClanTagFontIndex--;
-			bRecurse = true;
-		}
-		else
-		{
-			FontScale = FClamp( (Canvas.ClipY / (CellHeight * PRIList.Length)), 0.85f, 1.0f );
+			bRecurse = (ClanTagFontIndex >= 0);
 		}
 
 		// If we adjusted the ClanTag or Misc sizes, we need to retest the fit.
@@ -520,7 +517,6 @@ function float AutoFit(UTGameReplicationInfo GRI, out int FontIndex,out int Clan
 		{
 			return AutoFit(GRI, FontIndex, ClanTagFontIndex, MiscFontIndex, FontScale, false);
 		}
-
 	}
 
 	CellHeight  = Fonts[FontIndex].CharHeight * MainPerc * FontScale + (HighlightPad * 2 * ResolutionScale) - MiscPosAdjust;
@@ -560,7 +556,7 @@ function DrawHighlight(UTPlayerReplicationInfo PRI, float YPos, float CellHeight
 	PC = PRI != none ? UTPlayerController(PRI.Owner) : None;
 
 	if ( (!bInteractive && PC != none && PC.Player != none && LocalPlayer(PC.Player) != none ) ||
-		 ( bInteractive && PRI.PlayerID == SelectedPI ) )
+		 ( bInteractive && PRI != None && PRI.PlayerID == SelectedPI ) )
 	{
 
 		if ( !bInteractive || IsFocused() )
@@ -604,6 +600,7 @@ function float DrawScore(UTPlayerReplicationInfo PRI, float YPos, int FontIndex,
 
 	// Draw the player's Kills
 	Spot = GetPlayerDeaths(PRI);
+	Canvas.Font = Fonts[FontIndex].Font;
 	Canvas.StrLen( Spot, Width, Height );
 	DrawString( Spot, RightColumnPosX+RightColumnWidth-Width, YPos,FontIndex,FontScale);
 
@@ -661,7 +658,6 @@ function DrawMisc(UTPlayerReplicationInfo PRI, float NameOfst, out float YPos, i
 	local float XL,YL;
 
 	// Draw the Misc Strings
-
 	if ( FontIndex < 0 )
 	{
 		return;
@@ -682,8 +678,8 @@ function DrawMisc(UTPlayerReplicationInfo PRI, float NameOfst, out float YPos, i
 function DrawPRI(int PIndex, UTPlayerReplicationInfo PRI, float CellHeight, int FontIndex, int ClanTagFontIndex, int MiscFontIndex, float FontScale, out float YPos)
 {
 	local float NameOfst, NameClipX;
-	// Set the default Drawing Color
 
+	// Set the default Drawing Color
 	DrawHighlight(PRI, YPos, CellHeight, FontScale);
 
 	if ( PRI == UTUIScene(GetScene()).GetPRIOwner() )
@@ -704,7 +700,6 @@ function DrawPRI(int PIndex, UTPlayerReplicationInfo PRI, float CellHeight, int 
 	DrawClanTag(PRI, NameOfst, YPos, ClanTagFontIndex, FontScale);
 
 	// Draw the player's Score so we can see how much room we have to draw the name
-
 	if ( PRI == UTUIScene(GetScene()).GetPRIOwner() )
 	{
 		Canvas.DrawColor.A = 255;
@@ -713,7 +708,15 @@ function DrawPRI(int PIndex, UTPlayerReplicationInfo PRI, float CellHeight, int 
 	{
 		Canvas.DrawColor.A = 128;
 	}
-	NameClipX = DrawScore(PRI, YPos, FontIndex, FontScale);
+	if ( PRI == None || !PRI.bFromPreviousLevel || PRI.WorldInfo.IsInSeamlessTravel() ||
+		(PlayerOwner != None && PlayerOwner.PlayerReplicationInfo != None && PlayerOwner.PlayerReplicationInfo.bFromPreviousLevel) )
+	{
+		NameClipX = DrawScore(PRI, YPos, FontIndex, FontScale);
+	}
+	else
+	{
+		NameClipX = Canvas.ClipX;
+	}
 
 
 	// Draw the Player's Name and position on the team - NOTE it doesn't increment YPos
@@ -830,12 +833,42 @@ function string GetLeftMisc(UTPlayerReplicationInfo PRI)
 	}
 	return "LMisc";
 }
+
 /**
  * Get the Right Misc string
  */
-
 function string GetRightMisc(UTPlayerReplicationInfo PRI)
 {
+	local int TotalSeconds, Hours, Minutes, Seconds;
+	local string TimeString;
+	local bool bHasHours;
+
+	if ( (PRI.WorldInfo.NetMode != NM_Standalone) && !PRI.bBot )
+	{
+		TotalSeconds = PRI.WorldInfo.GRI.ElapsedTime - PRI.StartTime;
+		hours = TotalSeconds/3600;
+		if ( hours > 0 )
+		{
+			TimeString = Hours$":";
+			TotalSeconds -= 3600*Hours;
+			bHasHours = true;
+		}
+		minutes = TotalSeconds/60;
+		if ( bHasHours && (minutes < 10) )
+		{
+			TimeString = TimeString$"0";
+		}
+		TimeString = TimeString$minutes$":";
+
+		seconds = TotalSeconds - 60*minutes;
+		if ( seconds < 10 )
+		{
+			TimeString = TimeString$"0";
+		}
+		TimeString = TimeString$seconds;
+		return TimeString$"   "$PingString@(4*PRI.Ping);
+	}
+	return "";
 }
 
 /**
@@ -1053,11 +1086,12 @@ defaultproperties
 	FakeNames(30)="Screwy"
 	FakeNames(31)="Starbuck"
 
-    TeamColors(0)=(R=51,G=0,B=0,A=255)
-    TeamColors(1)=(R=0,G=0,B=51,A=255)
+	TeamColors(0)=(R=51,G=0,B=0,A=255)
+	TeamColors(1)=(R=0,G=0,B=51,A=255)
 
 	DefaultStates.Add(class'Engine.UIState_Active')
 	DefaultStates.Add(class'Engine.UIState_Focused')
 	SelectedPI=-1
-}
 
+	bMustDrawLocalPRI=true
+}

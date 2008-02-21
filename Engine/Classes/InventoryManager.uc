@@ -9,6 +9,9 @@
 class InventoryManager extends Actor
 	native;
 
+/** Logging pre-processor macros */
+`include( Core\Globals.uci )
+
 
 /** First inventory item in inventory linked list */
 var Inventory InventoryChain;

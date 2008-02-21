@@ -7,6 +7,7 @@ class UTUIMenuList extends UTSimpleList
 	native(UI)
 	implements(UIDataStoreSubscriber);
 
+`include(Core/Globals.uci)
 
 
 /** The data store that this list is bound to */

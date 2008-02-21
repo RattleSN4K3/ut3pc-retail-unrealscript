@@ -20,6 +20,8 @@ var		bool	bNoJumpAdjust;			// set to tell controller not to modify velocity of a
 var		bool	bStopOnDoubleLanding;
 var		bool	bReadyToDoubleJump;
 var		bool	bIsInvulnerable;
+var		bool	bJustDroppedOrb;		// if orb dropped because knocked off hoverboard
+
 /** whether this Pawn is invisible. Affects AI and also causes shadows to be disabled */
 var repnotify bool bIsInvisible;
 
@@ -221,8 +223,6 @@ var bool bBlendOutTakeHitPhysics;
 /** speed at which physics is blended out when bBlendOutTakeHitPhysics is true (amount subtracted from PhysicsWeight per second) */
 var float TakeHitPhysicsBlendOutSpeed;
 
-/** Controller vibration for taking falling damage. */
-var ForceFeedbackWaveform FallingDamageWaveForm;
 
 /*********************************************************************************************
  Aiming
@@ -532,6 +532,9 @@ var bool bKillsAffectHead;
 /** Mirrors the # of charges available to jump boots */
 var int JumpBootCharge;
 
+/** Mesh scaling default */
+var float DefaultMeshScale;
+
 struct QuickPickCell
 {
 	var bool 				bDrawCell;
@@ -544,6 +547,8 @@ struct QuickPickCell
  * used to detect a rare bug where pawns get just barely embedded in a mesh and fall forever
  */
 var float StartedFallingTime;
+
+var name TauntNames[6];
 
 
 
@@ -892,6 +897,11 @@ simulated function SetInfoFromFamily(class<UTFamilyInfo> Info, SkeletalMesh Skel
 
 	// set my famliy info!
 	CurrFamilyInfo = Info;
+	
+	DefaultMeshScale = CurrFamilyInfo.Default.DefaultMeshScale;
+	Mesh.SetScale(DefaultMeshScale);
+	BaseTranslationOffset = CurrFamilyInfo.Default.BaseTranslationOffset;
+	CrouchTranslationOffset = BaseTranslationOffset + CylinderComponent.Default.CollisionHeight - CrouchHeight;
 }
 
 simulated function SetPawnRBChannels(bool bRagdollMode)
@@ -1508,11 +1518,6 @@ simulated function DoPlayEmote(name InEmoteTag, int InPlayerID)
 				}
 			}
 		}
-		else
-		{
-			// Failed to find emote specified - give a warnings
-			`log("PlayEmote: Emote"@InEmoteTag@"not found");
-		}
 	}
 }
 
@@ -1565,8 +1570,7 @@ reliable server function ServerPlayAnim( name AnimName, bool bLooping )
 {
 	AnimRepInfo.AnimName = AnimName;
 	AnimRepInfo.bLooping = bLooping;
-	AnimRepInfo.bNewData = !EmoteRepInfo.bNewData;
-
+	AnimRepInfo.bNewData = !AnimRepInfo.bNewData;
 	DoPlayAnim( AnimRepInfo );
 }
 
@@ -1838,7 +1842,10 @@ simulated function float GetEyeHeight()
 		return EyeHeight;
 }
 
-function PlayVictoryAnimation();
+function PlayVictoryAnimation()
+{
+	ServerPlayEmote(TauntNames[Rand(6)], -1);
+}
 
 function OnHealDamage(SeqAct_HealDamage Action)
 {
@@ -2458,7 +2465,7 @@ simulated event StopDriving(Vehicle V)
 	local UTVehicleBase VBase;
 
 	Mesh.SetLightEnvironment(LightEnvironment);
-	Mesh.SetScale(default.Mesh.Scale);
+	Mesh.SetScale(DefaultMeshScale);
 
 	// ignore on non-owning client if we still have valid DrivenWeaponPawn
 	if (Role < ROLE_Authority && DrivenWeaponPawn.BaseVehicle != None && !IsLocallyControlled())
@@ -2632,6 +2639,7 @@ function DropFlag()
 		return;
 
 	UTPlayerReplicationInfo(PlayerReplicationInfo).GetFlag().Drop();
+	bJustDroppedOrb = true;
 }
 
 /** HoldGameObject()
@@ -3130,7 +3138,7 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 
 		Mesh.PhysicsWeight = 1.0;
 
-		if(UTDamageType != None && UTDamageType.default.DeathAnim != '')
+		if(UTDamageType != None && UTDamageType.default.DeathAnim != '' && (FRand() > 0.5) )
 		{
 			// Don't want to use stop player and use hip-spring if in the air (eg PHYS_Falling)
 			if(Physics == PHYS_Walking && UTDamageType.default.bAnimateHipsForDeathAnim)
@@ -4137,7 +4145,7 @@ simulated function PlayFeignDeath()
 		// reset mesh translation since adjustment code isn't executed on the server
 		// but the ragdoll code uses the translation so we need them to match up for the
 		// most accurate simulation
-		Mesh.SetTranslation(default.Mesh.Translation);
+		Mesh.SetTranslation(vect(0,0,1) * BaseTranslationOffset);
 		// we'll use the rigid body collision to check for falling damage
 		Mesh.ScriptRigidBodyCollisionThreshold = MaxFallSpeed;
 		Mesh.SetNotifyRigidBodyCollision(true);
@@ -5061,22 +5069,6 @@ simulated function SetOverlayVisibility(bool bVisible)
 	OverlayMesh.SetOwnerNoSee(!bVisible);
 }
 
-simulated function TakeFallingDamage()
-{
-	local UTPlayerController UTPC;
-
-	Super.TakeFallingDamage();
-
-	if (Velocity.Z < -0.5 * MaxFallSpeed)
-	{
-		UTPC = UTPlayerController(Controller);
-		if(UTPC != None && LocalPlayer(UTPC.Player) != None)
-		{
-			UTPC.ClientPlayForceFeedbackWaveform(FallingDamageWaveForm);
-		}
-	}
-}
-
 simulated event RigidBodyCollision( PrimitiveComponent HitComponent, PrimitiveComponent OtherComponent,
 					const out CollisionImpactData RigidCollisionData, int ContactIndex )
 {
@@ -5147,7 +5139,7 @@ function OnInfiniteAmmo(UTSeqAct_InfiniteAmmo Action)
 /**
  * Toss active weapon using default settings (location+velocity).
  */
-function ThrowActiveWeapon( optional class<DamageType> DamageType )
+function ThrowActiveWeapon()
 {
 	local Weapon TossedGun;
 
@@ -5160,14 +5152,14 @@ function ThrowActiveWeapon( optional class<DamageType> DamageType )
 			TossedGun = Weapon(FindInventoryType(class'UTGame.UTWeap_Enforcer'));
 			if ( (TossedGun != None) && TossedGun.CanThrow() )
 			{
-				TossInventory(TossedGun);
+				TossWeapon(TossedGun);
 			}
 			return;
 		}
 	}
 	if ( Weapon != None )
 	{
-		TossInventory(Weapon);
+		TossWeapon(Weapon);
 	}
 }
 
@@ -5329,7 +5321,7 @@ state FeigningDeath
 			if ( ForcedDirVolume(Other).bBlockPawns && Other.ContainsPoint(Location) )
 			{
 				TakeDamage(10000, Controller, Location, vect(0,0,0), class'DmgType_Crushed');
-			}
+			}		
 		}
 		// don't abort moves in ragdoll
 		return false;
@@ -5450,11 +5442,22 @@ state FeigningDeath
 	{
 		local UTPlayerController PC;
 		local UTPawn P;
-
+		local Actor A;
+		
 		if (NextStateName != 'Dying')
 		{
 			bNoWeaponFiring = default.bNoWeaponFiring;
 			bCanPickupInventory = default.bCanPickupInventory;
+		
+			ForEach TouchingActors(class'Actor', A)
+			{
+				if ( (DroppedPickup(A) != None)
+					|| (PickupFactory(A) != None)
+					|| (UTCarriedObject(A) != None) )
+				{
+					A.Touch(self, CylinderComponent, A.Location, Normal(Location - A.Location));
+				}
+			}
 			Global.SetMovementPhysics();
 			PC = UTPlayerController(Controller);
 			if (PC != None)
@@ -5856,6 +5859,7 @@ defaultproperties
 	Begin Object Class=DynamicLightEnvironmentComponent Name=MyLightEnvironment
 		ModShadowFadeoutTime=1.0
 		AmbientGlow=(R=0.8,G=0.8,B=0.8,A=1.0)
+		AmbientShadowColor=(R=0.5,G=0.5,B=0.5)
 	End Object
 	Components.Add(MyLightEnvironment)
 	LightEnvironment=MyLightEnvironment
@@ -5871,7 +5875,7 @@ defaultproperties
 		bIgnoreControllersWhenNotRendered=TRUE
 		bUpdateKinematicBonesFromAnimation=true
 		bCastDynamicShadow=true
-		Translation=(Z=2.0)
+		Translation=(Z=8.0)
 		RBChannel=RBCC_Untitled3
 		RBCollideWithChannels=(Untitled3=true)
 		LightEnvironment=MyLightEnvironment
@@ -5886,10 +5890,14 @@ defaultproperties
 		bChartDistanceFactor=true
 		//bSkipAllUpdateWhenPhysicsAsleep=TRUE
 		RBDominanceGroup=20
+		Scale=1.075
 	End Object
 	Mesh=WPawnSkeletalMeshComponent
 	Components.Add(WPawnSkeletalMeshComponent)
 
+	DefaultMeshScale=1.075
+	BaseTranslationOffset=6.0
+	
 	Begin Object Name=OverlayMeshComponent0 Class=SkeletalMeshComponent
 		Scale=1.015
 		bAcceptsDecals=false
@@ -6143,8 +6151,10 @@ defaultproperties
 	SwimmingZOffset=-30.0
 	SwimmingZOffsetSpeed=45.0
 
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformFall
-		Samples(0)=(LeftAmplitude=50,RightAmplitude=40,LeftFunction=WF_Sin90to180,RightFunction=WF_Sin90to180,Duration=0.200)
-	End Object
-	FallingDamageWaveForm=ForceFeedbackWaveformFall
+	TauntNames(0)=TauntA
+	TauntNames(1)=TauntB
+	TauntNames(2)=TauntC
+	TauntNames(3)=TauntD
+	TauntNames(4)=TauntE
+	TauntNames(5)=TauntF
 }

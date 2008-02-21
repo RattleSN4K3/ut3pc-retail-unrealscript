@@ -4,12 +4,17 @@
 class ParticleModuleKillHeight extends ParticleModuleKillBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/** The height at which to kill the particle. */
+/**
+ *	The height at which to kill the particle.
+ */
 var(Kill)		rawdistributionfloat	Height;
 
-/** If TRUE, the height should be treated as a world-space position. */
+/**
+ *	If TRUE, the height should be treated as a world-space position.
+ */
 var(Kill)		bool					bAbsolute;
 
 /**

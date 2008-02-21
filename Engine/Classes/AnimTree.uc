@@ -11,7 +11,7 @@ class AnimTree extends AnimNodeBlendBase
 struct native AnimGroup
 {
 	/** Cached array of AnimNodeSequence nodes. */
-	var	transient	const	Array<AnimNodeSequence> SeqNodes;
+	var				const	Array<AnimNodeSequence> SeqNodes;
 	/** Master node for synchronization. (Highest weight of the group) */
 	var transient	const	AnimNodeSequence		SynchMaster;
 	/** Master node for notifications. (Highest weight of the group) */

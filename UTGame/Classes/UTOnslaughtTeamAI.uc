@@ -4,6 +4,7 @@
 class UTOnslaughtTeamAI extends UTTeamAI;
 
 var UTOnslaughtPowerCore FinalCore; //this team's main powercore
+
 /** this team's flag for capturing bunkers */
 var UTOnslaughtFlag Flag;
 var bool bAllNodesTaken;
@@ -298,6 +299,99 @@ function bool ObjectiveCoveredByAnotherSquad(UTGameObjective O, UTSquadAI Ignore
 	return false;
 }
 
+/**
+  * Return recommended objective node for orb runner
+  */
+function UTOnslaughtNodeObjective GetPriorityOrbObjectiveFor(Controller InController)
+{
+	local UTGameObjective O;
+	local UTOnslaughtNodeObjective Node, PickedNode, NextPickedNode;
+	local float BestDist, NewDist;
+	local int i;
+
+	for ( O=Objectives; O!=None; O=O.NextObjective )
+	{
+		Node = UTOnslaughtNodeObjective(O);
+		if ( Node != None && !Node.bIsDisabled 
+			&& ((Node.DefenderTeamIndex != Team.TeamIndex) || Node.bIsConstructing)
+			&& Node.PoweredBy(Team.TeamIndex) )
+		{
+			NewDist = VSize(Node.Location - InController.Pawn.Location);
+			if ( (PickedNode == None) || (PickedNode.DefensePriority < Node.DefensePriority) )
+			{
+				PickedNode = Node;
+				BestDist = NewDist;
+			}
+			else if ( PickedNode.DefensePriority == Node.DefensePriority )
+			{
+				// prioritize closer nodes
+				if ( NewDist < BestDist )
+				{
+					PickedNode = Node;
+					BestDist = NewDist;
+				}
+			}
+		}
+	}
+
+	if ( UTOnslaughtPowerCore(PickedNode) != None )
+	{
+		// choose a prime node instead
+		for ( i=0; i<PickedNode.NumLinks; i++ )
+		{
+			Node = PickedNode.LinkedNodes[i];
+			if ( Node != None && !Node.bIsDisabled
+				&& Node.PoweredBy(Team.TeamIndex) )
+			{
+				NewDist = VSize(Node.Location - InController.Pawn.Location);
+				if ( (NextPickedNode == None) || (NewDist < BestDist) )
+				{
+					NextPickedNode = Node;
+					BestDist = NewDist;
+				}
+			}
+		}
+		if ( (NextPickedNode != None) && (UTOnslaughtPowerCore(NextPickedNode) == None) )
+		{
+			PickedNode = NextPickedNode;
+		}
+	}
+	else if ( PickedNode.bIsConstructing && (PickedNode.DefenderTeamIndex == Team.TeamIndex) && (PickedNode.Health > 0.5 * PickedNode.default.Health) )
+	{
+		// leapfrog
+		for ( i=0; i<PickedNode.NumLinks; i++ )
+		{
+			Node = PickedNode.LinkedNodes[i];
+			if ( Node != None && !Node.bIsDisabled 
+				&& !Node.PoweredBy(Team.TeamIndex) )
+			{
+				NewDist = VSize(Node.Location - InController.Pawn.Location);
+				if ( (NextPickedNode == None) || (NextPickedNode.DefensePriority < Node.DefensePriority) )
+				{
+					NextPickedNode = Node;
+					BestDist = NewDist;
+				}
+				else if ( NextPickedNode.DefensePriority == Node.DefensePriority )
+				{
+					// prioritize closer nodes
+					if ( NewDist < BestDist )
+					{
+						NextPickedNode = Node;
+						BestDist = NewDist;
+					}
+				}
+			}
+		}
+
+		if ( (NextPickedNode != None) && (UTOnslaughtPowerCore(NextPickedNode) == None) )
+		{
+			PickedNode = NextPickedNode;
+		}
+	}
+
+	return PickedNode;
+}
+
 function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, Controller InController)
 {
 	local UTGameObjective O;
@@ -306,7 +400,7 @@ function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, 
 	local int i;
 	local bool bPickedObjectiveCovered, bTestObjectiveCovered;
 	local bool bCheckDistance;
-	local float BestDistSq, NewDistSq;
+	local float BestDistSq, NewDistSq, NewDist, BestDist;
 
 	bCheckDistance = (InController != None) && (InController.Pawn != None);
 
@@ -349,7 +443,29 @@ function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, 
 			}
 		}
 	}
-	if (PickedNode != None && bPickedObjectiveCovered)
+	if ( (UTOnslaughtPowerCore(PickedNode) != None) && UTOnslaughtPowerCore(PickedNode).bNeverAttack )
+	{
+		// choose a prime node instead
+		for ( i=0; i<PickedNode.NumLinks; i++ )
+		{
+			Node = PickedNode.LinkedNodes[i];
+			if ( Node != None && !Node.bIsDisabled
+				&& Node.PoweredBy(Team.TeamIndex) )
+			{
+				NewDist = VSize(Node.Location - InController.Pawn.Location);
+				if ( (NextPickedNode == None) || (NewDist < BestDist) )
+				{
+					NextPickedNode = Node;
+					BestDist = NewDist;
+				}
+			}
+		}
+		if ( (NextPickedNode != None) && (UTOnslaughtPowerCore(NextPickedNode) == None) )
+		{
+			PickedNode = NextPickedNode;
+		}
+	}
+	else if (PickedNode != None && bPickedObjectiveCovered)
 	{
 		// make list of nodes that will be attainable when this node is taken
 		//but only if this one is neutral or owned by this team because don't want bots waiting on "future" nodes
@@ -438,9 +554,11 @@ function UTGameObjective GetLeastDefendedObjective(Controller InController)
 function UTGameObjective GetPriorityPlayerAttackObjectiveFor(UTPlayerController PC)
 {
 	local UTGameObjective O, PlayerPickedObjective;
-	local UTOnslaughtNodeObjective Node;
+	local UTOnslaughtPowerCore PickedCore;
+	local UTOnslaughtNodeObjective Node, NextPickedNode;
 	local bool bCheckDistance;
-	local float BestDistSq, NewDistSq;
+	local float BestDistSq, NewDistSq, BestDist, NewDist;
+	local int i;
 
 	// keep same objective to attack if still valid
 	Node = UTOnslaughtNodeObjective(PC.LastAutoObjective);
@@ -477,6 +595,29 @@ function UTGameObjective GetPriorityPlayerAttackObjectiveFor(UTPlayerController 
 					BestDistSq = NewDistSq;
 				}
 			}
+		}
+	}
+	PickedCore = UTOnslaughtPowerCore(PlayerPickedObjective);
+	if ( (PickedCore != None) && PickedCore.bNeverAttack )
+	{
+		// choose a prime node instead
+		for ( i=0; i<PickedCore.NumLinks; i++ )
+		{
+			Node = PickedCore.LinkedNodes[i];
+			if ( Node != None && !Node.bIsDisabled
+				&& Node.PoweredBy(Team.TeamIndex) )
+			{
+				NewDist = VSize(Node.Location - PC.Pawn.Location);
+				if ( (NextPickedNode == None) || (NewDist < BestDist) )
+				{
+					NextPickedNode = Node;
+					BestDist = NewDist;
+				}
+			}
+		}
+		if ( (NextPickedNode != None) && (UTOnslaughtPowerCore(NextPickedNode) == None) )
+		{
+			PlayerPickedObjective = NextPickedNode;
 		}
 	}
 	return PlayerPickedObjective;

@@ -42,6 +42,8 @@ event PostInitialize()
 		ServerBrowserTab.OnBack = OnServerBrowser_Back;
 		ServerBrowserTab.OnSwitchedGameType = ServerBrowserChangedGameType;
 
+		ServerBrowserTab.OnAddToFavorite = OnServerHistory_AddToFavorite;
+
 		// this is no longer needed, as we call SaveSubscriberValue on each option as its changed
 		//ServerBrowserTab.OnPrepareToSubmitQuery = PreSubmitQuery;
 	}
@@ -100,35 +102,14 @@ function OnMainRegion_Show_UIAnimEnd( UIObject AnimTarget, int AnimIndex, UIAnim
 	if ( AnimTarget.AnimStack[AnimIndex].SeqRef.SeqName == 'SceneShowInitial' )
 	{
 		// make sure we can't choose "internet" if we aren't signed in online
-		ServerFilterTab.ValidateServerType(bCampaignMode);
-	}
-}
+		ServerFilterTab.ValidateServerType();
 
-/** Callback for when the login changes after showing the login UI. */
-function OnLoginUI_LoginChange()
-{
-	Super.OnLoginUI_LoginChange();
-
-	if ( bCampaignMode )
-	{
-		ServerFilterTab.CampaignLoginCompleted();
-	}
-}
-
-
-/**
- * Delegate used in notifying the UI/game that the manual login failed after showing the login UI.
- *
- * @param ControllerId	the controller number of the associated user
- * @param ErrorCode		the async error code that occurred
- */
-function OnLoginUI_LoginFailed( byte ControllerId,EOnlineServerConnectionStatus ErrorCode)
-{
-	Super.OnLoginUI_LoginFailed(ControllerId, ErrorCode);
-
-	if ( bCampaignMode )
-	{
-		ServerFilterTab.CampaignLoginCompleted();
+/*
+		if ( bCampaignMode )
+		{
+			OnAcceptFilterOptions(GetBestPlayerIndex());
+		}
+*/
 	}
 }
 
@@ -336,27 +317,20 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 function UseCampaignMode()
 {
 	local int ValueIndex;
-	local OnlineGameSearch CurrentSearchSettings;
-
 	ValueIndex = ServerFilterTab.MenuDataStore.FindValueInProviderSet('GameModeFilter', 'GameSearchClass', "UTGameSearchCampaign");
 
 	if(ValueIndex != -1)
 	{
 		bCampaignMode = true;
 
-		// make sure that the "Pure Server" option is set to ANY
 		ServerFilterTab.MenuDataStore.GameModeFilter = ValueIndex;
 		ServerFilterTab.MarkOptionsDirty();
 		ServerFilterTab.SearchDataStore.SetCurrentByName('UTGameSearchCampaign', false);
 
-		CurrentSearchSettings = ServerFilterTab.SearchDataStore.GetCurrentGameSearch();
-		if ( CurrentSearchSettings != None )
-		{
-			CurrentSearchSettings.SetStringSettingValue(CONTEXT_PURESERVER, CONTEXT_PURESERVER_ANY, false);
-		}
-
 		ServerFilterChangedGameType();
 	}
+
+	TabControl.ActivateTabByTag('pnlServerFilter');
 	TabControl.RemovePage(ServerHistoryTab, GetBestPlayerIndex());
 	TabControl.RemovePage(ServerFavoritesTab, GetBestPlayerIndex());
 	ServerHistoryTab = None;

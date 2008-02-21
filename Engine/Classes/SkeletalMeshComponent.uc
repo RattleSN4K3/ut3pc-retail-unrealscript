@@ -159,13 +159,7 @@ var int			bIgnoreControllers;
 var	int			bTransformFromAnimParent;
 var	const transient int	TickTag;
 var const transient int	CachedAtomsTag;
-
-/** 
- * Only instance Root Bone rigid body for physics. Mostly used by Vehicles. 
- * Other Rigid Bodies are ignored for physics, but still considered for traces.
- */
 var	const int	bUseSingleBodyPhysics;
-
 var transient int	bRequiredBonesUpToDate;
 
 /**

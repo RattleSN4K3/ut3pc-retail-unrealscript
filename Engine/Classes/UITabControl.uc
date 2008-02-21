@@ -15,6 +15,8 @@ class UITabControl extends UIObject
 	config(UI)
 	placeable;
 
+`include(Core/Globals.uci)
+
 /*
 	- implement TAST_Manual
 	- implement tabs docking on the left and right

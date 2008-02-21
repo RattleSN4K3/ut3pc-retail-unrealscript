@@ -1,15 +1,12 @@
 ﻿//=============================================================================
 // PlayerReplicationInfo.
 // Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
-//
-// A PlayerReplicationInfo is created for every player on a server (or in a standalone game).
-// Players are PlayerControllers, or other Controllers with bIsPlayer=true
-// PlayerReplicationInfos are replicated to all clients, and contain network game relevant information about the player,
-// such as playername, score, etc.
 //=============================================================================
 class PlayerReplicationInfo extends ReplicationInfo
 	native
 	nativereplication;
+
+`include(Core/Globals.uci)
 
 var databinding float				Score;			// Player's current score.
 var databinding float				Deaths;			// Number of player's deaths.
@@ -19,6 +16,7 @@ var databinding int					NumLives;
 
 var databinding repnotify string	PlayerName;		// Player name, or blank if none.
 var databinding repnotify string 	PlayerAlias;	// The Player's current alias or blank if we are using the Player Name
+var databinding int					PlayerRanking;  // Player ranking, 1000 is default
 
 var string				OldName;
 var int					PlayerID;		// Unique id number.
@@ -43,6 +41,8 @@ var repnotify bool bIsInactive;
  * this is used to avoid preserving the PRI in the InactivePRIArray if the player leaves
  */
 var bool bFromPreviousLevel;
+/**@hack: patch compatibility hack - can't add replication to bFromPreviousLevel */
+var repnotify bool bFromPreviousLevel_Replicated;
 
 /** This determines whether the user has turned on or off their Controller Vibration **/
 var bool                bControllerVibrationAllowed;
@@ -71,18 +71,8 @@ var string				SavedNetworkAddress;	/** Used to match up InactivePRI with rejoini
  */
 var repnotify UniqueNetId UniqueId;
 
-
-struct native AutomatedTestingDatum
-{
-	/** Number of matches played (maybe remove this before shipping)  This is really useful for doing soak testing and such to see how long you lasted! NOTE:  This is not replicated out to clients atm. **/
-	var int NumberOfMatchesPlayed;
-
-	/** Keeps track of the current run so when we have repeats and such we know how far along we are **/
-	var int NumMapListCyclesDone;
-};
-
-var AutomatedTestingDatum AutomatedTestingData;
-
+/** Number of matches played (maybe remove this before shipping)  This is really useful for doing soak testing and such to see how long you lasted! NOTE:  This is not replicated out to clients atm. **/
+var int NumberOfMatchesPlayed;
 
 
 
@@ -95,7 +85,8 @@ replication
 		Score, Deaths, bHasFlag, PlayerLocationHint,
 		PlayerName, PlayerAlias, Team, TeamID, bIsFemale, bAdmin,
 		bIsSpectator, bOnlySpectator, bWaitingPlayer, bReadyToPlay,
-		StartTime, bOutOfLives, UniqueId, bControllerVibrationAllowed;
+		StartTime, bOutOfLives, UniqueId, bControllerVibrationAllowed,
+		bFromPreviousLevel_Replicated;
 
 	if ( bNetDirty && (Role == Role_Authority) && !bNetOwner )
 		PacketLoss, Ping;
@@ -263,6 +254,11 @@ simulated event ReplicatedEvent(name VarName)
 		// remove and re-add from the GRI so it's in the right list
 		WorldInfo.GRI.RemovePRI(self);
 		WorldInfo.GRI.AddPRI(self);
+	}
+	//@hack: patch compatibility hack - can't add replication to bFromPreviousLevel
+	else if (VarName == 'bFromPreviousLevel_Replicated')
+	{
+		bFromPreviousLevel = bFromPreviousLevel_Replicated;
 	}
 }
 
@@ -483,7 +479,7 @@ function CopyProperties(PlayerReplicationInfo PRI)
 	PRI.SavedNetworkAddress = SavedNetworkAddress;
 	PRI.Team = Team;
 	PRI.UniqueId = UniqueId;
-	PRI.AutomatedTestingData = AutomatedTestingData;
+	PRI.NumberOfMatchesPlayed = NumberOfMatchesPlayed;
 }
 
 /** called by seamless travel when initializing a player on the other side - copy properties to the new PRI that should persist */

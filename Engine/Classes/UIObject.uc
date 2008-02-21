@@ -7,6 +7,8 @@ class UIObject extends UIScreenObject
 	native(UIPrivate)
 	abstract;
 
+`include(Core/Globals.uci)
+
 /** Unique identifier for this widget */
 var	noimport					WIDGET_ID						WidgetID;
 
@@ -569,16 +571,6 @@ native final function int FindStyleSubscriberIndex( const out UIStyleResolver Su
  * @param	StyleSubscriberId	the tag associated with the UIStyleResolver to find
  */
 native final function int FindStyleSubscriberIndexById( name StyleSubscriberId );
-
-/**
- * Sets a style in the widget using the name of the style.
- *
- * @param	StyleResolverTagToSet	the tag associated with the UIStyleResolver to set
- * @param	StyleFriendlyName		the name of the style to set the widget to
- *
- * @return	TRUE if the style was successfully applied to this widget
- */
-native final function bool SetWidgetStyleByName( name StyleResolverTagToSet, name StyleFriendlyName );
 
 
 /** --------- Animations ------------- */

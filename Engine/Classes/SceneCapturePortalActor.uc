@@ -10,6 +10,22 @@ class SceneCapturePortalActor extends SceneCaptureReflectActor
 	native
 	placeable;
 
+// so we do not load this Mesh on the console (some how it is being loaded even tho the correct flags are set)
+var notforconsole StaticMesh CameraMesh;
+var StaticMeshComponent CameraComp;
+
+// so we do not load this Mesh on the console (some how it is being loaded even tho the correct flags are set)
+var notforconsole StaticMesh TexPropPlaneMesh;
+
+
+event PreBeginPlay()
+{
+	Super.PreBeginPlay();
+
+	CameraComp.SetStaticMesh( CameraMesh );
+	StaticMesh.SetStaticMesh( TexPropPlaneMesh );
+}
+
 
 
 
@@ -29,6 +45,9 @@ defaultproperties
 	SceneCapture=SceneCapturePortalComponent0
 	Components.Add(SceneCapturePortalComponent0)
 
+
+	CameraMesh=StaticMesh'EditorMeshes.MatineeCam_SM'
+
 	// used to visualize facing direction 
 	// note that capture direction is opposite of actor facing direction (-x)
 	Begin Object Class=StaticMeshComponent Name=StaticMeshComponent1
@@ -38,9 +57,12 @@ defaultproperties
 		AlwaysLoadOnServer=FALSE
 		AlwaysLoadOnClient=FALSE
 		Scale3D=(X=-1,Y=1,Z=1)
-		StaticMesh=StaticMesh'EditorMeshes.MatineeCam_SM'
+		//StaticMesh=StaticMesh'EditorMeshes.MatineeCam_SM'
 	End Object
+	CameraComp=StaticMeshComponent1
 	Components.Add(StaticMeshComponent1)
+
+	TexPropPlaneMesh=StaticMesh'EditorMeshes.TexPropPlane'
 
 	Begin Object Class=StaticMeshComponent Name=StaticMeshComponent2
 		HiddenGame=true
@@ -49,7 +71,7 @@ defaultproperties
 		AlwaysLoadOnServer=FALSE
 		AlwaysLoadOnClient=FALSE
 		Scale3D=(X=1.0,Y=1.0,Z=1.0)
-		StaticMesh=StaticMesh'EditorMeshes.TexPropPlane'
+		//StaticMesh=StaticMesh'EditorMeshes.TexPropPlane'
 	End Object
 	StaticMesh=StaticMeshComponent2
 	Components.Add(StaticMeshComponent2)

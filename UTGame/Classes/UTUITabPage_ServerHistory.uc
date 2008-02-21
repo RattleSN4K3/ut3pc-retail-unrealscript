@@ -7,10 +7,7 @@
  */
 class UTUITabPage_ServerHistory extends UTUITabPage_ServerBrowser;
 
-var	transient	int		AddFavoriteIdx;
-
-/** called when the user moves a server from the history page to the favorites page */
-delegate transient OnAddToFavorite();
+`include(Core/Globals.uci)
 
 /**
  * Sets the correct tab button caption.
@@ -69,11 +66,6 @@ function UTDataStore_GameSearchFavorites GetFavoritesDataStore()
 function SetupExtraButtons( UTUIButtonBar ButtonBar )
 {
 	Super.SetupExtraButtons(ButtonBar);
-
-	if ( ButtonBar != None )
-	{
-		AddFavoriteIdx = ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.AddToFavorite>", OnButtonBar_AddFavorite);
-	}
 }
 
 /**
@@ -81,69 +73,7 @@ function SetupExtraButtons( UTUIButtonBar ButtonBar )
  */
 function UpdateButtonStates()
 {
-	local UTUIButtonBar ButtonBar;
-	local UITabControl TabControlOwner;
-	local bool bValidServerSelected;
-
 	Super.UpdateButtonStates();
-
-	TabControlOwner = GetOwnerTabControl();
-	if ( TabControlOwner != None && TabControlOwner.ActivePage == Self )
-	{
-		ButtonBar = GetButtonBar();
-		if ( ButtonBar != None )
-		{
-			bValidServerSelected = ServerList != None && ServerList.GetCurrentItem() != INDEX_NONE;
-			if ( AddFavoriteIdx != INDEX_NONE )
-			{
-				ButtonBar.Buttons[AddFavoriteIdx].SetEnabled(bValidServerSelected && !HasSelectedServerInFavorites(GetBestControllerId()));
-			}
-		}
-	}
-}
-
-/** ButtonBar - Add to favorite */
-function bool OnButtonBar_AddFavorite(UIScreenObject InButton, int InPlayerIndex)
-{
-	if ( InButton != None && InButton.IsEnabled(InPlayerIndex) )
-	{
-		AddToFavorites(InPlayerIndex);
-	}
-	return true;
-}
-
-/**
- * Adds the selected server to the list of favorites
- */
-function AddToFavorites( int inPlayerIndex )
-{
-	local int CurrentSelection, ControllerId;
-	local OnlineGameSearchResult SelectedGame;
-	local UTDataStore_GameSearchFavorites FavsDataStore;
-	local UITabControl TabControlOwner;
-
-	CurrentSelection = ServerList.GetCurrentItem();
-
-	if ( SearchDataStore.GetSearchResultFromIndex(CurrentSelection, SelectedGame) )
-	{
-		ControllerId = GetBestControllerId();
-		FavsDataStore = GetFavoritesDataStore();
-
-		// if this server isn't already in the list of favorites
-		if ( FavsDataStore != None && !HasServerInFavorites(ControllerId, SelectedGame.GameSettings.OwningPlayerId) )
-		{
-			// add it
-			if ( FavsDataStore.AddServer(ControllerId, SelectedGame.GameSettings.OwningPlayerId)
-			&&	UTDataStore_GameSearchHistory(SearchDataStore).RemoveServer(ControllerId, SelectedGame.GameSettings.OwningPlayerId) )
-			{
-				TabControlOwner = GetOwnerTabControl();
-				if ( TabControlOwner != None && TabControlOwner.ActivePage == Self )
-				{
-					OnAddToFavorite();
-				}
-			}
-		}
-	}
 }
 
 DefaultProperties

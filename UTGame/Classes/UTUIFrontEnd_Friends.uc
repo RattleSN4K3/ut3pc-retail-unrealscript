@@ -95,9 +95,3 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 
 	return bResult;
 }
-
-defaultproperties
-{
-	bRequiresNetwork=true
-	bRequiresOnlineService=true
-}

@@ -9,7 +9,7 @@ class UTUIFrontEnd_Community extends UTUIFrontEnd_BasicMenu;
 enum CommunityOptions
 {
 	COMMUNITY_OPTION_NEWS,
-	
+
 	/*
 	COMMUNITY_OPTION_DLC,
 	COMMUNITY_OPTION_EPICCONTENT,
@@ -20,6 +20,7 @@ enum CommunityOptions
 	COMMUNITY_OPTION_MESSAGES,
 	COMMUNITY_OPTION_STATS,
 	COMMUNITY_OPTION_DEMOPLAYBACK,
+	COMMUNITY_OPTION_CREDITS,
 	COMMUNITY_OPTION_ACHIEVEMENTS,
 };
 
@@ -33,7 +34,6 @@ var string	FriendsScene;
 event PostInitialize( )
 {
 	Super.PostInitialize();
-
 	MenuList.SetFocus(None);
 }
 
@@ -73,19 +73,19 @@ function OnSelectItem(int PlayerIndex=0)
 		}
 		break;
 	case COMMUNITY_OPTION_FRIENDS:
-		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE,true) && CheckCommunicationPrivilegeAndError() && CheckContentPrivilegeAndError())
+		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE,true) && CheckCommunicationPrivilegeAndError())
 		{
 			OnShowFriends();
 		}
 		break;
 	case COMMUNITY_OPTION_MESSAGES:
-		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE,true) && CheckCommunicationPrivilegeAndError() && CheckContentPrivilegeAndError())
+		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE,true) && CheckCommunicationPrivilegeAndError())
 		{
 			OnShowMessages();
 		}
 		break;
 	case COMMUNITY_OPTION_STATS:
-		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE, true) && CheckOnlinePrivilegeAndError() )
+		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE, true))
 		{
 			OnShowStats();
 		}
@@ -93,6 +93,11 @@ function OnSelectItem(int PlayerIndex=0)
 	case COMMUNITY_OPTION_DEMOPLAYBACK:
 		OnShowDemoPlayback();
 		break;
+
+	case COMMUNITY_OPTION_CREDITS:
+		OpenSceneByName(class'UTUIFrontEnd_Settings'.default.CreditsScene);
+		break;
+
 	}
 }
 
@@ -185,7 +190,7 @@ function OnShowDemoPlayback()
 	else
 	{
 		OpenSceneByName(DemoPlaybackScene);
-	}	
+	}
 }
 
 /** Achievements option selected, displays the achievements blade for the specified PlayerIndex. */

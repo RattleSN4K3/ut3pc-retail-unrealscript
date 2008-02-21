@@ -13,6 +13,14 @@ var float OldLeftScore, OldRightScore;
 /** The scaling modifier will be applied to the widget that coorsponds to the player's team */
 var() float TeamScaleModifier;
 
+var bool bScoreDebug;
+
+
+exec function ToggleScoreDebug()
+{
+	bScoreDebug = !bScoreDebug;
+}
+
 function DisplayScoring()
 {
 	Super.DisplayScoring();
@@ -52,12 +60,21 @@ function DisplayTeamScore()
 	Canvas.DrawColorizedTile(IconHudTexture, W * DestScale, H * DestScale, 0, 491, 214, 87, TeamLC);
 
 	NewScore = GetTeamScore(TeamIndex);
+
+
+	if (bScoreDebug)
+	{
+		Canvas.SetPos(0,100);
+		Canvas.DrawText("ScoreDebug: RED NewScore="@NewScore@UTGRI@UTGRI.Teams[0]);
+	}
+
+
 	if ( NewScore != OldLeftScore )
 	{
 		LeftTeamPulseTime = WorldInfo.TimeSeconds;
 	}
 	OldLeftScore = NewScore;
-	
+
 	if (DestScale < 1.0)
 	{
 		DrawGlowText(string(NewScore), POSX + 97 * ResolutionScaleX, -2 * ResolutionScale, 50 * ResolutionScale, LeftTeamPulseTime, true);
@@ -80,6 +97,14 @@ function DisplayTeamScore()
 	POSX = Canvas.ClipX * 0.51;
 
 	NewScore = GetTeamScore(TeamIndex);
+
+	if (bScoreDebug)
+	{
+		Canvas.SetPos(0,120);
+		Canvas.DrawText("ScoreDebug: Blue NewScore="@NewScore@UTGRI@UTGRI.Teams[1]);
+	}
+
+
 	if ( NewScore != OldRightScore )
 	{
 		RightTeamPulseTime = WorldInfo.TimeSeconds;

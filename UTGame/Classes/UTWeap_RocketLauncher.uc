@@ -561,7 +561,7 @@ simulated function DrawLFMData(HUD Hud)
 	}
 
 	DrawLoaded = Min(LoadedShotCount-1, 3);
- 	CrosshairSize.Y = CrosshairScaling * LoadedIconCoords[DrawLoaded].VL * PickupScale * H.Canvas.ClipY/768;
+ 	CrosshairSize.Y = H.ConfiguredCrosshairScaling * CrosshairScaling * LoadedIconCoords[DrawLoaded].VL * PickupScale * H.Canvas.ClipY/768;
   	CrosshairSize.X = CrosshairSize.Y * LoadedIconCoords[DrawLoaded].UL/LoadedIconCoords[DrawLoaded].VL;
 
 	X = H.Canvas.ClipX * 0.5;
@@ -1197,14 +1197,6 @@ simulated state WeaponLoadAmmo
 		Super.BeginState(PreviousStateName);
 	}
 
-
-	/** You can run around loading up rockets ready to fire them! **/
-	simulated function bool CanViewAccelerationWhenFiring()
-	{
-		return TRUE;
-	}
-
-
 Begin:
 	AddProjectile();
 }
@@ -1547,9 +1539,4 @@ defaultproperties
 	WeaponAltFireLaunchEnd[0]=WeaponAltFireLaunch1End
 	WeaponAltFireLaunchEnd[1]=WeaponAltFireLaunch2End
 	WeaponAltFireLaunchEnd[2]=WeaponAltFireLaunch3End
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
-		Samples(0)=(LeftAmplitude=90,RightAmplitude=50,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.200)
-	End Object
-	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

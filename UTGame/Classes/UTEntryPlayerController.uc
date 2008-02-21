@@ -8,6 +8,8 @@ class UTEntryPlayerController extends UTPlayerController
 	config(Game)
 	native;
 
+`include(Core/Globals.uci)
+
 var PostProcessChain EntryPostProcessChain;
 var array<PostProcessChain> OldPostProcessChain;
 var LocalPlayer OldPlayer;
@@ -76,19 +78,18 @@ function OnControllerChanged(int ControllerId,bool bIsConnected)
 	// Don't worry about remote players
 	LocPlayer = LocalPlayer(Player);
 	// If the controller that changed, is attached to the this playercontroller
-	if (WorldInfo.IsConsoleBuild() && LocPlayer != None && LocPlayer.ControllerId == ControllerId)
+	if (LocPlayer != None && LocPlayer.ControllerId == ControllerId)
 	{
 		bIsControllerConnected = bIsConnected;
 
-		//@todo fix this to work again once UI changes are merged back into main
-// 		if(bIsConnected)
-// 		{
-// 			class'UTUIScene'.static.ClearScreenWarningMessage();
-// 		}
-// 		else
-// 		{
-// 			class'UTUIScene'.static.ShowScreenWarningMessage(Localize("ToastMessages","ReconnectController","UTGameUI")$" ("$(ControllerId+1)$")");
-// 		}
+		if(bIsConnected)
+		{
+			class'UTUIScene'.static.HideOnlineToast();
+		}
+		else
+		{
+			class'UTUIScene'.static.ShowOnlineToast(Localize("ToastMessages","ReconnectController","UTGameUI")$" ("$(ControllerId+1)$")", -1);	// Time of -1 to make the toast stay up until we hide it.
+		}
 	}
 }
 
@@ -314,10 +315,8 @@ exec function UnlockChapter(int ChapterIndex)
 	}
 }
 
-// do nothing
-exec function ShowCommandMenu()
-{
-}
+
+
 
 defaultproperties
 {

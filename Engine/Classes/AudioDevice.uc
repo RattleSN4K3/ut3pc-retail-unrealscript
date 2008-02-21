@@ -136,7 +136,7 @@ var		config const	bool						UseEffectsProcessing;
 var		transient const	array<AudioComponent>		AudioComponents;
 var		native const	array<pointer>				Sources{FSoundSource};
 var		native const	array<pointer>				FreeSources{FSoundSource};
-var		native const	Map_Mirror					WaveInstanceSourceMap{TMap<FWaveInstance*, FSoundSource*>};
+var		native const	DynamicMap_Mirror			WaveInstanceSourceMap{TDynamicMap<FWaveInstance*, FSoundSource*>};
 
 var		native const	bool						bGameWasTicking;
 

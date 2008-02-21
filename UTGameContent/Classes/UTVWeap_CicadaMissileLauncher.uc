@@ -363,13 +363,14 @@ simulated state WeaponLoadAmmo
 		TV2D = H.Canvas.Project(LockedTargetVect);
 
 		// make sure not clipped out
-		if (TV2D.X >= 0 &&
-			TV2D.X < H.Canvas.ClipX &&
-			TV2D.Y >= 0 &&
-			TV2D.Y < H.Canvas.ClipY)
+		if (TV2D.X < 0 ||
+			TV2D.X >= H.Canvas.ClipX ||
+			TV2D.Y < 0 ||
+			TV2D.Y >= H.Canvas.ClipY)
 		{
-			H.DrawShadowedRotatedTile(CrosshairImage,Rot,TV2D.X - 32 * H.ResolutionScale, TV2D.Y - 32 * H.ResolutionScale, 64,64, 384,256,64,64,H.GoldColor,true);
+			return;
 		}
+		H.DrawShadowedRotatedTile(CrosshairImage,Rot,TV2D.X - 32 * H.ResolutionScale, TV2D.Y - 32 * H.ResolutionScale, 64,64, 384,256,64,64,H.GoldColor,true);
 
 		// restore the canvas parameters
 		H.Canvas.OrgX = OldOrgX;

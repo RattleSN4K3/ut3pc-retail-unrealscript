@@ -85,6 +85,12 @@ var EDedicatedServerType DedicatedServerType;
 /** The average of player skills currently playing in this game */
 var databinding float AverageSkillRating;
 
+/** The version of the engine the server is running */
+var databinding const int EngineVersion;
+
+/** The minimum network version that is compatibile with the server */
+var databinding const int MinNetVersion;
+
 defaultproperties
 {
 	bAllowJoinInProgress=true
@@ -93,4 +99,5 @@ defaultproperties
 	bAllowInvites=true
 	bUsesPresence=true
 	bAllowJoinViaPresence=true
+	AverageSkillRating=1000.0f
 }

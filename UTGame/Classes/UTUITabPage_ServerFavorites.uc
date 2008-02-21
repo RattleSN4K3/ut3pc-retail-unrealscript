@@ -17,6 +17,10 @@ event PostInitialize()
 
 	// Set the button tab caption.
 	SetDataStoreBinding("<Strings:UTGameUI.JoinGame.Favorites>");
+
+    //Make sure the server details are bound to the right data store
+	DetailsList.SetDataStoreBinding("<" $ SearchDSName $ ":CurrentServerDetails>");
+	MutatorList.SetDataStoreBinding("<" $ SearchDSName $ ":CurrentServerMutators>");
 }
 
 /**
@@ -55,7 +59,8 @@ function UTDataStore_GameSearchFavorites GetFavoritesDataStore()
  */
 function SetupExtraButtons( UTUIButtonBar ButtonBar )
 {
-	Super.SetupExtraButtons(ButtonBar);
+	//Commented out because I moved "Add Favorites" to ServerBrowser
+	//Super.SetupExtraButtons(ButtonBar);
 
 	if ( ButtonBar != None )
 	{

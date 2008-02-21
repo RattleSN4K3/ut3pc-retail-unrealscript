@@ -157,23 +157,14 @@ simulated function PostBeginPlay()
 	}
 
 	// Look for a mid game menu and if it's there fix it up
+
 	SC = UTGameUISceneClient(class'UIRoot'.static.GetSceneClient());
-	if (SC != none)
+	if (SC != none )
 	{
 		CurrentMidGameMenu = UTUIScene_MidGameMenu(SC.FindSceneByTag('MidGameMenu'));
 		if ( CurrentMidGameMenu != none )
 		{
 			CurrentMidGameMenu.Reset();
-		}
-
-		// also close any scoreboards that are up
-		i = 0;
-		while (i < SC.ActiveScenes.Length)
-		{
-			if (UTUIScene_Scoreboard(SC.ActiveScenes[i]) == None || !SC.ActiveScenes[i].CloseScene(SC.ActiveScenes[i]))
-			{
-				i++;
-			}
 		}
 	}
 }
@@ -202,9 +193,14 @@ simulated event Destroyed()
 	//	because the server will wipe out the GRI/PRI/etc from under us
 	//	unfortunately, there's not a reasonable workaround - we can add delays in places but that doesn't guarantee anything
 	//	in retrospect, we probably should have taken the data we needed out of the RIs and used a separate object
-	if (IsProcessingCharacterData())
+	if (IsTimerActive('TickCharacterMeshCreation'))
 	{
 		SendCharacterProcessingNotification(false);
+		// sanity check to make sure we don't get stuck waiting
+		if (WorldInfo.IsInSeamlessTravel())
+		{
+			WorldInfo.SetSeamlessTravelMidpointPause(false);
+		}
 	}
 }
 
@@ -390,6 +386,9 @@ simulated function StartProcessingCharacterData()
 	local PlayerController PC;
 	local UTPlayerController UTPC;
 
+	// this is so ProcessCharacterData() knows this function has been called
+	ClearTimer('StartProcessingCharacterData');
+
 	// see if we already processed initial characters (i.e. because we did a seamless travel)
 	foreach LocalPlayerControllers(class'UTPlayerController', UTPC)
 	{
@@ -520,8 +519,11 @@ simulated singular function ProcessCharacterData(UTPlayerReplicationInfo PRI, op
 	// we need to make sure we have called StartProcessingCharacterData() before we actually do anything
 	if (IsTimerActive('StartProcessingCharacterData'))
 	{
-		ClearTimer('StartProcessingCharacterData');
-		StartProcessingCharacterData();
+		if (GetTimerRate('StartProcessingCharacterData') > 0.001)
+		{
+			SetTimer(0.001, false, 'StartProcessingCharacterData');
+		}
+		return;
 	}
 
 	if(bProcessedInitialCharacters && bTeamChange && PRI.IsLocalPlayerPRI())
@@ -625,7 +627,7 @@ simulated singular function ProcessCharacterData(UTPlayerReplicationInfo PRI, op
 		}
 	}
 
-	SetTimer(0.04, true, 'TickCharacterMeshCreation');
+	SetTimer(1.0 / 60.0, true, 'TickCharacterMeshCreation');
 
 	// Start the character creation timer.
 	StartCreateCharTime = WorldInfo.RealTimeSeconds;
@@ -659,10 +661,6 @@ simulated function TickCharacterMeshCreation()
 			//`log("PRI NULL - Removing.");
 			ResetCharMerge(i);
 			CharStatus.Remove(i,1);
-			// make sure we GC if this character was being loaded
-			// technically we should only do this if it was actually being processed,
-			// but it's is too small of a delay to be worth the risk of missing a check and not GCing when we should
-			bMergeWasPending = true;
 		}
 	}
 
@@ -882,7 +880,6 @@ simulated function TickCharacterMeshCreation()
 					// Done with this char now! Remove from array.
 					CharStatus.Remove(i,1);
 					i--;
-					bMergeWasPending = true;
 				}
 			}
 		}
@@ -893,11 +890,6 @@ simulated function TickCharacterMeshCreation()
 			// Force garbage collection if merge was pending and hold off kicking off more async loading for a frame so the GC can occur.
 			if( bMergeWasPending )
 			{
-				// reset the timer so that even if we have a low framerate
-				// we guarantee this function will not be called again this frame
-				ClearTimer('TickCharacterMeshCreation');
-				SetTimer(0.04, true, 'TickCharacterMeshCreation');
-
 				WorldInfo.ForceGarbageCollection();
 			}
 			else
@@ -1008,13 +1000,8 @@ simulated function TickCharacterMeshCreation()
 	{
 		if (bMergeWasPending)
 		{
-			// reset the timer so that even if we have a low framerate
-			// we guarantee this function will not be called again this frame
-			ClearTimer('TickCharacterMeshCreation');
-			SetTimer(0.04, true, 'TickCharacterMeshCreation');
-
 			// do a final GC before we officially finish
-			WorldInfo.ForceGarbageCollection( TRUE );
+			WorldInfo.ForceGarbageCollection();
 		}
 		else
 		{
@@ -1087,14 +1074,11 @@ simulated function PopulateMidGameMenu(UTSimpleMenu Menu)
 /** Whether a player can change teams or not.  Used by menus and such. */
 simulated function bool CanChangeTeam()
 {
-	if (UTGame(WorldInfo.Game) != None && UTGame(WorldInfo.Game).IsConsoleDedicatedServer())
+	if ( GameClass.Default.bTeamGame && !bStoryMode && class<UTDuelGame>(GameClass) == None )
 	{
-		return false;
+		return true;
 	}
-	else
-	{
-		return (GameClass.default.bTeamGame && !bStoryMode && class<UTDuelGame>(GameClass) == None);
-	}
+	return false;
 }
 
 /** hook to allow the GRI to prevent pausing; used when it's performing asynch tasks that must be completed */
@@ -1299,7 +1283,7 @@ simulated function UTUIScene_MidGameMenu ShowMidGameMenu(UTPlayerController Inst
 		return None;
 	}
 
-	Template = class'UTGame'.Default.MidGameMenuTemplate;
+	Template = UTGameClass.Default.MidGameMenuTemplate;
 
 	if ( Template != none )
 	{
@@ -1309,6 +1293,10 @@ simulated function UTUIScene_MidGameMenu ShowMidGameMenu(UTPlayerController Inst
 			CurrentMidGameMenu = UTUIScene_MidGameMenu(Scene);
 			ToggleViewingMap(true);
 
+			if (bMatchIsOver)
+			{
+				CurrentMidGameMenu.TabControl.RemoveTabByTag('SettingsTab');
+			}
 
 			if ( TabTag != '' )
 			{
@@ -1351,15 +1339,13 @@ function ToggleViewingMap(bool bIsViewing)
 	}
 }
 
-/** wrapper for opening UI scenes
- * @param InstigatorPC - player to open it for
- * @param Template - the scene to open
- */
 simulated function UIScene OpenUIScene(UTPlayerController InstigatorPC, UIScene Template)
 {
 	local UIInteraction UIController;
 	local LocalPlayer LP;
 	local UIScene s;
+
+	// Check all replication conditions
 
 	LP = LocalPlayer(InstigatorPC.Player);
 	UIController = LP.ViewportClient.UIController;

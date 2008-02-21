@@ -116,6 +116,9 @@ var vector AlternateTargetLocOffset;
 
 var ForceFeedbackWaveform CoreDestroyWaveForm;
 
+/** If true, bots and player orders will never be to attack this core, but rather to hold a prime node */
+var() bool bNeverAttack;
+
 
 
 replication
@@ -208,7 +211,7 @@ simulated function HighlightOnMinimap(int Switch)
 
 simulated function string GetHumanReadableName()
 {
-	return NamePrefix@class'UTTeamInfo'.Default.TeamColorNames[DefenderTeamIndex]@ObjectiveName;
+	return default.ObjectiveName;
 }
 
 simulated function InitialUpdateEffects()
@@ -626,25 +629,12 @@ simulated state ObjectiveDestroyed
 					UTSeqEvent_PowerCoreDestructionEffect(DestructionEvents[i]).MeshActor = KismetMeshActor;
 					DestructionEvents[i].CheckActivate(self, None);
 				}
-
-				foreach LocalPlayerControllers(class'PlayerController', PC)
-				{
-					if (LocalPlayer(PC.Player) != None)
-					{
-						PC.ClientPlayForceFeedbackWaveform(CoreDestroyWaveForm);
-					}
-				}
 			}
 			else
 			{
 				foreach LocalPlayerControllers(class'PlayerController', PC)
 				{
 					PC.ClientPlaySound(DestroyedSound);
-
-					if (LocalPlayer(PC.Player) != None)
-					{
-						PC.ClientPlayForceFeedbackWaveform(CoreDestroyWaveForm);
-					}
 				}
 
 				if (DefenderTeamIndex < 2)
@@ -764,17 +754,19 @@ function FailedLinkHeal(Controller C)
 }
 
 
-//		SkeletalMesh=SkeletalMesh'GP_Onslaught.S_Power_Core_Sphere'
+function bool TellBotHowToDisable(UTBot B)
+{
+	if ( bNeverAttack )
+	{
+		// defend prime node instead
+		return LinkedNodes[0].TellBotHowToHeal(B);
+	}
+
+	return Super.TellBotHowToDisable(B);
+}
 
 DefaultProperties
 {
 	ReducedDamageTime=+10.0
 	DestroyedStinger=15
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform10
-		Samples(0)=(LeftAmplitude=50,RightAmplitude=25,LeftFunction=WF_Noise,RightFunction=WF_LinearIncreasing,Duration=3.000)
-		Samples(1)=(LeftAmplitude=75,RightAmplitude=50,LeftFunction=WF_Noise,RightFunction=WF_LinearIncreasing,Duration=3.000)
-		Samples(2)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_Noise,RightFunction=WF_Noise,Duration=4.500)
-		Samples(3)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=5.000)
-	End Object
-	CoreDestroyWaveForm=ForceFeedbackWaveform10
 }

@@ -72,8 +72,6 @@ var int LastSeeMessageIndex;
 
 var LinearColor RedColor, BlueColor, GoldColor;
 
-var ForceFeedbackWaveform PickUpWaveForm;
-
 
 
 replication
@@ -164,8 +162,7 @@ simulated function RenderMapIcon(UTMapInfo MP, Canvas Canvas, UTPlayerController
 	{
 		CurrentScale = 1.0;
 	}
-
-	DrawIcon(Canvas, HUDLocation, IconCoords.UL * (Canvas.ClipY / 768) * MapSize * MP.MapScale * CurrentScale, 1.0);
+	DrawIcon(Canvas, HUDLocation, IconCoords.UL * (Canvas.ClipY / 768) * MapSize * CurrentScale, 1.0);
 
 }
 
@@ -190,7 +187,7 @@ simulated function RenderEnemyMapIcon(UTMapInfo MP, Canvas Canvas, UTPlayerContr
 		CurrentScale = 1.0;
 	}
 
-	IconWidth = IconCoords.UL * (Canvas.ClipY / 768) * MapSize * MP.MapScale * CurrentScale;
+	IconWidth = IconCoords.UL * (Canvas.ClipY / 768) * MapSize * CurrentScale;
 	YoverX = IconCoords.VL / IconCoords.UL;
 	Canvas.SetPos(HudLocation.X - 0.5 * IconWidth, HudLocation.Y - 0.5 * IconWidth * YoverX);
 	Canvas.DrawColorizedTile(IconTexture, IconWidth, IconWidth * YoverX , IconCoords.U, IconCoords.V, IconCoords.UL, IconCoords.VL, DrawColor);
@@ -231,8 +228,6 @@ function SetHolder(Controller C)
 	if (PC != None)
 	{
 		PC.CheckAutoObjective(true);
-
-		PC.ClientPlayForceFeedbackWaveform(PickUpWaveForm);
 	}
 	foreach WorldInfo.AllControllers(class'Controller', OtherC)
 	{
@@ -419,6 +414,7 @@ function ClearHolder()
 	local int i;
 	local UTGameReplicationInfo GRI;
 	local UTPlayerReplicationInfo PRI;
+	local UTBot B;
 
 	if (Holder == None)
 		return;
@@ -433,6 +429,7 @@ function ClearHolder()
 			{
 				PRI.SetFlag(None);
 				PRI.bForceNetUpdate = TRUE;
+				B = UTBot(PRI.Owner);
 			}
 		}
 	}
@@ -440,10 +437,16 @@ function ClearHolder()
 	{
 		UTPlayerReplicationInfo(Holder.PlayerReplicationInfo).SetFlag(None);
 		Holder.PlayerReplicationInfo.bForceNetUpdate = TRUE;
+		B = UTBot(Holder.Controller);
 	}
 
 	Holder = None;
 	HolderPRI = None;
+
+	if ( B != None )
+	{
+		B.SetMaxDesiredSpeed();
+	}
 }
 
 function Actor Position()
@@ -609,13 +612,30 @@ function LogDropped(Controller EventInstigator)
 function CheckTouching()
 {
 	local int i;
+	local Controller BestToucher;
 
+	OldHolder = None;
 	for ( i=0; i<Touching.Length; i++ )
+	{
 		if ( ValidHolder(Touching[i]) )
 		{
-			SetHolder(Pawn(Touching[i]).Controller);
-			return;
+			if ( PlayerController(Pawn(Touching[i]).Controller) != None )
+			{
+				SetHolder(Pawn(Touching[i]).Controller);
+				return;
+			}
+			else if ( BestToucher == None )
+			{
+				// players get priority over bots
+				BestToucher = Pawn(Touching[i]).Controller;
+			}
 		}
+	}
+
+	if ( BestToucher != None )
+	{
+		SetHolder(BestToucher);
+	}
 }
 
 /** send home without player intervention (timed out, fell out of world, etc) */
@@ -890,9 +910,4 @@ defaultproperties
 	BlueColor=(B=1.0,A=1.0)
 	GoldColor=(R=1.0,G=1.0,A=1.0)
 	IconTexture=Texture2D'UI_HUD.HUD.UI_HUD_BaseA'
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformPickUp
-		Samples(0)=(LeftAmplitude=80,RightAmplitude=80,LeftFunction=WF_LinearIncreasing,RightFunction=WF_LinearIncreasing,Duration=0.2)
-	End Object
-	PickUpWaveForm=ForceFeedbackWaveformPickUp
 }

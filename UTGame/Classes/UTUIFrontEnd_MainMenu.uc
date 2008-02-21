@@ -49,39 +49,57 @@ var transient int LogoutPlayerIndex;
 /** Whether or not the logout was successful. */
 var transient bool bLogoutWasSuccessful;
 
+`include(Core/Globals.uci)
 
 /** Callback for when the show animation has completed for this scene. */
 function OnMainRegion_Show_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimationSeq AnimSeq)
 {
-	local string OutStringValue;
+	local string OutStringValue, OpenURLVal;
 	local GameUISceneClient GameSceneClient;
-	local bool bLoggedIn;
-//@todo ut3merge
-//	local OnlineAccountInterface	AccountInt;
+	local OnlineAccountInterface	AccountInt;
 
 	`log(`location@`showobj(AnimTarget)@`showvar(AnimIndex)@`showobj(AnimSeq),,'DevUI');
 	Super.OnMainRegion_Show_UIAnimEnd(AnimTarget, AnimIndex, AnimSeq);
 
 
-//@todo ut3merge
-//	AccountInt = GetAccountInterface();
-//	if(AccountInt.IsKeyValid()==false)
-	if ( false )
+	AccountInt = GetAccountInterface();
+	if(AccountInt.IsKeyValid()==false)
 	{
 		OpenSceneByName(CDKeyScene);
 		return;
 	}
 
 
+	// See if we should show the user the login screen.
+	GetDataStoreStringValue("<Registry:ShownLoginScreen>", OutStringValue);
+	if(OutStringValue!="1")
+	{
+		SetDataStoreStringValue("<Registry:ShownLoginScreen>", "1");
+
+		if ( !class'UTGameUISceneClient'.default.bPerformedMinSpecCheck )
+		{
+			class'UTGameUISceneClient'.default.bPerformedMinSpecCheck = true;
+			class'UTGameUISceneClient'.static.StaticSaveConfig();
+			VerifyMinSpecs();
+			return;
+		}
+		else if( !IsConsole() )
+		{
+			if ( !IsLoggedIn(INDEX_NONE, true) )
+			{
+				OpenSceneByName(LoginScreenScene, true, OnLoginScreenOpened);
+				return;
+			}
+		}
+	}
+
 	// AnimIndex of 0 corresponds to the 'SceneShowInitial' animation
 	if ( AnimIndex == 0 )
 	{
-		bLoggedIn = IsLoggedIn(INDEX_NONE);
-
 		GameSceneClient = GetSceneClient();
 		if ( GameSceneClient != None )
 		{
-			if ( bLoggedIn )
+			if ( IsLoggedIn(INDEX_NONE) )
 			{
 				GameSceneClient.RestoreMenuProgression(Self);
 			}
@@ -90,50 +108,20 @@ function OnMainRegion_Show_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnima
 				GameSceneClient.ClearMenuProgression();
 			}
 		}
-
-		//@fixme ronp - this needs to be cleaned up; kind of a mish-mash of pc and ps3 versions
-		// See if we should show the user the login screen.
-		GetDataStoreStringValue("<Registry:ShownLoginScreen>", OutStringValue);
-		if(OutStringValue!="1")
-		{
-			if ( !IsConsole() )
-			{
-				if ( !class'UTGameUISceneClient'.default.bPerformedMinSpecCheck )
-				{
-					class'UTGameUISceneClient'.default.bPerformedMinSpecCheck = true;
-					class'UTGameUISceneClient'.static.StaticSaveConfig();
-					VerifyMinSpecs();
-					return;
-				}
-			}
-			else if ( !bLoggedIn )
-			{
-				OpenSceneByName(LoginScreenScene, true, OnLoginScreenOpened);
-				return;
-			}
-		}
-
-		SetDataStoreStringValue("<Registry:ShownLoginScreen>", "1");
 		CheckForFrontEndError();
 	}
-}
 
-/** Callback for when the login screen has opened. */
-function OnLoginScreenOpened(UIScene OpenedScene, bool bInitialActivation)
-{
-	local UTUIFrontEnd_LoginScreen LoginScreen;
-	local OnlinePlayerInterface	PlayerInt;
-
-	PlayerInt = GetPlayerInterface();
-	LoginScreen = UTUIFrontEnd_LoginScreen(OpenedScene);
-	if(LoginScreen != None && IsLoggedIn(INDEX_NONE,true)==false && bInitialActivation)
+	//Now that the main menu is up, launch the URL if appropriate
+	if(GetDataStoreStringValue("<Registry:LaunchedCmdLineURL>", OpenURLVal) && OpenURLVal == "1")
 	{
-		// If they are logged in locally only, then set the default values for the login screen.
-		if(IsLoggedIn(INDEX_NONE)==true)
+        //Make sure we are actually logged in
+		if ( IsLoggedIn(INDEX_NONE, true) )
 		{
-			LoginScreen.LocalLoginCheckBox.SetValue(true);
-			LoginScreen.UserNameEditBox.SetValue(PlayerInt.GetPlayerNickname(GetPlayerOwner().ControllerId));
+			OpenCmdLineURL();
 		}
+
+		//Successful or no we don't want to call this code again
+		SetDataStoreStringValue("<Registry:LaunchedCmdLineURL>", "2");
 	}
 }
 
@@ -159,9 +147,28 @@ function VerifyMinSpecs()
 
 function MinSpecMessageClosed()
 {
-	if ( !IsLoggedIn(INDEX_NONE) )
+	if ( !IsLoggedIn(INDEX_NONE, true) )
 	{
-		OpenSceneByName(LoginScreenScene, true);
+		OpenSceneByName(LoginScreenScene, true, OnLoginScreenOpened);
+	}
+}
+
+/** Callback for when the login screen has opened. */
+function OnLoginScreenOpened(UIScene OpenedScene, bool bInitialActivation)
+{
+	local UTUIFrontEnd_LoginScreen LoginScreen;
+	local OnlinePlayerInterface	PlayerInt;
+
+	PlayerInt = GetPlayerInterface();
+	LoginScreen = UTUIFrontEnd_LoginScreen(OpenedScene);
+	if(LoginScreen != None && IsLoggedIn(INDEX_NONE,true)==false && bInitialActivation)
+	{
+		// If they are logged in locally only, then set the default values for the login screen.
+		if(IsLoggedIn(INDEX_NONE)==true)
+		{
+			LoginScreen.LocalLoginCheckBox.SetValue(true);
+			LoginScreen.UserNameEditBox.SetValue(PlayerInt.GetPlayerNickname(GetPlayerOwner().ControllerId));
+		}
 	}
 }
 
@@ -227,7 +234,7 @@ function OnSelectItem(int PlayerIndex=0)
 			break;
 
 		case MAINMENU_OPTION_MULTIPLAYER:
-			if ( CheckLinkConnectionAndError() )
+			if ( CheckLinkConnectionAndError() && CheckOnlinePrivilegeAndError() )
 			{
 				OpenSceneByName(MultiplayerScene);
 			}
@@ -492,6 +499,23 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 			}
 
 			bResult=true;
+		}
+
+		if (EventParms.InputKeyName=='A')
+		{
+			VersionPos.X -= 0.001;
+		}
+		if (EventParms.InputKeyName=='D')
+		{
+			VersionPos.X += 0.001;
+		}
+		if (EventParms.InputKeyName=='W')
+		{
+			VersionPos.Y -= 0.001;
+		}
+		if (EventParms.InputKeyName=='X')
+		{
+			VersionPos.Y += 0.001;
 		}
 	}
 

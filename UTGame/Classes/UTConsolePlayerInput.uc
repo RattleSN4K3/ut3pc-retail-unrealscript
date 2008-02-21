@@ -115,9 +115,9 @@ var config float AutoPitchStopAdjustingValue;
 var private bool bIsLookingUp;
 var private bool bIsLookingDown;
 
-/**
+/**	
  * HoverBoards don't have a real turret.  All of the code that exists for modifying the rotation speed is within that set of code
- * So we are going to just modify it here.
+ * So we are going to just modify it here. 
  * This is the multiplier we are going to use to make the hoverboard look up and down feel nice.
  **/
 var config float HoverBoardPitchMultiplier;
@@ -143,46 +143,57 @@ function PreProcessInput( float DeltaTime )
 	//RawJoyLookRight	= aTurn;
 	//RawJoyLookUp	= aLookUp;
 
-	//`log( "bUsingGamepad: " $ bUsingGamepad );
-	// whenever a player uses a non Gamepad for input the input for that frame is set to:  bUsingGamepad=false  so we do not even attempt
-	// to do any input help
-	if (!bUsingGamepad)
-	{
-		// if we are playing in a Game that only allows Gamepads and we have received input from a non gamepad
-		// we blank all inputs
-		if (UTGameReplicationInfo(WorldInfo.GRI) != None && !UTGameReplicationInfo(WorldInfo.GRI).bAllowKeyboardAndMouse)
-		{
-			RawJoyLookRight = 0.0f;
-			RawJoyLookUp = 0.0f;
-
-			aBaseX = 0.0f;
-			aBaseY = 0.0f;
-			aBaseZ = 0.0f;
-			aMouseX = 0.0f;
-			aMouseY = 0.0f;
-			aForward = 0.0f;
-			aTurn = 0.0f;
-			aStrafe = 0.0f;
-			aUp = 0.0f;
-			aLookUp = 0.0f;
-		}
-
-		// mouse seems to be slower on PS3 for some reason so give it a boost
-		aTurn *= 1.5;
-		aLookUp *= 1.5;
-		aMouseX *= 1.5;
-		aMouseY *= 1.5;
-
-		return;
-	}
-
-
-	bUsingTiltController = FALSE;
-
 	if( Pawn == none )
 	{
 		return;
 	}
+
+	//`log( "bUsingGamepad: " $ bUsingGamepad );
+	// whenever a player uses a non Gamepad for input the input for that frame is set to:  bUsingGamepad=false  so we do not even attempt
+	// to do any input help
+	if( bUsingGamepad == FALSE ) 
+	{
+		// if we are playing in a Game that only allows Gamepads and we have received input from a non gamepad we disconnect the player
+		// as we consider that cheating
+        // if we are the server then we want to set our server to allow KeyBoardAndMouse
+		if( UTGameReplicationInfo(WorldInfo.GRI).bAllowKeyboardAndMouse == FALSE )
+		{
+// 			if( WorldInfo.NetMode != NM_Client )
+// 			{
+//                 // @todo put in some UI screen saying KeyBoardAndMouse are now allowed
+//                 `log( "You have been detected as using a keyboard/mouse. As the server you have changed the Server Type to allow KeyBoardAndMice" );
+// 				UTGame(WorldInfo.Game).bAllowKeyboardAndMouse = TRUE;
+// 				UTGameReplicationInfo(WorldInfo.GRI).bAllowKeyboardAndMouse = TRUE;
+// 			}
+// 			else
+// 			{
+				// leaving this here now for when inevitably someone does this and wonders why they have no input
+				//`log( "You have been detected as using a keyboard/mouse in a GamePad only game and have been disconnected from the game." );
+				//UTConsolePlayerController(Pawn.Controller).SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.CannotUseKeyboardMouse_Title>","<Strings:UTGameUI.Errors.CannotUseKeyboardMouse_Message>");
+
+				RawJoyLookRight = 0.0f;
+				RawJoyLookUp = 0.0f;
+
+				aBaseX = 0.0f;
+				aBaseY = 0.0f;
+				aBaseZ = 0.0f;
+				aMouseX = 0.0f;
+				aMouseY = 0.0f;
+				aForward = 0.0f;
+				aTurn = 0.0f;
+				aStrafe = 0.0f;
+				aUp = 0.0f;
+				aLookUp = 0.0f;
+
+				//ConsoleCommand("Disconnect");
+//			}
+	
+			return;
+		}
+	}
+
+
+	bUsingTiltController = FALSE;
 
 	//hack
 // 	if( UTVehicle(Pawn) != None )
@@ -293,7 +304,7 @@ function ApplyViewAutoPitchCentering( float DeltaTime )
 	local float CurrentPitch;
 
 	// so if we are not doing any looking or firing
-	if( (aTurn != 0) || ( abs(RawJoyLookUp) > 0.2f ) || ( abs(RawJoyLookRight) > 0.2f ) || ( Pawn.Weapon.PendingFire(0) || Pawn.Weapon.PendingFire(1) ) || (Pawn.Physics == PHYS_Falling) )
+	if( (aTurn != 0) || ( abs(RawJoyLookUp) > 0.2f ) || ( abs(RawJoyLookRight) > 0.2f ) || Pawn.IsFiring() || (Pawn.Physics == PHYS_Falling) )
 	{
 		// don't auto-align camera if player is currently moving it
 		LastTurnTime = WorldInfo.TimeSeconds;
@@ -351,7 +362,7 @@ function ApplyViewAutoVehiclePitchCentering( float DeltaTime )
 
 	if ( (UTVehicle(Pawn) != None) && !UTVehicle(Pawn).bFollowLookDir && UTVehicle(Pawn).bShouldAutoCenterViewPitch )
 	{
-		if ( (aTurn != 0) || ( Pawn.Weapon.PendingFire(0) || Pawn.Weapon.PendingFire(1) ) )
+		if ( (aTurn != 0) || Pawn.IsFiring() )
 		{
 			// don't auto-align camera if player is currently moving it
 			LastTurnTime = WorldInfo.TimeSeconds;
@@ -405,7 +416,7 @@ function ApplyViewAutoVehiclePitchCentering( float DeltaTime )
 	if( ( UTVehicle(Pawn) != None) && ( VSize(Pawn.Velocity) != 0 ) && UTVehicle(Pawn).bShouldAutoCenterViewPitch )
 	{
 		// so if we are not doing any looking or firing
-		if( ( abs(RawJoyLookUp) > 0.2f ) || ( Pawn.Weapon.PendingFire(0) || Pawn.Weapon.PendingFire(1) ) || (Pawn.Physics == PHYS_Falling) )
+		if( ( abs(RawJoyLookUp) > 0.2f ) || Pawn.IsFiring() || (Pawn.Physics == PHYS_Falling) )
 		{
 			// don't auto-align camera if player is currently moving it
 			LastTurnTime = WorldInfo.TimeSeconds;
@@ -464,7 +475,7 @@ function ApplyViewAcceleration( float DeltaTime )
 	UW = UTWeapon(Pawn.Weapon);
 	CurrentPitch = NormalizeRotAxis(Rotation.Pitch);
 
-	//`log( "ahh: " $ square(Abs(RawJoyLookRight)) + square(Abs(RawJoyLookUp/0.65)) $ " RawJoyLookRight: " $ RawJoyLookRight $ " RawJoyLookUp: " $ RawJoyLookUp );
+	//`log( "ahh: " $ square(Abs(RawJoyLookRight)) + square(Abs(RawJoyLookUp/0.75)) $ " RawJoyLookRight: " $ RawJoyLookRight $ " RawJoyLookUp: " $ RawJoyLookUp );
 
 	if( CurrentPitch < -1*ViewAccel_LookingUpOrDownBoundary )
 	{
@@ -490,20 +501,20 @@ function ApplyViewAcceleration( float DeltaTime )
 	}
 	// non-linear scale for turn magnitude
 	// If above threshold, accelerate Yaw turning rate (e.g. when you slam the thumbstick to the farthest position)
-	else if( ( Abs(aTurn) > ViewAccel_YawThreshold ) ||  ( ( square(Abs(RawJoyLookRight) + square(Abs(RawJoyLookUp/0.65))) ) > ViewAccel_DiagonalThreshold )
+	else if( ( Abs(aTurn) > ViewAccel_YawThreshold ) ||  ( ( square(Abs(RawJoyLookRight) + square(Abs(RawJoyLookUp/0.75))) ) > ViewAccel_DiagonalThreshold )
 		)
 	{
 		 // if we are not targeting someone.  (i.e. in the heat of battle of circle straffing you want to be JAMMED to the edge as you are spazzing out.  but are targeting and fighting so you don't want to flip around all speedy )
 		if( ( ViewAccel_TimeHeld > ViewAccel_TimeToHoldBeforeFastAcceleration )
 			&& ( !bAppliedTargetFriction )
-			&& ( !( Pawn.Weapon.PendingFire(0) || Pawn.Weapon.PendingFire(1) ) || ( ( UW != None ) && ( UW.CanViewAccelerationWhenFiring() ) ) ) // if we are shooting then don't do super speed up (e.g. we are prob circle straffing))
+			&& ( ( !Pawn.IsFiring() ) || ( ( UW != None ) && ( UW.CanViewAccelerationWhenFiring() ) ) ) // if we are shooting then don't do super speed up (e.g. we are prob circle straffing))
 			)
 		{
 			ViewAccel_CurrMutliplier += ( ViewAccel_RampSpeed ) ;
 			aTurn *= FMin( FMax(ViewAccel_CurrMutliplier, ViewAccel_BaseMultiplier), ViewAccel_MaxTurnSpeed );  // we need to always be at least a 1.0f here or we will go slower and hitch
 
 			//`log( "aTurn *=2 ViewAccel_CurrMutliplier: " $ FMin( FMax(ViewAccel_CurrMutliplier, ViewAccel_BaseMultiplier), ViewAccel_MaxTurnSpeed ) $ " aTurn: " $ aTurn $ " ViewAccel_BaseMultiplier: " $ ViewAccel_BaseMultiplier );
-			//`log( "RawJoyLookRight: " $ RawJoyLookRight $ " RawJoyLookUp: " $ RawJoyLookUp $ " " $ (RawJoyLookUp/0.65) $ " aTurn: " $ aTurn );
+			//`log( "RawJoyLookRight: " $ RawJoyLookRight $ " RawJoyLookUp: " $ RawJoyLookUp $ " " $ (RawJoyLookUp/0.75) $ " aTurn: " $ aTurn );
 		}
 		else
 		{

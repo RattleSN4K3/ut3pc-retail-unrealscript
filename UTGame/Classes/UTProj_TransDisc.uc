@@ -340,6 +340,8 @@ State MonitoringThrow
 
 	simulated function HitWall( vector HitNormal, actor Wall, PrimitiveComponent WallComp )
 	{
+		local UTBot B;
+
 		Global.HitWall(HitNormal,Wall, WallComp);
 		if ( (UTCarriedObject(TranslocationTarget) != None) && (HitNormal.Z > 0.7)
 				&& (VSize(Location - TranslocationTarget.Location) < FMin(400, VSize(Instigator.Location - TranslocationTarget.Location))) )
@@ -351,9 +353,12 @@ State MonitoringThrow
 
 		if ( Physics == PHYS_None )
 		{
-			if ( (UTBot(Instigator.Controller) != None) && UTBot(Instigator.Controller).bPreparingMove )
+			B = UTBot(Instigator.Controller);
+			if ( (B != None) && B.bPreparingMove )
 			{
-				UTBot(Instigator.Controller).MoveTimer = -1;
+				B.MoveTimer = -1;
+				B.bForceRefreshRoute = TRUE;
+				B.NextTranslocTime = WorldInfo.TimeSeconds + 10;
 			}
 			EndMonitoring();
 		}
@@ -447,6 +452,8 @@ State MonitoringThrow
 			if (B.bPreparingMove)
 			{
 				B.MoveTimer = -1;
+				B.bForceRefreshRoute = TRUE;
+				B.NextTranslocTime = WorldInfo.TimeSeconds + 10;
 			}
 			else if ( (UTCarriedObject(TranslocationTarget) != None) && (ZDiff > 0) && (Dist2D < FMin(400, VSize(Instigator.Location - TranslocationTargetLoc) - 250)) )
 			{

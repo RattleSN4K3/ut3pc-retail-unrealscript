@@ -4,11 +4,11 @@
 class ParticleModuleRotationOverLifetime extends ParticleModuleRotationBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/** 
- *	The rotation of the particle (1.0 = 360 degrees).
- *	The value is retrieved using the RelativeTime of the particle.
+/**
+ *	The rotation to apply.
  */
 var(Rotation) rawdistributionfloat	RotationOverLife;
 

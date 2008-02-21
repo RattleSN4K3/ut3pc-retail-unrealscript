@@ -263,6 +263,7 @@ simulated function CustomFire()
 	local bool bFailedTransloc;
 	local Controller C;
 	local float DiffZ;
+	local UTBot B;
 
 	IncrementFlashCount();
 	if(AmmoCount != 0)
@@ -375,7 +376,14 @@ simulated function CustomFire()
 			if (Instigator.Controller.bPreparingMove)
 			{
 				// abort bot's move
-				Instigator.Controller.MoveTimer = -1.0f;
+				B = UTBot(Instigator.Controller);
+
+				if ( (B != None) && B.bPreparingMove )
+				{
+					B.bForceRefreshRoute = TRUE;
+					B.MoveTimer = -1.0f;
+					B.NextTranslocTime = WorldInfo.TimeSeconds + 10;
+				}
 			}
 			if( PlayerController(Instigator.Controller) != None && TransFailedSound != none)
 			{

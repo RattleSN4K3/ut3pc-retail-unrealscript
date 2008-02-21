@@ -106,6 +106,16 @@ function bool HasOutstandingQueries( optional bool bRestrictCheckToSelf )
 	return bResult;
 }
 
+/** these have been moved up a class and are left like this for binary compatibility */
+function bool GetEnabledMutators(out array<int> MutatorIndices)
+{
+	return Super.GetEnabledMutators(MutatorIndices);
+}
+function bool HasExistingSearchResults()
+{
+	return Super.HasExistingSearchResults();
+}
+
 /**
  * Finds the index of the saved parameters for the specified game search.
  *
@@ -275,4 +285,5 @@ DefaultProperties
 	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchWAR',DefaultGameSettingsClass=class'UTGame.UTGameSettingsWAR',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchWAR"))
 	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchDUEL',DefaultGameSettingsClass=class'UTGame.UTGameSettingsDUEL',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchDUEL"))
 	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchCampaign',DefaultGameSettingsClass=class'UTGame.UTGameSettingsCampaign',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchCampaign"))
+	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchCustom',DefaultGameSettingsClass=class'UTGame.UTGameSettingsDM',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchCustom"))
 }

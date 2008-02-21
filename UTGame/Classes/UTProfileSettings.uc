@@ -1585,7 +1585,7 @@ function string GetActionName(EDigitalButtonActions ActionIdx)
 defaultproperties
 {
 	// If you change any profile ids, increment this number!!!!
-	VersionNumber=61
+	VersionNumber=59
 
 	/////////////////////////////////////////////////////////////
 	// ProfileSettingIds - Array of profile setting IDs to use as lookups
@@ -1903,7 +1903,7 @@ defaultproperties
 	ProfileMappings[73]=(Id=UTPID_EnforcerPriority,Name="UTGame.UTWeap_Enforcer_Priority",MappingType=PVMT_RawValue)
 	ProfileMappings[74]=(Id=UTPID_ShockRiflePriority,Name="UTGame.UTWeap_ShockRifle_Priority",MappingType=PVMT_RawValue)
 	ProfileMappings[75]=(Id=UTPID_StingerPriority,Name="UTGame.UTWeap_Stinger_Priority",MappingType=PVMT_RawValue)
-	ProfileMappings[76]=(Id=UTPID_AVRILPriority,Name="UTGameContent.UTWeap_Avril_Content_Priority",MappingType=PVMT_RawValue)
+	ProfileMappings[76]=(Id=UTPID_AVRILPriority,Name="UTGameContent.UTWeap_Avril_Content",MappingType=PVMT_RawValue)
 	ProfileMappings[77]=(Id=UTPID_RedeemerPriority,Name="UTGameContent.UTWeap_Redeemer_Content",MappingType=PVMT_RawValue)
 
 	// HUD
@@ -2099,7 +2099,7 @@ defaultproperties
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_EnableJoystick,Data=(Type=SDT_Int32,Value1=UTPID_VALUE_YES))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSensitivityGame,Data=(Type=SDT_Int32,Value1=2500))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSensitivityMenus,Data=(Type=SDT_Int32,Value1=1))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSmoothingStrength,Data=(Type=SDT_Int32,Value1=1))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSmoothingStrength,Data=(Type=SDT_Int32,Value1=10))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseAccelTreshold,Data=(Type=SDT_Int32,Value1=1))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_DodgeDoubleClickTime,Data=(Type=SDT_Int32,Value1=25))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_TurningAccelerationFactor,Data=(Type=SDT_Int32,Value1=4))))
@@ -2723,3 +2723,4 @@ defaultproperties
 	CampaignBoneNames.Add(B_CTFSteamlight)
 
 }
+

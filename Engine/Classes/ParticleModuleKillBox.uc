@@ -4,15 +4,22 @@
 class ParticleModuleKillBox extends ParticleModuleKillBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/** The lower left corner of the box. */
+/**
+ *	The lower left corner of the box
+ */
 var(Kill)		rawdistributionvector	LowerLeftCorner;
 
-/** The upper right corner of the box. */
+/**
+ *	The upper right corner of the box
+ */
 var(Kill)		rawdistributionvector	UpperRightCorner;
 
-/** If TRUE, the box coordinates are in world space./ */
+/**
+ *	If TRUE, the box coordinates is in world space
+ */
 var(Kill)		bool					bAbsolute;
 
 /**

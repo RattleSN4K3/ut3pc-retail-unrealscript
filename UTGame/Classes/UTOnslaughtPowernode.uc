@@ -395,7 +395,7 @@ function CheckInvulnerability()
 			{
 				ControllingFlag.LastUsefulTime = WorldInfo.TimeSeconds;
 
-				if ( PrimeCore != None )
+				if ( bIsPrimeNode )
 				{
 					if ( Vulnerability != NewVulnerability )
 					{
@@ -625,22 +625,31 @@ function DelayedFindNewObjectives()
 function OnChangeNodeStatus(UTSeqAct_ChangeNodeStatus Action)
 {
 	local UTTeamGame Game;
+	local UTOnslaughtFlag NewFlag;
 
 	if (Action.InputLinks[0].bHasImpulse || Action.InputLinks[1].bHasImpulse)
 	{
 		Game = UTTeamGame(WorldInfo.Game);
 		if (Game != None && Action.OwnerTeam < ArrayCount(Game.Teams))
 		{
-			ControllingFlag = UTOnslaughtFlag(Game.Teams[Action.OwnerTeam].TeamFlag);
-			if (ControllingFlag != None)
+			NewFlag = UTOnslaughtFlag(Game.Teams[Action.OwnerTeam].TeamFlag);
+			if (NewFlag != None)
 			{
 				Vulnerability = VS_InvulnerableToOrbCapture;
 				bForceNetUpdate = TRUE;
 				if (bIsActive)
 				{
-					GotoState('ObjectiveDestroyed');
+					GotoState('NeutralNode');
 				}
+				ControllingFlag = NewFlag;
+				SetDamagedEffect(false); // remove lightning if the orb was previously nearly gone.
+				bForceNetUpdate = TRUE;
+				Constructor = None;
+				DefenderTeamIndex = ControllingFlag.GetTeamNum();
+				bCapturedByOrb = true;
 				BecomeActive();
+				Health = DamageCapacity;
+				LastCaptureTime = WorldInfo.TimeSeconds;
 			}
 		}
 	}
@@ -1281,6 +1290,26 @@ simulated function bool NeedsHealing()
 	return (Health < DamageCapacity);
 }
 
+function bool ShouldGrabFlag(UTOnslaughtSquadAI ONSSquadAI, UTBot B, float Dist)
+{
+	local float CampTime;
+
+	if ( ONSSquadAI.ONSTeamAI.Flag.IsRebuilding() )
+	{
+		// don't camp rebuilding flags for too long
+		if ( !ONSSquadAI.ONSTeamAI.Flag.bFinishedPreBuild )
+		{
+			return false;
+		}
+
+		CampTime = ONSSquadAI.ONSTeamAI.Flag.BuildTime - ONSSquadAI.ONSTeamAI.Flag.GetTimerCount('OrbBuilt');
+		return (CampTime < 2);
+
+		// FIXME - don't go for it if player is camping it?
+	}
+	return true;
+}
+
 function bool TellBotHowToDisable(UTBot B)
 {
 	local UTOnslaughtSquadAI ONSSquadAI;
@@ -1307,8 +1336,10 @@ function bool TellBotHowToDisable(UTBot B)
 				(!ONSSquadAI.ONSTeamAI.FinalCore.PoweredBy(ONSSquadAI.ONSTeamAI.EnemyTeam.TeamIndex) || ONSSquadAI.ONSTeamAI.FinalCore.LinkedTo(self)) )
 			{
 				FlagPosition = ONSSquadAI.ONSTeamAI.Flag.Position();
+
 				Dist = VSize(FlagPosition.Location - B.Pawn.Location);
-				if ( (B.RouteGoal == FlagPosition || B.RouteGoal == ONSSquadAI.ONSTeamAI.Flag.LastAnchor || Dist < 1000.0 || Dist * 2.0 < VSize(Location - B.Pawn.Location)) &&
+
+				if ( ShouldGrabFlag(ONSSquadAI, B, Dist) && (B.RouteGoal == FlagPosition || B.RouteGoal == ONSSquadAI.ONSTeamAI.Flag.LastAnchor || Dist < 1000.0 || Dist * 2.0 < VSize(Location - B.Pawn.Location)) &&
 					(Dist < 1000.0 || IsNeutral() || !B.CanAttack(self)) )
 				{
 					foreach WorldInfo.AllControllers(class'UTBot', OtherB)
@@ -1325,7 +1356,18 @@ function bool TellBotHowToDisable(UTBot B)
 					if (!bCloserTeammate)
 					{
 						B.GoalString = "Get orb";
-						return ONSSquadAI.FindPathToObjective(B, ONSSquadAI.ONSTeamAI.Flag.Position());
+
+						// make sure not already touching
+						if ( ONSSquadAI.ONSTeamAI.Flag.IsInState('Home')
+							&& (VSize(B.Pawn.Location - FlagPosition.Location) < 200) )
+						{
+							ONSSquadAI.ONSTeamAI.Flag.CheckTouching();
+							if ( UTPlayerReplicationInfo(B.PlayerReplicationInfo).bHasFlag )
+							{
+								return B.Squad.FindPathToObjective(B, self);
+							}
+						}
+						return ONSSquadAI.FindPathToObjective(B, FlagPosition);
 					}
 				}
 			}
@@ -1398,6 +1440,12 @@ function bool TellBotHowToHeal(UTBot B)
 
 	if (!TeamLink(B.GetTeamNum()) || Health >= DamageCapacity)
 	{
+		if ( (B.Enemy == None) && B.PlayerReplicationInfo.bHasFlag )
+		{
+			// defend with flag
+			B.MoveToDefensePoint();
+			return true;
+		}
 		return false;
 	}
 

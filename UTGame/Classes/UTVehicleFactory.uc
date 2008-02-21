@@ -329,10 +329,9 @@ state Active
 					bHasLockedVehicle = true;
 				if ( bKeyVehicle )
 				{
-					ChildVehicle.bKeyVehicle = true;
+					ChildVehicle.SetKeyVehicle();
 					// don't let defenders use key vehicles as they may be requied to complete objectives
 					ChildVehicle.AIPurpose = AIP_Offensive;
-					UTMapInfo(WorldInfo.GetMapInfo()).AddKeyVehicle(ChildVehicle);
 				}
 				if (bForceAvoidReversing)
 				{

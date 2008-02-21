@@ -87,6 +87,12 @@ var() FaceFXAsset FaceFXAsset;
 /** Asset used for previewing bounds in AnimSetViewer. Makes setting up LOD distance factors more reliable. */
 var()	editoronly PhysicsAsset		BoundsPreviewAsset;
 
+/** 
+ * Bone Name to start drawing bones from. 
+ * See SkeletalMeshComponent.bDisplayBones. 
+ */
+var() Name StartDisplayBoneName;
+
 /** LOD bias to use for PC. */
 var() int LODBiasPC;
 /** LOD bias to use for PS3. */

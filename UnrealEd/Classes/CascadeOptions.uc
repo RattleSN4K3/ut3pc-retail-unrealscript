@@ -16,7 +16,6 @@ var(Options)		config bool			bShowModuleDump;
 var(Options)		config color		BackgroundColor;
 var(Options)		config bool			bUseSubMenus;
 var(Options)		config bool			bUseSpaceBarReset;
-var(Options)		config bool			bUseSpaceBarResetInLevel;
 var(Options)		config color		Empty_Background;
 var(Options)		config color		Emitter_Background;
 var(Options)		config color		Emitter_Unselected;
@@ -49,13 +48,6 @@ var(Options)		config vector		FloorScale3D;
 var(Options)		config string		PostProcessChainName;
 
 var(Options)		config int			ShowPPFlags;
-
-/** If TRUE, use the 'slimline' module drawing method in cascade. */
-var(Options)		config bool			bUseSlimCascadeDraw;
-/** The height to use for the 'slimline' module drawing method in cascade. */
-var(Options)		config int			SlimCascadeDrawHeight;
-/** If TRUE, center the module name and buttons in the module box. */
-var(Options)		config bool			bCenterCascadeModuleText;
 
 defaultproperties
 {

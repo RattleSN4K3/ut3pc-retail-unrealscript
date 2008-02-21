@@ -259,8 +259,8 @@ simulated state WeaponLoadAmmo
 	 **/
 	simulated function bool CanViewAccelerationWhenFiring()
 	{
-		return TRUE;
-	}
+		return( GlobStrength == MaxGlobStrength );
+	};
 
 
 Begin:

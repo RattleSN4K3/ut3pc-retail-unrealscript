@@ -4,14 +4,10 @@
 class ParticleModuleSpawnBase extends ParticleModule
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object)
 	abstract;
 
-/** 
- *	If TRUE, the SpawnRate of the RequiredModule of the emitter will be processed.
- *	If mutliple Spawn modules are 'stacked' in an emitter, if ANY of them 
- *	have this set to FALSE, it will not process the RequireModule SpawnRate.
- */
 var(Spawn)	bool				bProcessSpawnRate;
 
 

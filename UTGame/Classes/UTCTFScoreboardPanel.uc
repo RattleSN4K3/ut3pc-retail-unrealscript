@@ -86,17 +86,7 @@ simulated function DrawPlayerNum(UTPlayerReplicationInfo PRI, int PIndex, out fl
 
 function string GetRightMisc(UTPlayerReplicationInfo PRI)
 {
-	if ( PRI != None )
-	{
-		if (RightMiscStr != "")
-		{
-			return UserString(RightMiscStr,PRI);
-		}
-
-		return "";
-
-	}
-	return "RMisc";
+	return super.GetRightMisc(PRI);
 }
 
 

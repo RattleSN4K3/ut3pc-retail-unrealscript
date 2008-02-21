@@ -1251,7 +1251,7 @@ struct native transient RenderParameters
 struct native TextAutoScaleValue
 {
 	/**
-	 * the minimum amount of scaling that can be applied to the text; this value must be set in order for
+	 * the minimum and maximum amount of scaling that can be applied to the text; these values must be set in order for
 	 * auto-scaling to be used in conjunction with any type of string formatting (i.e. wrapping, clipping, etc.).  Negative
 	 * values will be ignored and a value of 0 indicates that MinScale is not enabled.
 	 */

@@ -152,7 +152,7 @@ function PlayAnnouncementNow(class<UTLocalMessage> InMessageClass, int MessageIn
 			&& (UTPlayerReplicationInfo(PRI) != None) 
 			&& (PRI != PlayerOwner.PlayerReplicationInfo) )
 		{
-			UTHUD(PlayerOwner.MyHUD).ShowPortrait(UTPlayerReplicationInfo(PRI), ASound.Duration+0.5);
+			UTHUD(PlayerOwner.MyHUD).ShowPortrait(UTPlayerReplicationInfo(PRI), ASound.Duration+0.5, ClassIsChildOf(InMessageClass, class'UTScriptedVoiceMessage'));
 		}
 	}
 	else

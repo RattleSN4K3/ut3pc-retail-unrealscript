@@ -37,15 +37,6 @@ event PostInitialize( )
 
 }
 
-/**
- * Sets a flag in the parent scene which indicates that the profile should be saved before the scene can be closed.
- */
-function MarkProfileDirty( optional bool bIsDirty=true )
-{
-	// could also call NotifyValueChanged here and have the scene assign this tab page's OnValueChanged delegate to a function which sets that variable
-	UTUIScene_MidGameMenu(GetScene()).bNeedsProfileSave = bIsDirty;
-}
-
 /** Delegate for when the user changes one of the options an option list. */
 function OnOptionChanged(UIScreenObject InObject, name OptionName, int PlayerIndex)
 {
@@ -99,7 +90,8 @@ function OnOptionChanged(UIScreenObject InObject, name OptionName, int PlayerInd
 		UTPC.UpdateVolumeAndBrightness();
 	}
 
-	MarkProfileDirty();
+	// could also call NotifyValueChanged here and have the scene assign this tab page's OnValueChanged delegate to a function which sets that variable
+	UTUIScene_MidGameMenu(Scene).bNeedsProfileSave = true;
 }
 
 function OnOptionFocused(UIScreenObject InObject, UIDataProvider OptionProvider)
@@ -160,7 +152,7 @@ function MB_Selection(UTUIScene_MessageBox MessageBox, int SelectedOption, int P
 	local UTUIScene UTScene;
 	local int ProfileId;
 
-	if ( SelectedOption == 0 && SettingsList.GeneratedObjects.Length > 0 )
+	if (SelectedOption == 0)
 	{
 		SettingsList.SetFocus(none);
 		UTScene = UTUIScene(GetScene());
@@ -193,8 +185,6 @@ function MB_Selection(UTUIScene_MessageBox MessageBox, int SelectedOption, int P
 
 			UTScene.ConsoleCommand("RetrieveSettingsFromProfile");
 		}
-
-		MarkProfileDirty();
 	}
 
 }
@@ -238,7 +228,6 @@ function AdvancedOptions()
 {
 	local UTUIScene SceneOwner;
 	local UIScene S;
-	local UTUIFrontEnd_Settings SettingsScene;
 
 	SceneOwner = UTUIScene(GetScene());
 	if ( SceneOwner != none )
@@ -249,10 +238,9 @@ function AdvancedOptions()
 		if ( S!= none )
 		{
 			S.OnSceneDeactivated = AdvancedClosed;
-			SettingsScene = UTUIFrontEnd_Settings(S);
-			if ( SettingsScene != none )
+			if ( UTUIFrontEnd_Settings(S) != none )
 			{
-				SettingsScene.MidGameMenuSetup();
+				UTUIFrontEnd_Settings(S).MidGameMenuSetup();
 			}
 		}
 	}
@@ -260,7 +248,7 @@ function AdvancedOptions()
 function AdvancedClosed( UIScene DeactivatedScene )
 {
 	local UTUIScene SceneOwner;
-	local UTUIFrontEnd_Settings SettingsScene;
+	local UTUITabControl TC;
 
 	SceneOwner = UTUIScene(GetScene());
 	if ( SceneOwner != none )
@@ -268,14 +256,38 @@ function AdvancedClosed( UIScene DeactivatedScene )
 		SceneOwner.FindChild('MidGameSafeRegion',true).SetVisibility(true);
 		AdjustSkin(true);
 		SettingsList.SetFocus(none);
+	}
 
-		// the settings scene would have saved the profile if it was marked dirty.
-		SettingsScene = UTUIFrontEnd_Settings(DeactivatedScene);
-		if ( SettingsScene != None && SettingsScene.IsDirty() )
+	TC = UTUITabControl( GetOwnerTabControl() );
+	if ( TC != none )
+	{
+		TC.ActivateTabByTag('GameTab',,true);
+	}
+
+}
+
+event bool ActivatePage( int PlayerIndex, bool bActivate, optional bool bTakeFocus=true )
+{
+	local UTUIScene SceneOwner;
+	local WorldInfo WI;
+	local bool b;
+
+	SceneOwner = UTUIScene(GetScene());
+	if ( SceneOwner != none )
+	{
+		WI = SceneOwner.GetWorldInfo();
+		if (WI != None && WI.GRI != None && WI.GRI.bMatchIsOver)
 		{
-			MarkProfileDirty(false);
+			return false;
 		}
 	}
+
+	b = Super.ActivatePage(PlayerIndex, bActivate, bTakeFocus);
+	if (bActivate)
+	{
+		AdvancedOptions();
+	}
+	return b;
 }
 
 defaultproperties

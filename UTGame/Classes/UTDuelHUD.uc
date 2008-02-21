@@ -4,6 +4,12 @@
  */
 class UTDuelHUD extends UTTeamHUD;
 
+/** left like this for binary compatibility */
+function DrawGameHUD()
+{
+	Super.DrawGameHUD();
+}
+
 function DrawLivingHUD()
 {
 	local int i, TeamIndex;

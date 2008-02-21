@@ -192,7 +192,7 @@ simulated function DrawWeaponCrosshair( Hud HUD )
 	if (bAimIsCorrect)
 	{
 		// if recently aim became correct, show center part of crosshair
-		CenterSize = 20.0*HUD.Canvas.ClipX/1024;
+		CenterSize = UTHUD(HUD).ConfiguredCrosshairScaling * 20.0*HUD.Canvas.ClipX/1024;
 		Hud.Canvas.SetPos(0.5*(HUD.Canvas.ClipX - CenterSize), 0.5*(HUD.Canvas.ClipY - CenterSize));
 		Hud.Canvas.DrawTile(Texture2D'UI_HUD.HUD.UTCrossHairs', CenterSize, CenterSize, 380, 320, 26, 26);
 		LastCorrectAimTime = WorldInfo.TimeSeconds;
@@ -213,7 +213,8 @@ simulated function DrawWeaponCrosshair( Hud HUD )
 				RealAimPoint.Y = Clamp(RealAimPoint.Y,12,Hud.Canvas.ClipY-12);
 			}
 			Hud.Canvas.SetPos(RealAimPoint.X - 10.0, RealAimPoint.Y - 10.0);
-			Hud.Canvas.DrawTile(Texture2D'UI_HUD.HUD.UTCrossHairs', 21, 21, 380, 320, 26, 26);
+			CenterSize = UTHUD(HUD).ConfiguredCrosshairScaling * 21.0*HUD.Canvas.ClipX/1024;
+			Hud.Canvas.DrawTile(Texture2D'UI_HUD.HUD.UTCrossHairs', CenterSize, CenterSize, 380, 320, 26, 26);
 		}
 	}
 
@@ -226,7 +227,7 @@ simulated function DrawTowingIndicator(Hud HUD, Float CenterSize)
 	if ( (myVehicle != None) && myVehicle.bIsTowingHoverboard )
 	{
 		// draw towing indicator
-		CenterSize = 64.0*HUD.Canvas.ClipX/1280;
+		CenterSize = UTHUD(HUD).ConfiguredCrosshairScaling * 64.0*HUD.Canvas.ClipX/1280;
 		Hud.Canvas.SetPos(0.5*(HUD.Canvas.ClipX - CenterSize), 0.5*(HUD.Canvas.ClipY + CenterSize));
 		Hud.Canvas.DrawTile(Texture2D'UI_HUD.HUD.UTCrossHairs', CenterSize, CenterSize, 256, 188, 64, 64);
 	}
@@ -326,9 +327,9 @@ simulated function float GetFireInterval( byte FireModeNum )
 {
 	local UTPawn UTP;
 
-	if (MyVehicle != None)
+	if (Vehicle(Owner) != None)
 	{
-		UTP = UTPawn(MyVehicle.Driver);
+		UTP = UTPawn(Vehicle(Owner).Driver);
 		if (UTP != None)
 		{
 			return (FireInterval[FireModeNum] * UTP.FireRateMultiplier);

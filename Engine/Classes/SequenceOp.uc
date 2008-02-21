@@ -240,11 +240,6 @@ event Activated();
  */
 event Deactivated();
 
-/** 
- * Called when the version is updated, in case any special handling is desired script-side.
- */
-event VersionUpdated(int OldVersion, int NewVersion);
-
 /**
  * Copies the values from member variables contained by this sequence op into any VariableLinks attached to that member variable.
  */

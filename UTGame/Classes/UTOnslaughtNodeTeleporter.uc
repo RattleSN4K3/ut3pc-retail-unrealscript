@@ -51,6 +51,8 @@ var float DrawTeleporterTooltipDistSq;
 /** Coordinates for the tooltip textures */
 var UIRoot.TextureCoordinates ToolTipIconCoords;
 
+var bool bForceStaticCapture;
+
 replication
 {
 	if (bNetDirty)
@@ -70,7 +72,7 @@ simulated event PostBeginPlay()
 		UpdateTeamEffects();
 
 		// set up the portal effect
-		if (WorldInfo.IsConsoleBuild(CONSOLE_PS3))
+		if ( WorldInfo.IsConsoleBuild(CONSOLE_PS3) )
 		{
 			DetachComponent(PortalCaptureComponent);
 		}
@@ -79,6 +81,12 @@ simulated event PostBeginPlay()
 			// only get realtime capture in high detail mode
 			bStaticCapture = (WorldInfo.GetDetailMode() < DM_High);
 
+			// Avalanche hack
+			if ( string(GetPackageName()) ~= "WAR-Avalanche" )
+			{
+				bForceStaticCapture = true;
+				bStaticCapture = true;
+			}
 			PortalMaterialInstance = new(self) class'MaterialInstanceConstant';
 			PortalMaterialInstance.SetParent(PortalMaterial);
 			PortalEffect.SetMaterialParameter('Portal', PortalMaterialInstance);
@@ -133,7 +141,7 @@ simulated function UpdateTeamEffects()
 			PortalEffect.SetActive(true);
 			PortalEffect.SetHidden(false);
 			// only get realtime capture in high detail mode
-			PortalCaptureComponent.SetFrameRate((WorldInfo.GetDetailMode() < DM_High) ? 0.0 : default.PortalCaptureComponent.FrameRate);
+			PortalCaptureComponent.SetFrameRate(((WorldInfo.GetDetailMode() < DM_High) || bForceStaticCapture) ? 0.0 : default.PortalCaptureComponent.FrameRate);
 		}
 		else
 		{

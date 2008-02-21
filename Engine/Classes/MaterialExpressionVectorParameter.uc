@@ -6,6 +6,7 @@ class MaterialExpressionVectorParameter extends MaterialExpressionParameter
 	collapsecategories
 	hidecategories(Object);
 
+var() name			ParameterName;
 var() LinearColor	DefaultValue;
 
 

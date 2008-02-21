@@ -50,6 +50,34 @@ event PostLogin ( playerController NewPlayer )
 		A.NotifyLocalPlayerTeamReceived();
 }
 
+/** ForceRespawn()
+returns true if dead players should respawn immediately
+force respawn if single player and no bots on team 0
+*/
+function bool ForceRespawn()
+{
+	local UTBot B;
+	
+	if ( Super.ForceRespawn() )
+	{
+		return true;
+	}
+	
+	if ( (SinglePlayerMissionID > INDEX_None) && bScoreTeamKills )
+	{
+		// check if any bots on player team
+		ForEach WorldInfo.AllControllers(class'UTBot', B)
+		{
+			if 	( B.PlayerReplicationInfo.Team == Teams[0] )
+			{
+				return false;
+			}			
+		}
+		return true;
+	}
+	return false;
+}
+
 function FindNewObjectives( UTGameObjective DisabledObjective )
 {
 	// have team AI retask bots
@@ -453,6 +481,63 @@ function bool CanSpectate( PlayerController Viewer, PlayerReplicationInfo ViewTa
 	return ( Viewer.PlayerReplicationInfo.bOnlySpectator || (ViewTarget.Team == Viewer.PlayerReplicationInfo.Team) );
 }
 
+/**
+  * Balance teams before restarting game
+  */
+function RestartGame()
+{
+	local PlayerController PC;
+	local int RedCount, BlueCount, MoveCount, i;
+	local array<PlayerController> RedPlayers, BluePlayers;
+
+	if ( !bPlayersVsBots && bPlayersBalanceTeams && (SinglePlayerMissionID == INDEX_NONE)
+			&& (WorldInfo.NetMode != NM_Standalone) )
+	{
+		// re-balance teams
+		// first - count humans on each team
+		foreach WorldInfo.AllControllers(class'PlayerController', PC)
+		{
+			if ( (PC.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo.Team != None) )
+			{
+				if ( PC.PlayerReplicationInfo.Team.TeamIndex == 0 )
+				{
+					RedCount++;
+					RedPlayers[RedPlayers.Length] = PC;
+				}
+				else if ( PC.PlayerReplicationInfo.Team.TeamIndex == 1 )
+				{
+					BlueCount++;
+					BluePlayers[BluePlayers.Length] = PC;
+				}
+			}
+		}
+
+		if ( Abs(RedCount - BlueCount) > 1 )
+		{
+			// need to move some players
+			if ( RedCount > BlueCount )
+			{
+				MoveCount = (RedCount - BlueCount)/2;
+				
+				for ( i=0; i<MoveCount; i++ )
+				{
+					SetTeam( RedPlayers[RedPlayers.Length - i - 1], Teams[1], false);
+				}
+			}
+			else
+			{
+				MoveCount = (BlueCount - RedCount)/2;
+				for ( i=0; i<MoveCount; i++ )
+				{
+					SetTeam( BluePlayers[BluePlayers.Length - i - 1], Teams[0], false);
+				}
+			}
+		}
+	}
+
+	super.RestartGame();
+}
+
 /* Return a picked team number if none was specified
 */
 function byte PickTeam(byte num, Controller C)
@@ -620,7 +705,11 @@ function SetTeam(Controller Other, UTTeamInfo NewTeam, bool bNewTeam)
 	local Actor A;
 	local UTGameReplicationInfo GRI;
 	local UTPlayerReplicationInfo PRI;
-
+	
+	if ( Other.PlayerReplicationInfo == None )
+	{
+		return;
+	}
 	if (Other.PlayerReplicationInfo.Team != None || !ShouldSpawnAtStartSpot(Other))
 	{
 		// clear the StartSpot, which was a valid start for his old team
@@ -939,20 +1028,20 @@ function AdjustSkill(AIController B, PlayerController P, bool bWinner)
 {
 	local float AdjustmentFactor;
 
-	AdjustmentFactor = FClamp(0.5/FMax(1.0,PlayerKills+PlayerDeaths), 0.1, 0.25);
+	AdjustmentFactor = 0.15;
     if ( bWinner )
     {
 		PlayerKills += 1;
-		if ( (Teams[1-P.PlayerReplicationInfo.Team.TeamIndex].Score > Teams[P.PlayerReplicationInfo.Team.TeamIndex].Score)
+		if ( (Teams[1-P.PlayerReplicationInfo.Team.TeamIndex].Score > Teams[P.PlayerReplicationInfo.Team.TeamIndex].Score + 1)
 			&& (Teams[1-P.PlayerReplicationInfo.Team.TeamIndex].Size > 1) )
 		{
 			// don't adjust up if AI team already winning
 			return;
 		}
  		AdjustedDifficulty = FMin(7.0,AdjustedDifficulty + AdjustmentFactor);
-   }
-   else
-   {
+	}
+    else
+    {
 		PlayerDeaths += 1;
 		if ( Teams[1-P.PlayerReplicationInfo.Team.TeamIndex].Score <= Teams[P.PlayerReplicationInfo.Team.TeamIndex].Score )
 		{
@@ -1043,6 +1132,10 @@ function bool DominatingVictory()
 
 function bool IsAWinner( PlayerController C )
 {
+	if ( C.PlayerReplicationInfo == None )
+	{
+		return false;
+	}
 	return ( C.PlayerReplicationInfo.bOnlySpectator || IsWinningTeam(C.PlayerReplicationInfo.Team) );
 }
 

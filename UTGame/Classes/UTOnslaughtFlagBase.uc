@@ -143,7 +143,7 @@ event actor GetBestViewTarget()
 	else if (!myFlag.bHome)
 		return MyFlag;
 	else
-		return super.GetBestViewTarget();
+		return self;
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -236,7 +236,10 @@ simulated function UpdateAnimation()
 /** called by the orb on its homebase when it leaves/returns (remote clients only) */
 simulated function OrbHomeStatusChanged()
 {
-	UpdateAnimation();
+	if (myFlag == None || !myFlag.bHome || myFlag.bFinishedPreBuild)
+	{
+		UpdateAnimation();
+	}
 }
 
 simulated event OnAnimEnd(AnimNodeSequence SeqNode, float PlayedTime, float ExcessTime)

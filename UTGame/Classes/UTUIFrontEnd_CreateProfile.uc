@@ -12,7 +12,7 @@ var transient UIEditBox	EMailEditBox;
 var transient UIEditBox	CDKeyEditBox[4];
 var transient UTUIScene_MessageBox MessageBoxReference;
 var transient OnlineAccountInterface AccountInterface;
-var transient EOnlineAccountCreateStatus CreateErrorStatus;
+var transient int CreateErrorStatus;
 
 /** PostInitialize event - Sets delegates for the scene. */
 event PostInitialize( )
@@ -120,14 +120,14 @@ function OnCreateProfile()
 
 					if(AccountInterface != None)
 					{
-						UserName = TrimWhitespace(UserName);
 						MessageBoxReference = GetMessageBoxScene();
 						MessageBoxReference.DisplayModalBox("<Strings:UTGameUI.Generic.CreatingProfile>","");
 
+						SetDataStoreStringValue("<Registry:CreatingProfile>","1");
 						AccountInterface.AddCreateOnlineAccountCompletedDelegate(OnCreateOnlineAccountCompleted);
 						if(AccountInterface.CreateOnlineAccount(StripInvalidUsernameCharacters(UserName), Password, EMailAddress, CDKey)==false)
 						{
-							OnCreateOnlineAccountCompleted(OACS_UnknownError);
+							//OnCreateOnlineAccountCompleted(OACS_UnknownError);
 						}
 					}
 					else
@@ -172,12 +172,12 @@ function bool ValidateUserName(string UserName)
 
 			// Check for invalid characters
 		if(   FirstChar != " "
-		   && FirstChar != "+" 
-		   && FirstChar != "#" 
-		   && FirstChar != "@"  
-		   && FirstChar != "0" 
-		   && FirstChar != "1" 
-		   && FirstChar != "2" 
+		   && FirstChar != "+"
+		   && FirstChar != "#"
+		   && FirstChar != "@"
+		   && FirstChar != "0"
+		   && FirstChar != "1"
+		   && FirstChar != "2"
 		   && FirstChar != "3"
 		   && FirstChar != "4"
 		   && FirstChar != "5"
@@ -223,37 +223,41 @@ function OnCreateOnlineAccount_Closed()
 
 	AccountInterface.ClearCreateOnlineAccountCompletedDelegate(OnCreateOnlineAccountCompleted);
 
-	switch(CreateErrorStatus)
+	SetDataStoreStringValue("<Registry:CreatingProfile>","0");
+
+	if(CreateErrorStatus != INDEX_NONE)
 	{
-	case OACS_CreateSuccessful:
-		// Display success messagebox
-		MessageBoxReference = DisplayMessageBox("<Strings:UTGameUI.MessageBox.ProfileCreated_Message>","<Strings:UTGameUI.MessageBox.ProfileCreated_Title>");
-		MessageBoxReference.OnClosed = OnProfileCreatedMessage_Closed;
-		break;
+		switch(CreateErrorStatus)
+		{
+		case OACS_CreateSuccessful:
+			// Display success messagebox
+			MessageBoxReference = DisplayMessageBox("<Strings:UTGameUI.MessageBox.ProfileCreated_Message>","<Strings:UTGameUI.MessageBox.ProfileCreated_Title>");
+			MessageBoxReference.OnClosed = OnProfileCreatedMessage_Closed;
+			break;
 
-//@todo ut3merge
-//	case OACS_ServiceUnavailable:
-//		DisplayMessageBox("<Strings:UTGameUI.Errors.ServiceUnavailable_Message>","<Strings:UTGameUI.Errors.ServiceUnavailable_Title>");
-//		break;
+		case OACS_ServiceUnavailable:
+			DisplayMessageBox("<Strings:UTGameUI.Errors.ServiceUnavailable_Message>","<Strings:UTGameUI.Errors.ServiceUnavailable_Title>");
+			break;
 
-	case OACS_InvalidUserName:
-	case OACS_InvalidUniqueUserName:
-		DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidUserName_Message>","<Strings:UTGameUI.Errors.InvalidUserName_Title>");
-		break;
+		case OACS_InvalidUserName:
+		case OACS_InvalidUniqueUserName:
+			DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidUserName_Message>","<Strings:UTGameUI.Errors.InvalidUserName_Title>");
+			break;
 
-	case OACS_InvalidPassword:
-		DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidPasswordForEmail_Message>","<Strings:UTGameUI.Errors.InvalidPasswordForEmail_Title>");
-		break;
+		case OACS_InvalidPassword:
+			DisplayMessageBox("<Strings:UTGameUI.Errors.InvalidPasswordForEmail_Message>","<Strings:UTGameUI.Errors.InvalidPasswordForEmail_Title>");
+			break;
 
-	case OACS_UniqueUserNameInUse:
-		DisplayMessageBox("<Strings:UTGameUI.Errors.NameInUse_Message>","<Strings:UTGameUI.Errors.NameInUse_Title>");
-		break;
+		case OACS_UniqueUserNameInUse:
+			DisplayMessageBox("<Strings:UTGameUI.Errors.NameInUse_Message>","<Strings:UTGameUI.Errors.NameInUse_Title>");
+			break;
 
-	case OACS_UnknownError:
-	default:
-		// Display default failure message
-		DisplayMessageBox("<Strings:UTGameUI.Errors.ProfileCreationFailed_Message>","<Strings:UTGameUI.Errors.ProfileCreationFailed_Title>");
-		break;
+		case OACS_UnknownError:
+		default:
+			// Display default failure message
+			DisplayMessageBox("<Strings:UTGameUI.Errors.ProfileCreationFailed_Message>","<Strings:UTGameUI.Errors.ProfileCreationFailed_Title>");
+			break;
+		}
 	}
 }
 

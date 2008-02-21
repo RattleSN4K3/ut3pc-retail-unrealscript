@@ -99,6 +99,7 @@ function OnViewMessage()
 
 			MessageBoxReference.SetPotentialOptionKeyMappings(PotentialOptionKeyMappings);
 			MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
+			MessageBoxReference.MessageLabel.StringRenderComponent.bIgnoreMarkup=true;
 			MessageBoxReference.Display(FinalString, "<Strings:UTGameUI.MessageBox.ViewFriendRequest_Title>", OnFriendInvite_Confirm);
 		}
 
@@ -127,15 +128,20 @@ function OnViewMessage()
 
 			MessageBoxReference.SetPotentialOptionKeyMappings(PotentialOptionKeyMappings);
 			MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
+			MessageBoxReference.MessageLabel.StringRenderComponent.bIgnoreMarkup=true;
 			MessageBoxReference.Display(FinalString, "<Strings:UTGameUI.MessageBox.ViewGameInvite_Title>", OnGameInvite_Confirm);
 		}
 	}
 	else
 	{
+		MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene();
+
 		FinalString = Localize("MessageBox", "ViewMessage_Message", "UTGameUI");
 		FinalString = Repl(FinalString, "`PlayerName`", PlayerMessages.Messages[MessageIdx].SendingPlayerNick);
 		FinalString = Repl(FinalString, "`Message`", PlayerMessages.Messages[MessageIdx].Message);
-		UTUIScene(GetScene()).DisplayMessageBox(FinalString, "<Strings:UTGameUI.MessageBox.ViewMessage_Title>");
+		MessageBoxReference.MessageLabel.StringRenderComponent.bIgnoreMarkup=true;
+		MessageBoxReference.Display(FinalString, "<Strings:UTGameUI.MessageBox.ViewMessage_Title>");
+		MessageBoxReference=None;
 	}
 }
 

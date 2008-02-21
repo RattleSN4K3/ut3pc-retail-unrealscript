@@ -152,7 +152,7 @@ simulated function DrawWeaponCrosshair( Hud HUD )
 		PickupScale = 1.0;
 	}
 
- 	CrosshairSize.Y = CrosshairScaling * CrossHairCoordinates.VL * PickupScale * H.Canvas.ClipY/768;
+ 	CrosshairSize.Y = H.ConfiguredCrosshairScaling * CrosshairScaling * CrossHairCoordinates.VL * PickupScale * H.Canvas.ClipY/768;
   	CrosshairSize.X = CrosshairSize.Y * ( CrossHairCoordinates.UL / CrossHairCoordinates.VL );
 
 	X = H.Canvas.ClipX * 0.5;
@@ -921,13 +921,6 @@ simulated state WeaponBeamFiring
 			MuzzleFlashPSC.ClearParameter('Link_Beam_Color');
 		}
 	}
-
-
-	/** You can run around spamming the beam and needing to look around all speed **/
-	simulated function bool CanViewAccelerationWhenFiring()
-	{
-		return TRUE;
-	}
 }
 
 simulated state WeaponPuttingDown
@@ -951,7 +944,8 @@ function float GetAIRating()
 	local UTBot B;
 	local UTVehicle V;
 	local UTGameObjective O;
-
+	local float Dist;
+	
 	B = UTBot(Instigator.Controller);
 	if (B == None || B.Squad == None)
 	{
@@ -978,6 +972,15 @@ function float GetAIRating()
 	     && VSize(Instigator.Location - O.Location) < 1.1 * GetTraceRange() && B.LineOfSightTo(O))
 	{
 		return 1.2;
+	}
+	
+	if ( B.Enemy != None )
+	{
+		Dist = VSize(B.Enemy.Location - Instigator.Location);
+		if ( Dist > 3500 )
+		{
+			return AIRating * 3500/Dist;
+		}
 	}
 
 	return AIRating * FMin(Pawn(Owner).GetDamageScaling(), 1.5);
@@ -1225,10 +1228,4 @@ defaultproperties
 
 	QuickPickGroup=5
 	QuickPickWeight=0.8
-
-	Begin Object Class=ForceFeedbackWaveform Name=BeamForceFeedbackWaveform1
-		Samples(0)=(LeftAmplitude=20,RightAmplitude=10,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.100)
-		bIsLooping=TRUE
-	End Object
-	BeamWeaponFireWaveForm=BeamForceFeedbackWaveform1
 }

@@ -223,7 +223,7 @@ static function SoundNodeWave AnnouncementSound(int MessageIndex, Object Optiona
 	}
 	if ( MessageIndex < default.EncouragementSounds.Length )
 	{
-		return default.EncouragementSounds[default.EncouragementSounds.Length-1];
+		return default.EncouragementSounds[MessageIndex];
 	}
 	MessageIndex -= 100;
 	if ( MessageIndex < 0 )
@@ -382,6 +382,10 @@ static function SoundNodeWave AnnouncementSound(int MessageIndex, Object Optiona
 			return default.HaveOrbSounds[MessageIndex];
 		}
 		MessageIndex -= 50;
+		if ( MessageIndex < 0 )
+		{
+			return None;
+		}
 		if ( MessageIndex < default.HaveFlagSounds.Length )
 		{
 			return default.HaveFlagSounds[MessageIndex];
@@ -431,6 +435,7 @@ static function SoundNodeWave EnemySound(PlayerController PC, object OptionalObj
 {
 	local class<UTVehicle> VehicleClass;
 	local UTPlayerReplicationInfo PRI;
+	local UTPlayerController UTPC;
 	local UTCTFFlag Flag;
 
 	VehicleClass = class<UTVehicle>(OptionalObject);
@@ -440,9 +445,15 @@ static function SoundNodeWave EnemySound(PlayerController PC, object OptionalObj
 		PRI = UTPlayerReplicationInfo(OptionalObject);
 		if ( (PRI == None) || !PRI.bHasFlag || (PC.WorldInfo.GRI == None) || (PC.WorldInfo.GRI.GameClass == None) )
 		{
-			return default.IncomingSound;
+			UTPC = UTPlayerController(PC);
+			if ( (UTPC != None) && (UTPC.WorldInfo.TimeSeconds - UTPC.LastIncomingMessageTime > 35) )
+			{
+				UTPC.LastIncomingMessageTime = UTPC.WorldInfo.TimeSeconds;
+				return default.IncomingSound;
+			}
+			return None;
 		}
-		//
+
 		if ( class<UTOnslaughtGame>(PC.WorldInfo.GRI.GameClass) != None )
 		{
 			return default.EnemyOrbCarrierSound;
@@ -452,12 +463,33 @@ static function SoundNodeWave EnemySound(PlayerController PC, object OptionalObj
 		{
 			Flag.LastLocationPingTime = PC.WorldInfo.TimeSeconds;
 		}
-		return default.EnemyFlagCarrierSound;
+		
+		if ( default.LocationSpeechOffset < 3 )
+		{
+			return default.EnemyFlagCarrierSound;
+		}
+
+		// HACK since these voices can't give location
+		if ( (UTPC != None) && (UTPC.WorldInfo.TimeSeconds - UTPC.LastIncomingMessageTime > 25) )
+		{
+			UTPC.LastIncomingMessageTime = UTPC.WorldInfo.TimeSeconds;
+			return default.EnemyFlagCarrierSound;
+		}
+		return None;
 	}
 
-	return (VehicleClass.default.EnemyVehicleSound.Length > default.LocationSpeechOffset)
-				? VehicleClass.default.EnemyVehicleSound[default.LocationSpeechOffset]
-				: default.IncomingSound;
+	if ( VehicleClass.default.EnemyVehicleSound.Length > default.LocationSpeechOffset )
+	{
+		return VehicleClass.default.EnemyVehicleSound[default.LocationSpeechOffset];
+	}
+	
+	UTPC = UTPlayerController(PC);
+	if ( (UTPC != None) && (UTPC.WorldInfo.TimeSeconds - UTPC.LastIncomingMessageTime > 35) )
+	{
+		UTPC.LastIncomingMessageTime = UTPC.WorldInfo.TimeSeconds;
+		return default.IncomingSound;
+	}
+	return None;
 }
 
 static function string GetString(
@@ -503,15 +535,41 @@ static function bool AllowVoiceMessage(name MessageType, UTPlayerController PC, 
  {
 	local UTPlayerController PC;
 	local UTPlayerReplicationInfo SenderPRI;
-
+	local int SpeechIndex;
+	
 	SenderPRI = UTPlayerReplicationInfo(Sender.PlayerReplicationInfo);
 	if ( SenderPRI != None )
 	{
+		if ( Left(string(EmoteTag),5) ~= "Taunt" )
+		{
+			SpeechIndex = Rand(100);
+		}
+		else if ( EmoteTag == 'Encouragement' )
+		{ 
+			SpeechIndex = GetEncouragementMessageIndex(Sender, None, '');
+		}
+		else if ( EmoteTag == 'Ack' )
+		{ 
+			SpeechIndex = GetAckMessageIndex(Sender, None, '');
+		}
+		else if ( EmoteTag == 'InPosition' )
+		{ 
+			SpeechIndex = INPOSITIONINDEXSTART + Rand(default.InPositionSounds.Length);
+		}
+		else if ( EmoteTag == 'UnderAttack' )
+		{ 
+			SpeechIndex = UNDERATTACKINDEXSTART + Rand(default.UnderAttackSounds.Length);
+		}
+		else if ( EmoteTag == 'AreaSecure' )
+		{ 
+			SpeechIndex = AREASECUREINDEXSTART + Rand(default.AreaSecureSounds.Length);
+		}
+
 		foreach Sender.WorldInfo.AllControllers(class'UTPlayerController', PC)
 		{
 			if (!bOnlyTeam || Sender.WorldInfo.GRI.OnSameTeam(Sender, PC))
 			{
-				PC.ReceiveTauntMessage( SenderPRI, EmoteTag, Rand(100) );
+				PC.ReceiveTauntMessage( SenderPRI, EmoteTag, SpeechIndex);
 			}
 		}
 	}
@@ -522,23 +580,30 @@ static function ClientPlayTauntAnim(UTPlayerController PC, PlayerReplicationInfo
 {
 	local int i, TauntIndex;
 
-	// Look for this EmoteTag, to find appropriate set of voice taunts
-	TauntIndex = -1;
-	for(i=0; i<default.TauntAnimSoundMap.length; i++)
+	if ( Seed < 100 )
 	{
-		if (default.TauntAnimSoundMap[i].EmoteTag == EmoteTag)
+		// Look for this EmoteTag, to find appropriate set of voice taunts
+		TauntIndex = -1;
+		for(i=0; i<default.TauntAnimSoundMap.length; i++)
 		{
-			// Pick one randomly
- 			Seed = Seed * default.TauntAnimSoundMap[i].TauntSoundIndex.length/100;
-			TauntIndex = default.TauntAnimSoundMap[i].TauntSoundIndex[Seed];
-			continue;
+			if (default.TauntAnimSoundMap[i].EmoteTag == EmoteTag)
+			{
+				// Pick one randomly
+ 				Seed = Min(Seed * default.TauntAnimSoundMap[i].TauntSoundIndex.length/100, default.TauntAnimSoundMap.Length);
+				TauntIndex = TAUNTINDEXSTART + default.TauntAnimSoundMap[i].TauntSoundIndex[Seed];
+				continue;
+			}
 		}
 	}
-
+	else
+	{
+		TauntIndex = Seed;
+	}
+	
 	// If found one, play it
 	if(TauntIndex != -1)
 	{
-		PC.ReceiveLocalizedMessage( default.Class, TauntIndex+TAUNTINDEXSTART, Sender );
+		PC.ReceiveLocalizedMessage( default.Class, TauntIndex, Sender );
 	}
 }
 
@@ -722,6 +787,7 @@ static function InitStatusUpdate(Controller Sender, PlayerReplicationInfo Recipi
 static function InitCombatUpdate(Controller Sender, PlayerReplicationInfo Recipient, Name Messagetype)
 {
 	local int MessageIndex;
+	local UTPlayerController PC;
 
 	if ( Sender.Enemy == None )
 	{
@@ -737,10 +803,18 @@ static function InitCombatUpdate(Controller Sender, PlayerReplicationInfo Recipi
 		{
 			return;
 		}
+		ForEach Sender.WorldInfo.AllControllers(class'UTPlayerController', PC )
+		{
+			if ( Sender.WorldInfo.TimeSeconds - PC.LastCombatUpdateTime < 25 )
+			{
+				return;
+			}
+			PC.LastCombatUpdateTime = Sender.WorldInfo.TimeSeconds;
+			break;
+		}
 		MessageIndex = UNDERATTACKINDEXSTART + Rand(default.UnderAttackSounds.Length);
 	}
 	SendLocalizedMessage(Sender, Recipient, MessageType, MessageIndex);
-
 }
 
 static function SetHoldingFlagUpdate(Controller Sender, PlayerReplicationInfo Recipient, Name Messagetype)
@@ -876,7 +950,7 @@ static function SendEnemyStatusUpdate(Controller Sender, PlayerReplicationInfo R
 	{
 		return;
 	}
-
+	
 	// possibly say "incoming!" or identify if flag/orb carrier or big vehicle
 	MessageIndex = ENEMYSTATUSINDEXSTART;
 	EnemyObject = Sender.Enemy.PlayerReplicationInfo;

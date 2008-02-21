@@ -80,7 +80,7 @@ var UTOnslaughtPowerCore StartingOwnerCore;
 /** localized string parts for creating location descriptions */
 var localized string OutsideLocationPrefix, OutsideLocationPostfix, BetweenLocationPrefix, BetweenLocationJoin, BetweenLocationPostFix;
 
-/** set if prime node (adjacent to power core) */
+/** set if prime node (adjacent to power core) and bNeverCalledPrimeNode is false */
 var UTOnslaughtPowerCore PrimeCore;
 /** set if adjacent to both cores */
 var bool bDualPrimeCore;
@@ -90,6 +90,9 @@ var bool bDrawBeaconIcon;
 
 /** if set, never override this node's name with "prime node" */
 var(Announcements) bool bNeverCalledPrimeNode;
+
+/** if set, is prime node */
+var bool bIsPrimeNode;
 
 var(VoiceMessage) Array<SoundNodeWave> CapturedLocationSpeech;
 var(VoiceMessage) Array<SoundNodeWave> AttackingLocationSpeech;
@@ -478,6 +481,7 @@ function InitLinks()
 
 function SetPrimeCore(UTOnslaughtPowerCore P)
 {
+	bIsPrimeNode = true;
 	if ( bNeverCalledPrimeNode )
 	{
 		return;
@@ -1466,16 +1470,20 @@ function bool TellBotHowToDisable(UTBot B)
 
 function bool KillEnemyFirst(UTBot B)
 {
-	if ( !bUnderAttack || Health < DamageCapacity * 0.25
+	if ( !bUnderAttack || Health < DamageCapacity * 0.2
 	     || (UTVehicle(B.Pawn) != None && UTVehicle(B.Pawn).HasOccupiedTurret()) )
 	{
 		return false;
 	}
-	else if (B.Enemy != None && B.Enemy.Controller != None && B.Enemy.CanAttack(B.Pawn))
+	else if (B.Enemy != None && B.Enemy.Controller != None 
+		&& ((B.Enemy.Controller.Focus == B.Pawn) || (B.LastUnderFire > WorldInfo.TimeSeconds - 1.5))
+		&& B.Enemy.CanAttack(B.Pawn) )
 	{
-		return (B.Aggressiveness > 0.4 || B.LastUnderFire > WorldInfo.TimeSeconds - 1.0);
+		return true;
 	}
-	else if ( WorldInfo.TimeSeconds - HealingTime < 1.0 && LastHealedBy != None && LastHealedBy.Pawn != None &&
+	
+	
+	if ( WorldInfo.TimeSeconds - HealingTime < 1.0 && LastHealedBy != None && LastHealedBy.Pawn != None &&
 		LastHealedBy.Pawn.Health > 0 && B.Squad.SetEnemy(B, LastHealedBy.Pawn) && B.Enemy == LastHealedBy.Pawn )
 	{
 		//attack enemy healing me

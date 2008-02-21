@@ -7,6 +7,8 @@
 class UTUITabPage_ServerFilter extends UTUITabPage_Options
 	placeable;
 
+`include(Core/Globals.uci)
+
 /** Reference to the menu items datastore. */
 var UTUIDataStore_MenuItems	MenuDataStore;
 
@@ -87,10 +89,8 @@ function MarkOptionsDirty()
 
 /**
  * Enables / disables the "match type" control based on whether we are signed in online.
- *
- * @param	bIsCampaignMode		TRUE if the join game scene was entered through the campaign's "Join Campaign" option
  */
-function ValidateServerType( bool bIsCampaignMode )
+function ValidateServerType()
 {
 	local int PlayerIndex, PlayerControllerID;
 	local UTUIScene UTOwnerScene;
@@ -102,44 +102,6 @@ function ValidateServerType( bool bIsCampaignMode )
 		// don't have a link connection, or not allowed to play online, don't allow them to select one.
 		PlayerIndex = UTOwnerScene.GetPlayerIndex();
 		PlayerControllerID = UTOwnerScene.GetPlayerControllerId( PlayerIndex );
-
-		if ( bIsCampaignMode )
-		{
-			if ( UTOwnerScene.CheckLoginAndError(PlayerControllerID, true) )
-			{
-				if ( !UTOwnerScene.CheckOnlinePrivilegeAndError(PlayerControllerID) )
-				{
-					ForceLANOption(PlayerIndex);
-				}
-			}
-			else
-			{
-				// if CheckLoginAndError returns false, then the login UI will be shown - delay checking privileges until
-				// that dialog is closed.
-			}
-		}
-		else if ( !IsLoggedIn(PlayerControllerID,true) || !UTOwnerScene.CheckOnlinePrivilegeAndError(PlayerControllerID) )
-		{
-			ForceLANOption(PlayerIndex);
-		}
-	}
-}
-
-/**
- * Completes the remainder of the checks from ValidateServerType(), in the case where the login UI had to be shown because
- * the user wasn't logged in.
- */
-function CampaignLoginCompleted()
-{
-	local int PlayerIndex, PlayerControllerID;
-	local UTUIScene UTOwnerScene;
-
-	UTOwnerScene = UTUIScene(GetScene());
-	if ( UTOwnerScene != None && StringListDataStore != None )
-	{
-		PlayerIndex = UTOwnerScene.GetPlayerIndex();
-		PlayerControllerID = UTOwnerScene.GetPlayerControllerId(PlayerIndex);
-
 		if ( !IsLoggedIn(PlayerControllerID,true) || !UTOwnerScene.CheckOnlinePrivilegeAndError(PlayerControllerID) )
 		{
 			ForceLANOption(PlayerIndex);

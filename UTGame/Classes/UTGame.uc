@@ -174,6 +174,7 @@ var UTVoteCollector VoteCollector;
 var UTUIScene MidGameMenuTemplate;
 
 var localized string EndOfMatchRulesTemplateStr_Scoring;
+var localized string EndOfMatchRulesTemplateStr_ScoringSingle;
 var localized string EndOfMatchRulesTemplateStr_Time;
 
 /** object containing speech recognition data to use for this gametype */
@@ -235,6 +236,13 @@ enum EVoiceChannel
 /** for single player when "Tactical Diversion" card is used - skip adding this many Kismet spawned bots */
 var int NumDivertedOpponents;
 
+/** set when admin modified options via UTPlayerController::ServerAdminChangeOption() */
+var bool bAdminModifiedOptions;
+
+/** Name of the class that supplies the webserver */
+var globalconfig string WebServerClassName;
+var Actor WebServerObject;
+
 
 
 function PostBeginPlay()
@@ -257,6 +265,8 @@ function PostBeginPlay()
 	if ( bPlayersVsBots )
 		UTGameReplicationInfo(GameReplicationInfo).BotDifficulty = GameDifficulty;
 }
+
+final static native function bool IsLowGoreVersion();
 
 /**
   * returns whether this game should be considered "pure"
@@ -295,7 +305,7 @@ static function bool AllowMutator( string MutatorClassName )
 }
 
 // Parse options for this game...
-static event class<GameInfo> SetGameType(string MapName, string Options, string Portal)
+static event class<GameInfo> SetGameType(string MapName, string Options)
 {
 	local string ThisMapPrefix;
 	local int i,pos;
@@ -316,17 +326,17 @@ static event class<GameInfo> SetGameType(string MapName, string Options, string 
 	}
 
 	// strip the UEDPIE_ from the filename, if it exists (meaning this is a Play in Editor game)
-	if (Left(MapName, 6) ~= "UEDPIE")
+	if (Left(MapName, 7) ~= "UEDPIE_")
 	{
-		MapName = Right(MapName, Len(MapName) - 6);
+		MapName = Right(MapName, Len(MapName) - 7);
 	}
-	else if (Left(MapName, 6) ~= "UEDPS3")
+	else if (Left(MapName, 10) ~= "UEDPOC_PS3")
 	{
-		MapName = Right(MapName, Len(MapName) - 6);
+		MapName = Right(MapName, Len(MapName) - 10);
 	}
-	else if (Left(MapName, 6) ~= "UED360")
+	else if (Left(MapName, 12) ~= "UEDPOC_Xenon")
 	{
-		MapName = Right(MapName, Len(MapName) - 6);
+		MapName = Right(MapName, Len(MapName) - 12);
 	}
 
 	// replace self with appropriate gametype if no game specified
@@ -747,12 +757,13 @@ event InitGame( string Options, out string ErrorMessage )
 	local int i;
 	local name GameClassName;
 	local bool bVoteOverride;
+	local class<Actor> WebServerClass;
 
 	// reset map cycle if we're just starting up
 	if (WorldInfo.TimeSeconds == 0.0)
 	{
-		class'UTGame'.default.MapCycleIndex = INDEX_NONE;
-		class'UTGame'.static.StaticSaveConfig();
+		MapCycleIndex = INDEX_NONE;
+		SaveConfig();
 	}
 
 	// make sure no bots got saved in the .ini as in use
@@ -788,14 +799,13 @@ event InitGame( string Options, out string ErrorMessage )
 	// Set goal score to end match... If automated testing, no score limit (end by timelimit only)
 	GoalScore = (!bAutomatedPerfTesting) ? Max(0,GetIntOption( Options, "GoalScore", GoalScore )) : 0;
 
-	InOpt = ParseOption( Options, "Console");
-	if ( (InOpt != "") || WorldInfo.IsConsoleBuild() )
-	{
-		`log("CONSOLE SERVER");
-		WorldInfo.bUseConsoleInput = true;
-		bConsoleServer = true;
-		PlayerControllerClass = ConsolePlayerControllerClass;
-	}
+ 	if ( WorldInfo.IsConsoleBuild() )
+ 	{
+ 		`log("CONSOLE SERVER");
+ 		WorldInfo.bUseConsoleInput = true;
+ 		bConsoleServer = true;
+ 		PlayerControllerClass = ConsolePlayerControllerClass;
+ 	}
 
 	if( WorldInfo.IsConsoleBuild() )
 	{
@@ -841,8 +851,6 @@ event InitGame( string Options, out string ErrorMessage )
 		`log("AutoContinueToNextRound: "$bool(InOpt));
 		bAutoContinueToNextRound = bool(InOpt);
 	}
-
-	ParseAutomatedTestingOptions(Options);
 
 	if ( HasOption(Options, "NumPlay") )
 		bAutoNumBots = false;
@@ -894,7 +902,6 @@ event InitGame( string Options, out string ErrorMessage )
 	if ( InOpt != "" )
 	{
 		bPauseable = true;
-		bAllowKeyboardAndMouse = true;
 		SinglePlayerMissionID = int(InOpt);
 
 		InOpt = ParseOption(Options,"NecrisLocked");
@@ -921,7 +928,7 @@ event InitGame( string Options, out string ErrorMessage )
 		// No Custom chars not available when in campaign
 		InOpt = ParseOption(Options,"NoCustomChars");
 
-		if ( InOpt != "" )
+		if ( (InOpt != "") || WorldInfo.IsDemoBuild()  )
 		{
 			bNoCustomCharacters = true;
 		}
@@ -954,11 +961,11 @@ event InitGame( string Options, out string ErrorMessage )
 		// Default to false, and turn back to true if we have maps.
 		bVoteOverride = true;
 		GameClassName = class.name;
-		for (i=0; i<class'UTGame'.default.GameSpecificMapCycles.Length; i++)
+		for (i=0; i<default.GameSpecificMapCycles.Length; i++)
 		{
-			if (class'UTGame'.default.GameSpecificMapCycles[i].GameClassName == GameClassName)
+			if (default.GameSpecificMapCycles[i].GameClassName == GameClassName)
 			{
-				if (class'UTGame'.default.GameSpecificMapCycles[i].Maps.Length > 1)
+				if (default.GameSpecificMapCycles[i].Maps.Length > 1)
 				{
 					bVoteOverride = false;
 					break;
@@ -975,6 +982,15 @@ event InitGame( string Options, out string ErrorMessage )
 		else
 		{
 			`log("-- MAPVOTE is ENABLED!!!!!");
+		}
+	}
+
+	if (WebServerClassName != "")
+	{
+		WebServerClass = class<Actor>(DynamicLoadObject(WebServerClassName, class'Class'));
+		if ( WebServerClass != None )
+		{
+			WebServerObject = Spawn(WebServerClass,,,Location,Rotation);
 		}
 	}
 }
@@ -1012,18 +1028,15 @@ function int LevelRecommendedPlayers()
 	return (MapInfo != None) ? Min(12, (MapInfo.RecommendedPlayersMax + MapInfo.RecommendedPlayersMin) / 2) : 1;
 }
 
-event PlayerController Login(string Portal, string Options, out string ErrorMessage)
+event PlayerController Login
+(
+    string Portal,
+    string Options,
+    out string ErrorMessage
+)
 {
 	local PlayerController NewPlayer;
 	local Controller C;
-	local bool bDedicatedServerSpectator;
-
-	// if this is the first player, and he has the dedicated server option, mark him as such and force to be spectator
-	if (NumPlayers == 0 && WorldInfo.NetMode != NM_DedicatedServer && HasOption(Options, "dedicated"))
-	{
-		bDedicatedServerSpectator = true;
-		Options $= "?SpectatorOnly=1";
-	}
 
 	if ( MaxLives > 0 )
 	{
@@ -1043,13 +1056,7 @@ event PlayerController Login(string Portal, string Options, out string ErrorMess
 	if ( UTPlayerController(NewPlayer) != None )
 	{
 		if ( bMustJoinBeforeStart && GameReplicationInfo.bMatchHasBegun )
-		{
 			UTPlayerController(NewPlayer).bLatecomer = true;
-		}
-		if (bDedicatedServerSpectator)
-		{
-			UTPlayerController(NewPlayer).bDedicatedServerSpectator = true;
-		}
 	}
 
 	return NewPlayer;
@@ -1598,6 +1605,47 @@ exec function KillBots()
 	}
 }
 
+exec function KillOthers()
+{
+	local UTBot B, ViewedBot;
+	local PlayerController PC;
+
+	DesiredPlayerCount = NumPlayers;
+	bPlayersVsBots = false;
+
+	foreach LocalPlayerControllers(class'PlayerController', PC)
+	{
+		if ( Pawn(PC.ViewTarget) != None )
+		{
+			ViewedBot = UTBot(Pawn(PC.ViewTarget).Controller);
+DesiredPlayerCount = NumPlayers + 1;
+			break;
+		}
+	}
+
+	foreach WorldInfo.AllControllers(class'UTBot', B)
+	{
+		if ( B != ViewedBot )
+			KillBot(B);
+	}
+}
+
+exec function KillThis()
+{
+	local PlayerController PC;
+	local UTBot ViewedBot;
+
+	foreach LocalPlayerControllers(class'PlayerController', PC)
+	{
+		if ( Pawn(PC.ViewTarget) != None )
+		{
+			ViewedBot = UTBot(Pawn(PC.ViewTarget).Controller);
+			if ( ViewedBot != None )
+				KillBot(ViewedBot);
+			break;
+		}
+	}
+}
 function KillBot(UTBot B)
 {
 	if ( B == None )
@@ -1606,7 +1654,7 @@ function KillBot(UTBot B)
 	if ( (Vehicle(B.Pawn) != None) && (Vehicle(B.Pawn).Driver != None) )
 		Vehicle(B.Pawn).Driver.KilledBy(Vehicle(B.Pawn).Driver);
 	else if (B.Pawn != None)
-	B.Pawn.KilledBy( B.Pawn );
+		B.Pawn.KilledBy( B.Pawn );
 	if (B != None)
 		B.Destroy();
 }
@@ -1814,7 +1862,7 @@ function InitGameReplicationInfo()
 
 function string GetMapTypeRule()
 {
-	return GameName@"<Strings:UTGameUI.Generic.On>"@WorldInfo.GetMapName();
+	return GameName@" - "@WorldInfo.GetMapName();
 }
 
 
@@ -1873,7 +1921,7 @@ function ReduceDamage( out int Damage, pawn injured, Controller instigatedBy, ve
 						|| ((injured.Weapon != None) && injured.Weapon.bMeleeWeapon && (VSize(injured.location - instigatedBy.Pawn.Location) < 600)) )
 							Damage = Damage * (0.64 + 0.08 * InstigatorSkill);
 					else
-							Damage = Damage * (0.2 + 0.15 * InstigatorSkill);
+							Damage = Damage * (0.25 + 0.15 * InstigatorSkill);
 			}
 		}
 	}
@@ -2124,24 +2172,21 @@ function StartMatch()
 		}
 	}
 
-	if (WorldInfo.Game.bAutomatedTestingWithOpen == true)
+	foreach WorldInfo.AllControllers(class'UTPlayerController', PC)
 	{
-		WorldInfo.Game.IncrementNumberOfMatchesPlayed();
+		PC.IncrementNumberOfMatchesPlayed();
+		break;
 	}
-	else
-	{
-		foreach WorldInfo.AllControllers(class'UTPlayerController', PC)
-		{
-			PC.IncrementNumberOfMatchesPlayed();
-			break;
-		}
-	}
-	WorldInfo.Game.IncrementAutomatedTestingMapIndex();
 
 	if( bCheckingForFragmentation == TRUE )
 	{
 		//ConsoleCommand( "killparticles" );
 		ConsoleCommand( "MemFragCheck" );
+	}
+	if( bCheckingForMemLeaks == TRUE )
+	{
+		//ConsoleCommand( "MemLeakCheck" );
+		ConsoleCommand( "MEMTAG_UPDATE" );
 	}
 
 	if( BugLocString != "" || BugRotString != "" )
@@ -2155,15 +2200,7 @@ function StartMatch()
 		}
 	}
 
-
-	if( AutomatedTestingExecCommandToRunAtStartMatch != "" )
-	{
-		`log( "AutomatedTestingExecCommandToRunAtStartMatch: " $ AutomatedTestingExecCommandToRunAtStartMatch );
-		ConsoleCommand( AutomatedTestingExecCommandToRunAtStartMatch );
-	}
-
 	//SetTimer( 10.0f, TRUE, 'TrackMemoryFunctor');
-	//WorldInfo.DoMemoryTracking();
 }
 
 /** This is our TrackMemory functor where we can put anything we want to do every N seconds. **/
@@ -2248,6 +2285,10 @@ function bool DominatingVictory()
 
 function bool IsAWinner(PlayerController C)
 {
+	if ( C.PlayerReplicationInfo == None )
+	{
+		return false;
+	}
 	return ( C.PlayerReplicationInfo.bOnlySpectator || (C.PlayerReplicationInfo == GameReplicationInfo.Winner) );
 }
 
@@ -2279,9 +2320,9 @@ function PlayRegularEndOfMatchMessage()
 
 	foreach WorldInfo.AllControllers(class'UTPlayerController', PC)
 	{
-		if (!PC.PlayerReplicationInfo.bOnlySpectator )
+		if ( (PC.PlayerReplicationInfo != None) && !PC.PlayerReplicationInfo.bOnlySpectator )
 		{
-			if (IsAWinner(PC))
+			if ( IsAWinner(PC) )
 			{
 				PC.ClientPlayAnnouncement(VictoryMessageClass, 2);
 			}
@@ -2378,22 +2419,6 @@ function UTBot SinglePlayerAddBot(optional string BotName, optional bool bUseTea
 	}
 
 	return AddBot(BotName, bUseTeamIndex, TeamIndex);
-}
-
-/** @return whether we are running a console "fake" dedicated server (listen server with rendering turned off) */
-function bool IsConsoleDedicatedServer()
-{
-	local UTPlayerController PC;
-
-	foreach LocalPlayerControllers(class'UTPlayerController', PC)
-	{
-		if (PC.bDedicatedServerSpectator)
-		{
-			return true;
-		}
-	}
-
-	return false;
 }
 
 auto State PendingMatch
@@ -2553,7 +2578,7 @@ auto State PendingMatch
 
 
 Begin:
-	if (WorldInfo.NetMode == NM_Standalone || (WorldInfo.NetMode == NM_ListenServer && !IsConsoleDedicatedServer()))
+	if (WorldInfo.NetMode == NM_Standalone || WorldInfo.NetMode == NM_ListenServer)
 	{
 		Sleep(0.0); //@hack - so local player has time to get friendly faction from profile
 		AddInitialBots();
@@ -2605,11 +2630,11 @@ function DoMapVote()
 	if ( VoteCollector != none )
 	{
 		GameClassName = class.name;
-		for (i=0; i<class'UTGame'.default.GameSpecificMapCycles.Length; i++)
+		for (i=0; i<default.GameSpecificMapCycles.Length; i++)
 		{
-			if (class'UTGame'.default.GameSpecificMapCycles[i].GameClassName == GameClassName)
+			if (default.GameSpecificMapCycles[i].GameClassName == GameClassName)
 			{
-				VoteCollector.Initialize(class'UTGame'.default.GameSpecificMapCycles[i].Maps);
+				VoteCollector.Initialize(default.GameSpecificMapCycles[i].Maps);
 			}
 		}
 	}
@@ -3428,11 +3453,13 @@ function WriteOnlinePlayerScores()
 {
 	local int Index;
 	local int Count;
+	local UTPlayerController PC;
 	local PlayerReplicationInfo PRI;
 	local array<OnlinePlayerScore> PlayerScores;
-	local UniqueNetId ZeroId;
+	local float TimeInGame;
+	local UniqueNetId ZeroUniqueId;
 
-	if (SinglePlayerMissionID > INDEX_None)
+	if ((SinglePlayerMissionID > INDEX_None) || (WorldInfo.NetMode == NM_Standalone))
 	{
 		//We don't record single player stats
 		return;
@@ -3441,11 +3468,35 @@ function WriteOnlinePlayerScores()
 	if (OnlineSub != None && OnlineSub.StatsInterface != None)
 	{
 		// Iterate through the players building their score data
-		for (Index = 0; Index < GameReplicationInfo.PRIArray.Length; Index++)
+		foreach WorldInfo.AllControllers(class'UTPlayerController',PC)
 		{
-			// Ignore bots (bots have a zero unique net id)
-			PRI = GameReplicationInfo.PRIArray[Index];
-			if (PRI != None && PRI.UniqueId != ZeroId)
+			PRI = PC.PlayerReplicationInfo;
+
+			// Don't record stats for bots (bots have a zero unique net id)
+			// don't record for spectators either (@warning: assumes active players can't become spectators)
+			if (PRI != None && !PRI.bOnlySpectator && (PRI.UniqueId != ZeroUniqueId))
+			{
+				TimeInGame = float(WorldInfo.GRI.ElapsedTime - PRI.StartTime);
+				//Game has lasted more than 10 seconds, you've been in at least 30 secs of it or 90% of the elapsed time
+				if (WorldInfo.GRI.ElapsedTime > 10 && (TimeInGame >= Min(30.0f, float(WorldInfo.GRI.ElapsedTime) * 0.9f)))
+				{
+					// Build the skill data for this player
+					Count++;
+					PlayerScores.Length = Count;
+					PlayerScores[Count-1].PlayerId = PRI.UniqueId;
+					PlayerScores[Count-1].Score = PRI.Score;
+					// Each player is on their own team (rated as individuals)
+					PlayerScores[Count-1].TeamId = 255;
+				}
+			}
+		}
+
+		// Iterate through the inactive players building their score data
+		for (Index = 0; Index < GameReplicationInfo.InactivePRIArray.Length; Index++)
+		{
+			// Ignore bots (bots have a zero unique net id) or players in the game less than 30 seconds
+			PRI = GameReplicationInfo.InactivePRIArray[Index];
+			if (PRI != None && PRI.UniqueId != ZeroUniqueId)
 			{
 				// Build the skill data for this player
 				Count++;
@@ -3510,14 +3561,14 @@ function string GetNextMap()
 			}
 		}
 
-		GameIndex = class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', Class.Name);
+		GameIndex = GameSpecificMapCycles.Find('GameClassName', Class.Name);
 		if (GameIndex != INDEX_NONE)
 		{
 			if (MapCycleIndex == INDEX_NONE)
 			{
 				//@FIXME: use temporary because compiler's "can't pass array elements by reference" restriction
 				//	doesn't understand that 'const out' is safe
-				MapList = class'UTGame'.default.GameSpecificMapCycles[GameIndex].Maps;
+				MapList = GameSpecificMapCycles[GameIndex].Maps;
 				MapCycleIndex = GetCurrentMapCycleIndex(MapList);
 				if (MapCycleIndex == INDEX_NONE)
 				{
@@ -3525,15 +3576,22 @@ function string GetNextMap()
 					MapCycleIndex = 0;
 				}
 			}
-			MapCycleIndex = (MapCycleIndex + 1 < class'UTGame'.default.GameSpecificMapCycles[GameIndex].Maps.length) ? (MapCycleIndex + 1) : 0;
-			class'UTGame'.default.MapCycleIndex = MapCycleIndex;
-			class'UTGame'.static.StaticSaveConfig();
+			MapCycleIndex = (MapCycleIndex + 1 < GameSpecificMapCycles[GameIndex].Maps.length) ? (MapCycleIndex + 1) : 0;
+			// don't save if admin made changes as this object doesn't get those changes
+			// (to avoid the current game getting disrupted)
+			// and thus saving here would clobber the changes that were made
+			if (!bAdminModifiedOptions)
+			{
+				SaveConfig();
+			}
 
-			return class'UTGame'.default.GameSpecificMapCycles[GameIndex].Maps[MapCycleIndex];
+			return GameSpecificMapCycles[GameIndex].Maps[MapCycleIndex];
+		}
+		else
+		{
+			return "";
 		}
 	}
-
-	return "";
 }
 
 function ProcessServerTravel(string URL, optional bool bAbsolute)
@@ -3592,7 +3650,7 @@ static function string GetEndOfMatchRules(int InGoalScore, int InTimeLimit)
 	local string Work;
 	if ( InGoalScore > 0 )
 	{
-		Work = default.EndOfMatchRulesTemplateStr_Scoring;
+		Work = (InGoalScore == 1) ? default.EndOfMatchRulesTemplateStr_ScoringSingle : default.EndOfMatchRulesTemplateStr_Scoring;
 	}
 	else
 	{
@@ -3714,6 +3772,32 @@ function SkipCinematics(PlayerController PC)
 	}
 }
 
+static function RemoveOption( out string Options, string InKey )
+{
+	local int Start;
+	local string LeftString, RightString, CapOptions;
+
+	InKey = caps(InKey);
+	CapOptions= caps(Options);
+	Start = InStr(CapOptions, InKey);
+	if ( Start > 0 )
+	{
+		LeftString = Left(Options,Start-1);
+		RightString = Right(Options, Len(Options)- Start - Len(InKey) - 1);
+		Start = InStr(RightString, "?");
+		if ( Start > 0 )
+		{
+			RightString = Right(RightString, Len(RightString) - Start);
+		}
+		else
+		{
+			RightString = "";
+		}
+		Options = LeftString$RightString;
+	}
+	`log("Cut down URL "$Options);
+}
+
 /**
  * Used to update any changes in game settings that need to be published to
  * players that are searching for games
@@ -3741,10 +3825,26 @@ function UpdateGameSettings()
 			RequiresPassword() ? class'UTGameSearchCommon'.const.CONTEXT_LOCKEDSERVER_YES : class'UTGameSearchCommon'.const.CONTEXT_LOCKEDSERVER_NO,
 			false);
 
+		// admins can do pretty much anything with the URL so we need to reparse the whole thing
+		if (OnlineGameSettingsClass != GameSettings.Class)
+		{
+			//@hack: copy some stuff that is specific to the class
+			// should really be re-creating the GameSettings object here but that is non-trivial
+			GameSettings.LocalizedSettings[0] = OnlineGameSettingsClass.default.LocalizedSettings[0];
+		}
+		RemoveOption(ServerOptions, "GameMode");
+		RemoveOption(ServerOptions, "OwningPlayerName");
+		GameSettings.UpdateFromURL(ServerOptions, self);
+
 		GameInterface.UpdateOnlineGame(GameSettings);
 	}
 }
 
+function RegisterServer()
+{
+	RemoveOption(ServerOptions, "GameMode");
+	super.RegisterServer();
+}
 
 defaultproperties
 {
@@ -3799,5 +3899,7 @@ defaultproperties
 	LastEncouragementTime=-20
 	MidgameScorePanelTag=DMPanel
 	bMidGameHasMap=false
+
+	MaxPlayersAllowed=64
 }
 

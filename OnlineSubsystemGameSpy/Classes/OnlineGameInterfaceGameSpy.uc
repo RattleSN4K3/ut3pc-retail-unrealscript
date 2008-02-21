@@ -40,12 +40,6 @@ var const int QR2FirstPropertyKeyId;
 /** The number of registered property keys */
 var const int QR2NumPropertyKeys;
 
-/** The QR2 key id for the np id */
-var const int QR2NpIdKeyId;
-
-/** The string form of the np id */
-var const string QR2NpIdString;
-
 /** The list of delegates to notify when a game invite is accepted */
 var array<delegate<OnGameInviteAccepted> > GameInviteAcceptedDelegates;
 
@@ -54,6 +48,9 @@ var const private OnlineGameSearch InviteGameSearch;
 
 /** The last invite's URL information */
 var const private string InviteLocationUrl;
+
+/** Temp variable to hold additional search criteria that has not been processed yet */
+var private transient string RemainingAddlSearchCriteria;
 
 /** This is the list of requested delegates to fire when complete */
 var array<delegate<OnRegisterPlayerComplete> > RegisterPlayerCompleteDelegates;
@@ -68,6 +65,9 @@ struct native SBServer
 
 /** Holds a set of servers that are pending info requests */
 var array<SBServer> ServersPendingInfo;
+
+/** Holds an array of values that are published in the map name field */
+var const string PackedServerInfo;
 
 /**
  * Updates the localized settings/properties for the game in question
@@ -219,3 +219,12 @@ function ClearUnregisterPlayerCompleteDelegate(delegate<OnUnregisterPlayerComple
 		UnregisterPlayerCompleteDelegates.Remove(RemoveIndex,1);
 	}
 }
+
+/**
+* Updates the current session's skill rating using the list of players' skills
+*
+* @param Players the set of players to use in the skill calculation
+*
+* @return true if the update succeeded, false otherwise
+*/
+native function bool RecalculateSkillRating(const out array<UniqueNetId> Players);

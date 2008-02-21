@@ -77,7 +77,7 @@ var(Controller) float			BoneScale;
  *	Used to ensure we don't tick this SkelControl twice, if used in multiple different control chains.
  *	Compared against the SkeletalMeshComponent TickTag.
  */
-var				int				ControlTickTag;
+var				bool			ControlTickTag;
 
 /** 
  *	whether this control should be ignored if the SkeletalMeshComponent being composed hasn't been rendered recently

@@ -204,8 +204,8 @@ function UpdateFromURL(const out string URL, GameInfo Game)
 	Description = GetPropertyAsString(PROPERTY_SERVERDESCRIPTION);
 
 	// Make sure that we don't exceed our max allowing player counts for this game type!  Usually this is 32.
-	NumPublicConnections = Clamp( NumPublicConnections, 0, Game.MaxPlayers );
-	NumPrivateConnections = Clamp( NumPrivateConnections, 0, Game.MaxPlayers - NumPublicConnections );
+	NumPublicConnections = Game.MaxPlayers;
+	NumPrivateConnections = 0;
 
 	// Unblob the string
 	if(StringToBlob(Description, RealDescription))
@@ -236,6 +236,8 @@ function UpdateFromURL(const out string URL, GameInfo Game)
 	{
 		SetStringSettingValue(CONTEXT_DEDICATEDSERVER,CONTEXT_DEDICATEDSERVER_YES,true);
 	}
+	SetIntProperty(PROPERTY_GOALSCORE, Game.GoalScore);
+	SetIntProperty(PROPERTY_TIMELIMIT, Game.TimeLimit);
 }
 
 
@@ -262,7 +264,7 @@ function SetMutators( const out string URL )
 		}
 	}
 
-	SetOfficialMutatorBitmask(GenerateMutatorBitmaskFromURL(MenuDataStore, MutatorClassNames));
+	SetOfficialMutatorBitmask(NewGenerateMutatorBitmaskFromURL(MenuDataStore, MutatorClassNames));
 
 	// now do the custom mutators
 	SetCustomMutators(MenuDataStore, MutatorClassNames);
@@ -274,7 +276,7 @@ function SetMutators( const out string URL )
  *
  * @return	a bitmask which has bits on for any enabled official mutators.
  */
-function int GenerateMutatorBitmaskFromURL( UTUIDataStore_MenuItems MenuDataStore, out array<string> MutatorClassNames )
+function int NewGenerateMutatorBitmaskFromURL( UTUIDataStore_MenuItems MenuDataStore, out array<string> MutatorClassNames )
 {
 	local int Idx, MutatorIdx, EnabledMutatorBitmask;
 	local string GameModeString;
@@ -296,6 +298,52 @@ function int GenerateMutatorBitmaskFromURL( UTUIDataStore_MenuItems MenuDataStor
 	}
 
 	class'UIRoot'.static.SetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
+
+	return EnabledMutatorBitmask;
+}
+
+/** OBSOLETE - use NewGenerateMutatorBitmaskFromURL() */
+function int GenerateMutatorBitmaskFromURL( const out string URL )
+{
+	local DataStoreClient DSClient;
+	local UTUIDataStore_MenuItems MenuDataStore;
+	local int Idx, MutatorIdx, EnabledMutatorBitmask;
+	local string MutatorURLValue;
+	local array<string> MutatorClassNames;
+
+	local string GameModeString;
+
+	DSClient = class'UIInteraction'.static.GetDataStoreClient();
+	if ( DSClient != None )
+	{
+		MenuDataStore = UTUIDataStore_MenuItems(DSClient.FindDataStore('UTMenuItems'));
+		if ( MenuDataStore != None )
+		{
+			// get the comma-delimited string of mutator class names from the URL
+			MutatorURLValue = class'GameInfo'.static.ParseOption(URL, "Mutator");
+			if ( MutatorURLValue != "" )
+			{
+				// Some mutators are filtered out based on the currently selected gametype, so in order to guarantee
+				// that our bitmasks always match up (i.e. between a client and server), clear the setting that mutators
+				// use for filtering so that we always get the complete list.  We'll restore it once we're done.
+				class'UIRoot'.static.GetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
+				class'UIRoot'.static.SetDataStoreStringValue("<Registry:SelectedGameMode>", "");
+
+				// separate into an array of strings
+				ParseStringIntoArray(MutatorURLValue, MutatorClassNames, ",", true);
+				for ( Idx = 0; Idx < MutatorClassNames.Length; Idx++ )
+				{
+					MutatorIdx = MenuDataStore.FindValueInProviderSet('OfficialMutators', 'ClassName', MutatorClassNames[Idx]);
+					if ( MutatorIdx != INDEX_NONE )
+					{
+						EnabledMutatorBitmask = EnabledMutatorBitmask | (1 << MutatorIdx);
+					}
+				}
+
+				class'UIRoot'.static.SetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
+			}
+		}
+	}
 
 	return EnabledMutatorBitmask;
 }

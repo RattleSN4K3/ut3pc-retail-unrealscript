@@ -6,6 +6,8 @@
 class UTUIScene_MessageBox extends UTUIScene
 	native(UI);
 
+`include(Core/Globals.uci)
+
 const MESSAGEBOX_MAX_POSSIBLE_OPTIONS = 4;
 
 const CANCEL_BUTTON_MARKUP_STRING = "<Strings:UTGameUI.Generic.Cancel>";

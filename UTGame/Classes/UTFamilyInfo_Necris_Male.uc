@@ -20,4 +20,7 @@ defaultproperties
 	MasterSkeleton=SkeletalMesh'CH_All.Mesh.SK_Master_Skeleton_Human_Male'
 	CharEditorIdleAnimName="CC_Human_Male_Idle"
 	VoiceClass=class'UTVoice_NecrisMale'
+	
+	DefaultMeshScale=1.025
+	BaseTranslationOffset=6.0
 }

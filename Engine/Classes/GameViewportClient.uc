@@ -22,6 +22,8 @@ class GameViewportClient extends Object
 	Inherits(FViewportClient)
 	Inherits(FExec);
 
+`include(Core/Globals.uci)
+
 /** The platform-specific viewport which this viewport client is attached to. */
 var const pointer Viewport{FViewport};
 

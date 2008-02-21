@@ -122,7 +122,6 @@ function OnSavePasswordCheckBox_ValueChanged(UIObject Sender, int PlayerIndex)
 	}
 }
 
-
 /**
  * Callback for when the autologin checkbox changes value.
  *
@@ -174,7 +173,7 @@ function OnLogin(optional bool bLocalLogin=false)
 	bLocalLogin = LocalLoginCheckBox.IsChecked();
 	*/
 
-	UserName = TrimWhitespace(UserNameEditBox.GetValue());
+	UserName = StripInvalidUsernameCharacters(UserNameEditBox.GetValue());
 	Password = PasswordEditBox.GetValue();
 
 	// Set the value of save password and auto login
@@ -205,7 +204,8 @@ function OnLogin(optional bool bLocalLogin=false)
 
 				// Display a modal messagebox
 				MessageBoxReference = GetMessageBoxScene();
-				MessageBoxReference.DisplayModalBox("<Strings:UTGameUI.Generic.LoggingIn>","");
+				MessageBoxReference.DisplayCancelBox("<Strings:UTGameUI.Generic.LoggingIn>","", OnCancelSelection );
+				MessageBoxReference.MinimumDisplayTime = 2.0;
 
 				PlayerInt.AddLoginChangeDelegate(OnLoginChange);
 				PlayerInt.AddLoginFailedDelegate(GetBestControllerId(),OnLoginFailed);
@@ -230,6 +230,11 @@ function OnLogin(optional bool bLocalLogin=false)
 	{
 		DisplayMessageBox("<Strings:UTGameUI.Errors." $ (bLocalLogin ? "InvalidUserName_LocalLogin" : "InvalidUserName_Message") $ ">", "<Strings:UTGameUI.Errors.InvalidUserName_Title>");
 	}
+}
+
+delegate OnCancelSelection(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
+{
+	OnLoginFailed(0, OSCS_NotConnected);
 }
 
 /** Clears login delegates. */
@@ -299,9 +304,17 @@ function OnLoginChange()
 /** Callback for when the login message closes for login change. */
 function OnLoginChange_Closed()
 {
+	local string OutValue;
 	MessageBoxReference = none;
 
 	ClearLoginDelegates();
+
+	//Now that we are successfully logged in, open the url from the command line if one was specified
+	if(!GetDataStoreStringValue("<Registry:LaunchedCmdLineURL>", OutValue))
+	{
+        //Successful or no we don't want to call this code again
+		SetDataStoreStringValue("<Registry:LaunchedCmdLineURL>", "1");
+	}
 
 	// Logged in successfully so close the login scene.
 	CloseScene(self);

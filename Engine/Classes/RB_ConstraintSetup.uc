@@ -55,12 +55,6 @@ var vector SecAxis2;
 var	vector	PulleyPivot1;
 var	vector	PulleyPivot2;
 
-/** 
- * If distance error between bodies exceeds 0.1 units, or rotation error exceeds 10 degrees, body will be projected to fix this.
- * For example a chain spinning too fast will have its elements appear detached due to velocity, this will project all bodies so they still appear attached to each other. 
- */
-var()	bool	bEnableProjection;
-
 ///////////////////////////// LINEAR DOF
 
 /** 

@@ -72,6 +72,10 @@ var 	float							RouteDist;						// total distance for current route
 var		float							LastRouteFind;					// time at which last route finding occured
 var		InterpActor						PendingMover;
 
+/** used for discovering navigation failures */
+var		Actor							FailedMoveTarget;
+var		int								MoveFailureCount;
+
 var float GroundPitchTime;
 var vector ViewX, ViewY, ViewZ;											// Viewrotation encoding for PHYS_Spider
 
@@ -89,6 +93,7 @@ var const bool							bLOSflag;						// used for alternating LineOfSight traces
 var		bool							bUsePlayerHearing;
 var		bool							bNotifyFallingHitWall;
 var		float							SightCounter;					// Used to keep track of when to check player visibility
+var		float							SightCounterInterval;			// how often player visibility is checked 
 var		float							RespawnPredictionTime;
 /** multiplier to cost of NavigationPoints that another Pawn is currently anchored to */
 var float InUseNodeCostMultiplier;
@@ -1615,6 +1620,8 @@ event CurrentLevelUnloaded();
 
 function SendMessage(PlayerReplicationInfo Recipient, name MessageType, float Wait, optional class<DamageType> DamageType);
 
+function ReadyForLift();
+
 defaultproperties
 {
 	Begin Object Class=SpriteComponent Name=Sprite
@@ -1634,4 +1641,5 @@ defaultproperties
 	bOnlyRelevantToOwner=TRUE
 
     bAffectedByHitEffects=TRUE
+	SightCounterInterval=0.2
 }

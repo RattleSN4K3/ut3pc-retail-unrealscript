@@ -26,13 +26,6 @@ struct native EditorParameterValueOverTime
 	/** if true, then the CycleTime is used to scale time so all keys are between zero and one **/
 	var() bool bNormalizeTime;
 
-	/** How much time this will wait before actually firing off.  This is useful for keeping the curves being just the data for controlling the param and not a bunch of slack in the beginning (e.g. to wait N seconds then start fading) **/
-	var() float OffsetTime;
-
-	/** When using OffsetTime it is nice to be able to offset from the end of the decal's lifetime (e.g. you want to fade out the decal, you want to change the color of the decal before it fades away etc.) **/
-	var() bool bOffsetFromEnd; // end of decal's lifespan
-
-
 	structdefaultproperties
 	{
 		bLoop=FALSE

@@ -7,6 +7,10 @@
 class UTUITabPage_ServerBrowser extends UTTabPage
 	placeable;
 
+`include(Core/Globals.uci)
+`include(UTOnlineConstants.uci)
+
+
 const SERVERBROWSER_SERVERTYPE_LAN		= 0;
 const SERVERBROWSER_SERVERTYPE_UNRANKED	= 1;	//	for platforms which do not support ranked matches, represents a normal internet match.
 const SERVERBROWSER_SERVERTYPE_RANKED	= 2;	// only valid on platforms which support ranked matches
@@ -43,15 +47,12 @@ var transient OnlineSubsystem				OnlineSub;
 var transient OnlineGameInterface			GameInterface;
 
 /** Indices for the button bar buttons */
-var	transient int							BackButtonIdx, JoinButtonIdx, RefreshButtonIdx, CancelButtonIdx, SpectateButtonIdx, DetailsButtonIdx;
+var	transient int							BackButtonIdx, JoinButtonIdx, RefreshButtonIdx, CancelButtonIdx, SpectateButtonIdx, DetailsButtonIdx, AddFavoriteIdx;
 
 /** Indicates that the current gametype was changed externally - submit a new query when possible */
 var	private transient bool					bGametypeOutdated, bSpectate;
 
 var	protected	transient	const	name	SearchDSName;
-
-/** Indicates that we're currently processing a join request; prevents user from triggering multiple join requests at once */
-var private transient bool bProcessingJoin;
 
 /**
  * Different actions to take when a query completes.
@@ -89,6 +90,8 @@ var private transient string		ServerPassword;
 /** Tooltip which displays the legend for the SB icons */
 var	private	transient UIToolTip		ServerBrowserToolTip;
 
+/** called when the user moves a server from the history page to the favorites page */
+delegate transient OnAddToFavorite();
 
 /** Go back delegate for this page. */
 delegate transient OnBack();
@@ -319,7 +322,13 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 /**
  * Provides an easy way for child classes to add additional buttons before the ButtonBar's button states are updated
  */
-function SetupExtraButtons( UTUIButtonBar ButtonBar );
+function SetupExtraButtons( UTUIButtonBar ButtonBar )
+{
+	if ( ButtonBar != None )
+	{
+		AddFavoriteIdx = ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.AddToFavorite>", OnButtonBar_AddFavorite);
+	}
+}
 
 /**
  * Updates the enabled state of certain button bar buttons depending on whether a server is selected or not.
@@ -329,8 +338,9 @@ function UpdateButtonStates()
 	local UTUIFrontEnd UTOwnerScene;
 	local UTUIButtonBar ButtonBar;
 	local UITabControl TabControlOwner;
-	local bool bValidServerSelected, bHasPendingSearches;
-	local int PlayerIndex;
+	local OnlineGameSearchResult SelectedGame;
+	local bool bValidServerSelected, bHasPendingSearches, bIsLANMatch, bIsCampaignMode;
+	local int PlayerIndex, CurrentGameMode;
 
 	TabControlOwner = GetOwnerTabControl();
 	if ( TabControlOwner != None )
@@ -344,6 +354,12 @@ function UpdateButtonStates()
 				PlayerIndex = UTOwnerScene.GetPlayerIndex();
 				bHasPendingSearches = SearchDataStore.HasOutstandingQueries();
 				bValidServerSelected = ServerList != None && ServerList.GetCurrentItem() != INDEX_NONE;
+
+				//Get the currently selected server information
+				if (bValidServerSelected)
+				{
+					SearchDataStore.GetSearchResultFromIndex(ServerList.GetCurrentItem(), SelectedGame);
+				}
 
 				if ( CancelButtonIdx != INDEX_NONE )
 				{
@@ -379,9 +395,29 @@ function UpdateButtonStates()
 				{
 					ButtonBar.Buttons[JoinButtonIdx].SetEnabled(bValidServerSelected, PlayerIndex);
 				}
+
+				// Don't allow spectating a campaign game
 				if ( SpectateButtonIdx != INDEX_NONE )
 				{
-					ButtonBar.Buttons[SpectateButtonIdx].SetEnabled(bValidServerSelected, PlayerIndex);
+					if (SelectedGame.GameSettings != None)
+					{
+						if (SelectedGame.GameSettings.GetStringSettingValue(CONTEXT_GAME_MODE, CurrentGameMode))
+						{
+							bIsCampaignMode = (CurrentGameMode == CONTEXT_GAME_MODE_CAMPAIGN);
+						}
+					}
+
+					ButtonBar.Buttons[SpectateButtonIdx].SetEnabled(bValidServerSelected && !bIsCampaignMode, PlayerIndex);
+				}
+
+				// Can't add LAN games as favorites
+				if ( AddFavoriteIdx != INDEX_NONE )
+				{								   
+					if (SelectedGame.GameSettings != None)
+					{
+						bIsLANMatch = SelectedGame.GameSettings.bIsLanMatch;
+					}
+					ButtonBar.Buttons[AddFavoriteIdx].SetEnabled(!bHasPendingSearches && bValidServerSelected && !bIsLANMatch && !HasSelectedServerInFavorites(GetBestControllerId()));
 				}
 
 				// the refresh button and gametype combo can only be enabled if there are no searches currently working
@@ -529,8 +565,6 @@ private function ProcessJoin()
 
 				if (GameToJoin.GameSettings != None)
 				{
-					bProcessingJoin = true;
-
 					// Set the delegate for notification
 					GameInterface.AddJoinOnlineGameCompleteDelegate(OnJoinGameComplete);
 
@@ -539,7 +573,6 @@ private function ProcessJoin()
 					if (!GameInterface.JoinOnlineGame(ControllerId,GameToJoin))
 					{
 						//@todo - should we do anything here?  OnJoinGameComplete will be called even if the call to JoinOnlineGame returns FALSE.
-						bProcessingJoin = false;
 					}
 				}
 				else
@@ -567,8 +600,6 @@ private function ProcessJoin()
 		bSpectate = false;
 		ServerPassword = "";
 	}
-
-	UpdateButtonStates();
 }
 
 /** Callback for when the join completes. */
@@ -578,8 +609,6 @@ function OnJoinGameComplete(bool bSuccessful)
 	local UTUIScene UTOwnerScene;
 
 	`Log(`location@`showvar(bSuccessful));
-
-	bProcessingJoin = false;
 
 	// Figure out if we have an online subsystem registered
 	if (GameInterface != None)
@@ -605,13 +634,7 @@ function OnJoinGameComplete(bool bSuccessful)
 		}
 		else
 		{
-			GameInterface.DestroyOnlineGame();
-			// Display error message
-			UTOwnerScene = UTUIScene(GetScene());
-			if (UTOwnerScene != None)
-			{
-				UTOwnerScene.DisplayMessageBox("<Strings:UTGameUI.Errors.ConnectionLost_Message>","<Strings:UTGameUI.Errors.ConnectionLost_Title>");
-			}
+			// display error message
 		}
 
 		// Remove the delegate from the list
@@ -620,7 +643,6 @@ function OnJoinGameComplete(bool bSuccessful)
 
 	bSpectate = false;
 	ServerPassword = "";
-	UpdateButtonStates();
 }
 
 /**
@@ -861,20 +883,17 @@ function bool AllowJoinServer()
 {
 	local bool bResult;
 
-	if ( !bProcessingJoin )
+	bResult = true;
+	if ( GameInterface != None )
 	{
-		bResult = true;
-		if ( GameInterface != None )
+		// see if we still have searches pending
+		if ( SearchDataStore != None && SearchDataStore.HasOutstandingQueries() )
 		{
-			// see if we still have searches pending
-			if ( SearchDataStore != None && SearchDataStore.HasOutstandingQueries() )
-			{
-				// don't allow the scene to close
-				bResult = false;
+			// don't allow the scene to close
+			bResult = false;
 
-				// we will join the selected server when the query is complete
-				CancelQuery(QUERYACTION_JoinServer);
-			}
+			// we will join the selected server when the query is complete
+			CancelQuery(QUERYACTION_JoinServer);
 		}
 	}
 
@@ -915,7 +934,6 @@ function bool AllowCloseScene()
  */
 function CancelQuery( optional EQueryCompletionAction DesiredCancelAction=QUERYACTION_Default )
 {
-	`log(`location @ `showenum(EQueryCompletionAction,DesiredCancelAction) @ `showenum(EQueryCompletionAction,QueryCompletionAction) @ `showvar(SearchDataStore.HasOutstandingQueries(),bOutstandingQueries),,'DevOnline');
 	if ( QueryCompletionAction == QUERYACTION_None )
 	{
 		QueryCompletionAction = DesiredCancelAction;
@@ -960,14 +978,6 @@ function OnCancelSearchComplete( bool bWasSuccessful )
 
 		case QUERYACTION_JoinServer:
 			JoinServer();
-
-			UpdateButtonStates();
-
-			// Hide refreshing label.
-			if ( RefreshingLabel != None )
-			{
-				RefreshingLabel.SetVisibility(false);
-			}
 			break;
 
 		case QUERYACTION_RefreshAll:
@@ -976,24 +986,11 @@ function OnCancelSearchComplete( bool bWasSuccessful )
 			{
 				SearchDataStore.ClearAllSearchResults();
 			}
-			UpdateButtonStates();
-
-			// Hide refreshing label.
-			if ( RefreshingLabel != None )
-			{
-				RefreshingLabel.SetVisibility(false);
-			}
 			break;
 
 		default:
 			// don't do anything - just update the enabled state of the button bar buttons
 			UpdateButtonStates();
-
-			// Hide refreshing label.
-			if ( RefreshingLabel != None )
-			{
-				RefreshingLabel.SetVisibility(false);
-			}
 			break;
 		}
 	}
@@ -1042,13 +1039,14 @@ function RefreshDetailsList()
 		SearchDataStore.ServerDetailsProvider.SearchResultsRow = ServerList.GetCurrentItem();
 	}
 
-	if ( DetailsList != None )
+	if (DetailsList != None)
 	{
 		DetailsList.RefreshSubscriberValue();
 	}
-	if ( MutatorList != None )
+
+	if (MutatorList != None)
 	{
-		MutatorList.RefreshSubscriberValue();
+	   MutatorList.RefreshSubscriberValue();
 	}
 }
 
@@ -1059,24 +1057,13 @@ function RefreshDetailsList()
 function ShowServerDetails()
 {
 	local int ServerIndex;
-	local UTUIFrontEnd ServerDetailScene;
-	local UILabel DetailTitleLabel;
 
 	if ( SearchDataStore != None )
 	{
 		ServerIndex = SearchDataStore.ServerDetailsProvider.SearchResultsRow;
 		if ( ServerIndex != INDEX_NONE )
 		{
-			ServerDetailScene = UTUIFrontEnd(UTUIScene(GetScene()).OpenSceneByName("UI_Scenes_FrontEnd.Popups.ServerDetails"));
-			if ( ServerDetailScene != None )
-			{
-				// don't show the title label on this popup.
-				DetailTitleLabel = ServerDetailScene.GetTitleLabel();
-				if ( DetailTitleLabel != None )
-				{
-					DetailTitleLabel.SetVisibility(false);
-				}
-			}
+			UTUIScene(GetScene()).OpenSceneByName("UI_Scenes_FrontEnd.Popups.ServerDetails");
 		}
 		else
 		{
@@ -1100,7 +1087,6 @@ function ShowServerDetails()
 function bool HandleInputKey( const out InputEventParameters EventParms )
 {
 	local bool bResult;
-	local UTUIButtonBarButton Button;
 
 	bResult=false;
 
@@ -1108,49 +1094,34 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 	{
 		if ( EventParms.InputKeyName=='XboxTypeS_X' )
 		{
-			Button = GetButtonBarButton(RefreshButtonIdx);
-			if ( Button == None || Button.OnClicked == None
-			||	!Button.OnClicked(Button, EventParms.PlayerIndex) )
-			{
-				OnButtonBar_Refresh(Button, EventParms.PlayerIndex);
-			}
+			OnButtonBar_Refresh(GetButtonBarButton(RefreshButtonIdx), EventParms.PlayerIndex);
 			bResult=true;
 		}
 		else if( EventParms.InputKeyName=='XboxTypeS_B' || EventParms.InputKeyName=='Escape' )
 		{
-			Button = GetButtonBarButton(BackButtonIdx);
-			if ( Button == None )
+			if ( BackButtonIdx != INDEX_NONE )
 			{
-				Button = GetButtonBarButton(CancelButtonIdx);
+				OnButtonBar_Back(GetButtonBarButton(BackButtonIdx), EventParms.PlayerIndex);
 			}
-
-			if ( Button == None || Button.OnClicked == None
-			||	!Button.OnClicked(Button, EventParms.PlayerIndex) )
+			else if ( CancelButtonIdx != INDEX_NONE )
 			{
-				OnButtonBar_Back(Button, EventParms.PlayerIndex);
+				OnButtonBar_CancelQuery(GetButtonBarButton(CancelButtonIdx), EventParms.PlayerIndex);
 			}
 			bResult=true;
 		}
 		else if ( EventParms.InputKeyName == 'XboxTypeS_Y' && IsConsole() )
 		{
-			Button = GetButtonBarButton(DetailsButtonIdx);
-			if ( Button == None || Button.OnClicked == None
-			||	!Button.OnClicked(Button, EventParms.PlayerIndex) )
-			{
-				OnButtonBar_ServerDetails(Button, EventParms.PlayerIndex);
-			}
+			OnButtonBar_ServerDetails(GetButtonBarButton(DetailsButtonIdx), EventParms.PlayerIndex);
 			bResult = true;
 		}
 		else if ( EventParms.InputKeyName == 'XboxTypeS_LeftTrigger' )
 		{
-			Button = GetButtonBarButton(SpectateButtonIdx);
-			if ( Button == None || Button.OnClicked == None
-			||	!Button.OnClicked(Button, EventParms.PlayerIndex) )
-			{
-				OnButtonBar_SpectateServer(Button, EventParms.PlayerIndex);
-			}
+			OnButtonBar_SpectateServer(GetButtonBarButton(SpectateButtonIdx), EventParms.PlayerIndex);
 			bResult = true;
 		}
+
+		//@todo ronp - cancel search on console?
+		//else
 	}
 
 	return bResult;
@@ -1238,6 +1209,51 @@ function OnServerList_ValueChanged( UIObject Sender, int PlayerIndex )
 	}
 }
 
+/** ButtonBar - Add to favorite */
+function bool OnButtonBar_AddFavorite(UIScreenObject InButton, int InPlayerIndex)
+{
+	if ( InButton != None && InButton.IsEnabled(InPlayerIndex) )
+	{
+		AddToFavorites(InPlayerIndex);
+	}
+	return true;
+}
+
+/**
+* Adds the selected server to the list of favorites
+*/
+function AddToFavorites( int inPlayerIndex )
+{
+	local int CurrentSelection, ControllerId;
+	local OnlineGameSearchResult SelectedGame;
+	local UTDataStore_GameSearchFavorites FavsDataStore;
+	local UITabControl TabControlOwner;
+
+	CurrentSelection = ServerList.GetCurrentItem();
+
+	if ( SearchDataStore.GetSearchResultFromIndex(CurrentSelection, SelectedGame) )
+	{
+		ControllerId = GetBestControllerId();
+		FavsDataStore = GetFavoritesDataStore();
+
+		// if this server isn't already in the list of favorites
+		if ( FavsDataStore != None && !HasServerInFavorites(ControllerId, SelectedGame.GameSettings.OwningPlayerId) )
+		{
+			// add it
+			if ( FavsDataStore.AddServer(ControllerId, SelectedGame.GameSettings.OwningPlayerId, SelectedGame.GameSettings.OwningPlayerName) )
+			{
+				TabControlOwner = GetOwnerTabControl();
+				if ( TabControlOwner != None && TabControlOwner.ActivePage == Self )
+				{
+					OnAddToFavorite();
+				}
+
+				UpdateButtonStates();
+			}
+		}
+	}
+}
+
 /**
  * Retrieve the index in the game search data store's list of search results for the specified gametype class
  *
@@ -1294,7 +1310,7 @@ function OnGameTypeChanged( UIObject Sender, int PlayerIndex )
 	local array<UIDataStore> BoundDataStores;
 	local string GameTypeClassName;
 
-	if (IsVisible()
+	if (!IsConsole() && IsVisible()
 	&&	GameTypeCombo != None && GameTypeCombo.ComboList != None
 
 	// calling SaveSubscriberValue on the combobox list will set the currently selected gametype as the value for the UTMenuItems:GameModeFilter field
@@ -1331,9 +1347,16 @@ function NotifyGameTypeChanged()
 {
 	if ( IsVisible() )
 	{
-		// update the gametype combo to reflect the currently selected gametype.  This will cause OnGameTypeChanged
-		// to be called
-		GameTypeCombo.ComboList.RefreshSubscriberValue();
+		if (GameTypeCombo != None && !IsConsole())
+		{
+			// update the gametype combo to reflect the currently selected gametype.  This will cause OnGameTypeChanged
+			// to be called
+			GameTypeCombo.ComboList.RefreshSubscriberValue();
+		}
+		else
+		{
+			ConditionalRefreshServerList(GetBestPlayerIndex());
+		}
 	}
 	else
 	{
@@ -1410,7 +1433,23 @@ function bool CheckToolTipPosition( UIToolTip Sender )
 /**
  * Wrapper for getting a reference to the favorites data store.  Stub for child classes.
  */
-function UTDataStore_GameSearchFavorites GetFavoritesDataStore();
+function UTDataStore_GameSearchFavorites GetFavoritesDataStore()
+{
+	local UTDataStore_GameSearchDM GameSearchDataStore;
+	local UTDataStore_GameSearchHistory HistorySearchDataStore;
+
+	GameSearchDataStore = UTDataStore_GameSearchDM(SearchDataStore);
+	if (GameSearchDataStore != None)
+	{
+		HistorySearchDataStore = GameSearchDataStore.HistoryGameSearchDataStore;
+		if (HistorySearchDataStore != None)
+		{
+			return HistorySearchDataStore.FavoritesGameSearchDataStore;
+		}
+	}
+
+	return None;
+}
 
 /**
  * Determines whether the server with the specified Id is in the list of favorites.
@@ -1466,5 +1505,4 @@ defaultproperties
 	JoinButtonIdx=INDEX_NONE
 	RefreshButtonIdx=INDEX_NONE
 	DetailsButtonIdx=INDEX_NONE
-	SpectateButtonIdx=INDEX_NONE
 }

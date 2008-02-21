@@ -12,9 +12,6 @@ var() Actor Instigator;
 /** Name of the event to activate */
 var() Name EventName;
 
-/** For use in Kismet, to indicate if this variable is ok. Updated in UpdateStatus. */
-var transient bool bStatusIsOk;
-
 defaultproperties
 {
 	ObjName="Activate Remote Event"

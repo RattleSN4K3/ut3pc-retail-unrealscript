@@ -281,23 +281,25 @@ function OnReadComplete(bool bWasSuccessful)
 	// Cache the results of the read in the appropriate provider(s) depending on what we just read.
 	if(bWasSuccessful)
 	{
-		ReadType = EStatsDetailsReadType(GetReadObjectIndex()%UTSR_MAX);
-		`log("ReadType"@ReadType@StatsRead);
-		switch(ReadType)
+		if (StatsRead != None)
 		{
-		case UTSR_GeneralAndRewards:
-			GeneralProvider.ReadObject=StatsRead;
-			RewardsProvider.ReadObject=StatsRead;
-			break;
-		case UTSR_Weapons:
-			WeaponsProvider.ReadObject=StatsRead;
-			break;
-		case UTSR_Vehicles:
-			VehiclesProvider.ReadObject=StatsRead;
-			break;
-		case UTSR_VehicleWeapons:
-			VehicleWeaponsProvider.ReadObject=StatsRead;
-			break;
+			ReadType = EStatsDetailsReadType(GetReadObjectIndex()%UTSR_MAX);
+			switch(ReadType)
+			{
+			case UTSR_GeneralAndRewards:
+				GeneralProvider.ReadObject=StatsRead;
+				RewardsProvider.ReadObject=StatsRead;
+				break;
+			case UTSR_Weapons:
+				WeaponsProvider.ReadObject=StatsRead;
+				break;
+			case UTSR_Vehicles:
+				VehiclesProvider.ReadObject=StatsRead;
+				break;
+			case UTSR_VehicleWeapons:
+				VehicleWeaponsProvider.ReadObject=StatsRead;
+				break;
+			}
 		}
 
 		// Try starting another stats read

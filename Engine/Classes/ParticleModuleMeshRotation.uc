@@ -4,16 +4,14 @@
 class ParticleModuleMeshRotation extends ParticleModuleRotationBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/**
- *	Initial rotation in ROTATIONS (1 = 360 degrees).
- *	The value is retrieved using the EmitterTime.
- */
-var(Rotation)	rawdistributionvector	StartRotation;
+/** Initial rotation distribution, in ROTATIONS (1 = 360 degrees).						*/
+var(Rotation)					rawdistributionvector	StartRotation;
 
-/** If TRUE, apply the parents rotation as well. */
-var(Rotation)	bool					bInheritParent;
+/** Whether to apply the parents rotation as well										*/
+var(Rotation)					bool					bInheritParent;
 
 
 

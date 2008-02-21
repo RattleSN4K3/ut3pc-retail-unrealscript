@@ -4,15 +4,15 @@
 class ParticleModuleAttractorLine extends ParticleModuleAttractorBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/** The first endpoint of the line. */
+// The endpoints of the line
 var(Attractor) vector												EndPoint0;
-/** The second endpoint of the line. */
 var(Attractor) vector												EndPoint1;
-/** The range of the line attractor. */
+// The range of the line attractor.
 var(Attractor) rawdistributionfloat	Range;
-/** The strength of the line attractor. */
+// The strength of the line attractor.
 var(Attractor) rawdistributionfloat	Strength;
 
 

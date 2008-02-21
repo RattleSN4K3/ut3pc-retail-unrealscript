@@ -61,6 +61,9 @@ var float TimeSinceLastDeployCheck;
 var UIRoot.TextureCoordinates ToolTipIconCoords;
 
 
+var float DeployIconOffset;
+
+
 
 replication
 {
@@ -143,7 +146,7 @@ simulated function DisplayHud(UTHud Hud, Canvas Canvas, vector2D HudPOS, optiona
 					}
 					else
 					{
-						Hud.DrawToolTip(Canvas, PC, "GBA_Jump", Canvas.ClipX * 0.5, Canvas.ClipY * 0.95, ToolTipIconCoords.U, ToolTipIconCoords.V, ToolTipIconCoords.UL, ToolTipIconCoords.VL, Canvas.ClipY / 768);
+						Hud.DrawToolTip(Canvas, PC, "GBA_Jump", Canvas.ClipX * 0.5, Canvas.ClipY * DeployIconOffset, ToolTipIconCoords.U, ToolTipIconCoords.V, ToolTipIconCoords.UL, ToolTipIconCoords.VL, Canvas.ClipY / 768);
 					}
 				}
 			}
@@ -577,5 +580,5 @@ defaultproperties
 	MaxDeploySpeed=100
 	bRequireAllWheelsOnGround=true
 
-
+	DeployIconOffset=0.95
 }

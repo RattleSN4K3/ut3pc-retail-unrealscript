@@ -73,6 +73,11 @@ reliable server function ServerSendInitialCoverReplicationInfo(int Index)
 	local int i;
 	local bool bDone;
 
+	if ( Index < 0 )
+	{
+		return;
+	}
+	
 	// verify there's no None entries as the client assumes that means the data must be resent
 	while (Index < CoverReplicationData.length && CoverReplicationData[Index].Link == None)
 	{

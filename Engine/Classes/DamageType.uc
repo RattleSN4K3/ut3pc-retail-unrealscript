@@ -28,9 +28,6 @@ var() bool					bKUseOwnDeathVel;			// For ragdoll death. Rather than using defau
 var   bool					bCausedByWorld;				//this damage was caused by the world (falling off level, into lava, etc)
 var   bool					bExtraMomentumZ;	// Add extra Z to momentum on walking pawns
 
-/** Can break bits off FracturedStaticMeshActors. */
-var() bool					bCausesFracture;
-
 /** if true, ignore vehicle DriverDamageMult when calculating damage caused to its driver */
 var bool bIgnoreDriverDamageMult;
 

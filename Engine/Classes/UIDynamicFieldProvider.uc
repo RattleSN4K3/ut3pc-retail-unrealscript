@@ -26,12 +26,12 @@ var()	protected{protected}	transient	array<UIProviderScriptFieldValue>	RuntimeDa
 /**
  * Contains the source data for all DATATYPE_Collection data fields which have their values stored in the PersistentDataFields array.
  */
-var		protected{protected}	native	const				Map_Mirror			PersistentCollectionData{TMap< FName, TMap<FName,TArray<FString> > >};
+var		protected{protected}	native	const				Map_Mirror			PersistentCollectionData{TMap< FName, TMultiMap<FName,FString> >};
 
 /**
  * Contains the source data for all DATATYPE_Collection data fields which have their values stored in the PersistentDataFields array.
  */
-var		protected{protected}	native	const	transient	Map_Mirror			RuntimeCollectionData{TMap< FName, TMap<FName,TArray<FString> > >};
+var		protected{protected}	native	const	transient	Map_Mirror			RuntimeCollectionData{TMap< FName, TMultiMap<FName,FString> >};
 
 /**
  * Copies the elements from the PersistentDataFields array into the RuntimeDataFields array.  Should only be called once when the provider

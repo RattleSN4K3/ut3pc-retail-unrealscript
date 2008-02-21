@@ -25,8 +25,7 @@ enum EModImport
 	MODIMPORT_Inactive,
 	MODIMPORT_Started,
 	MODIMPORT_Unpacking,
-	MODIMPORT_Finished,
-	MODIMPORT_Failed
+	MODIMPORT_Finished
 };
 
 var transient EModImport			ImportState;
@@ -147,43 +146,36 @@ function OnPageActivated( UITabControl Sender, UITabPage NewlyActivePage, int Pl
 	// Anytime the tab page is changed, update the buttonbar.
 	PreviousPageIndex = CurrentPageIndex;
 	CurrentPageIndex = Sender.FindPageIndexByPageRef(NewlyActivePage);
-	PreviousActivePage = Sender.GetPageAtIndex(PreviousPageIndex);
 
 	// Start hide animations for previous page
-	if( PreviousPageIndex != INDEX_NONE )
+	if(PreviousPageIndex != INDEX_NONE)
 	{
-		if ( TabControl.ContainsChild(PreviousActivePage, true) )
+		// Block input
+		GetUTInteraction().BlockUIInput(true);
+
+		NewlyActivePage.SetVisibility(false);
+
+		PreviousActivePage = Sender.GetPageAtIndex(PreviousPageIndex);
+		PreviousActivePage.SetVisibility(true);
+		PreviousActivePage.OnUIAnimEnd = OnTabPage_Hide_UIAnimEnd;
+
+		PageDiff = CurrentPageIndex-PreviousPageIndex;
+
+		if(Abs(PageDiff)>1)
 		{
-			// Block input
-			GetUTInteraction().BlockUIInput(true);
+			PageDiff = -PageDiff;
+		}
 
-			NewlyActivePage.SetVisibility(false);
-
-			PreviousActivePage.SetVisibility(true);
-			PreviousActivePage.OnUIAnimEnd = OnTabPage_Hide_UIAnimEnd;
-
-			PageDiff = CurrentPageIndex-PreviousPageIndex;
-
-			if(Abs(PageDiff)>1)
-			{
-				PageDiff = -PageDiff;
-			}
-
-			if(PageDiff > 0)
-			{
-				PreviousActivePage.PlayUIAnimation('TabPageExitLeft');
-			}
-			else
-			{
-				PreviousActivePage.PlayUIAnimation('TabPageExitRight');
-			}
-
-			ButtonBar.PlayUIAnimation('ButtonBarHide');
+		if(PageDiff > 0)
+		{
+			PreviousActivePage.PlayUIAnimation('TabPageExitLeft');
 		}
 		else
 		{
-			OnTabPage_Hide_UIAnimEnd(PreviousActivePage, 0, None);
+			PreviousActivePage.PlayUIAnimation('TabPageExitRight');
 		}
+
+		ButtonBar.PlayUIAnimation('ButtonBarHide');
 
 		PlayUISound('RotateTabPage');
 	}
@@ -208,10 +200,6 @@ function OnTabPage_Hide_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimatio
 	ButtonBar.PlayUIAnimation('ButtonBarShow');
 
 	NewlyActivePage = TabControl.GetPageAtIndex(CurrentPageIndex);
-	if ( NewlyActivePage == None )
-	{
-		NewlyActivePage = TabControl.ActivePage;
-	}
 
 	if(NewlyActivePage != None)
 	{
@@ -225,7 +213,6 @@ function OnTabPage_Hide_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimatio
 			PageDiff = -PageDiff;
 		}
 
-		CurrentPageIndex = TabControl.FindPageIndexByPageRef(NewlyActivePage);
 		if(PageDiff > 0)
 		{
 			NewlyActivePage.PlayUIAnimation('TabPageEnterRight');
@@ -472,13 +459,6 @@ event UpdateModState(EModImport NewState)
 		{
 			ImportingMessageBoxReference.DisplayModalBox("<Strings:UTGameUI.MessageBox.UnpackingMod_Message>");
 		}
-		else if(NewState==MODIMPORT_Failed)
-		{
-			// Display a message indicating that mod import failed.
-			ImportingMessageBoxReference = GetMessageBoxScene();
-			ImportingMessageBoxReference.DisplayAcceptBox("<Strings:UTGameUI.MessageBox.ModImportFailed_Message>");
-			OnImportModFinished();
-		}
 
 		ImportState = NewState;
 	}
@@ -518,24 +498,16 @@ function OnCancelInstallPS3(UTUIScene_MessageBox MessageBox, int SelectedItem, i
 /**
  * Updates the current install state for the PS3 Install.
  *
- * @param CurrentFileNum		Current file number installing.
- * @param TotalFileNum			Total number of files to install.
- * @param bFinishedCanceling	TRUE if the install was canceled, and now it's done
- * @param bHasError				TRUE if an error occurred during the install process.
+ * @param CurrentFileNum	Current file number installing.
+ * @param TotalFileNum		Total number of files to install.
  */
-event UpdatePS3InstallState(int CurrentFileNum, int TotalFileNum, bool bFinishedCancelling, bool bHasError)
+event UpdatePS3InstallState(int CurrentFileNum, int TotalFileNum, bool bFinishedCancelling)
 {
 	local string FinalString;
 
 	if(bInstallingPS3)
 	{
-		if(bHasError)
-		{
-			bInstallingPS3=false;
-			ImportingMessageBoxReference = GetMessageBoxScene();
-			ImportingMessageBoxReference.DisplayAcceptBox("<Strings:UTGameUI.MessageBox.InstallingFailed_Message>");
-		}
-		else if(CurrentFileNum==TotalFileNum && TotalFileNum > 0 && !bCancellingInstallPS3)
+		if(CurrentFileNum==TotalFileNum && TotalFileNum > 0 && !bCancellingInstallPS3)
 		{
 			bInstallingPS3=false;
 			ImportingMessageBoxReference.OnSelection=None;

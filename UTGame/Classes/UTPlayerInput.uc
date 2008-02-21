@@ -9,8 +9,6 @@ var float LastDuckTime;
 var bool  bHoldDuck;
 var Actor.EDoubleClickDir ForcedDoubleClick;
 
-
-
 /**
  * Clears any pending inputs
  */

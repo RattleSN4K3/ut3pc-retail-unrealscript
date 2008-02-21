@@ -42,7 +42,9 @@ event bool SuggestMovePreparation(Pawn Other)
 	{
 		// if pawn is on the lift, see if it can get off and go to this lift exit
 		if ( CanBeReachedFromLiftBy(Other) )
+		{
 			return false;
+		}
 
 		// make pawn wait on the lift
 		WaitForLift(Other);
@@ -58,6 +60,7 @@ event bool SuggestMovePreparation(Pawn Other)
 				return true;
 			}
 		}
+		Other.Controller.ReadyForLift();
 	}
 	return false;
 }

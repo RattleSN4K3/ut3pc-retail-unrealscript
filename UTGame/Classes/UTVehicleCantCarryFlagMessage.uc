@@ -39,7 +39,7 @@ defaultproperties
 	OrbAnnouncement=SoundNodeWave'A_Announcer_Status.Status.A_StatusAnnouncer_YouCannotCarryTheOrbInThisVehicle'
 
 	bIsUnique=false
-	FontSize=2
+	FontSize=1
 	MessageArea=2
 	bBeep=false
 	DrawColor=(R=0,G=160,B=255,A=255)

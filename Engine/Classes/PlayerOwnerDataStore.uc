@@ -8,6 +8,8 @@ class PlayerOwnerDataStore extends UIDataStore_GameState
 
 
 
+`include(Core/Globals.uci)
+
 /**
  * Contains the classes which should be used for instancing data providers.
  */

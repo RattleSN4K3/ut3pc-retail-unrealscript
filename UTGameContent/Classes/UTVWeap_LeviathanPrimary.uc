@@ -253,9 +253,4 @@ defaultproperties
 	FireTriggerTags=(DriverMF_L,DriverMF_R)
 
 	VehicleClass=class'UTVehicle_Leviathan_Content'
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
-		Samples(0)=(LeftAmplitude=100,RightAmplitude=90,LeftFunction=WF_LinearIncreasing,RightFunction=WF_LinearIncreasing,Duration=2.000)
-	End Object
-	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

@@ -263,7 +263,7 @@ enum EOnlineAccountCreateStatus
 	OACS_InvalidUniqueUserName,
 	/** The user name is invalid */
 	OACS_UniqueUserNameInUse,
-	/** The backend service is not reachable */
+	/** Service is temporarily unavailable */
 	OACS_ServiceUnavailable
 };
 

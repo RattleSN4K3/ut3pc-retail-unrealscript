@@ -4,6 +4,7 @@
 class ParticleModule extends Object
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object)
 	abstract;
 
@@ -20,7 +21,7 @@ var				bool			bUpdateModule;
 /** If TRUE, the module displays vector curves as colors						*/
 var				bool			bCurvesAsColor;
 /** If TRUE, the module should render its 3D visualization helper				*/
-var(Cascade)	bool			b3DDrawMode;
+var				bool			b3DDrawMode;
 /** If TRUE, the module supports rendering a 3D visualization helper			*/
 var				bool			bSupported3DDrawMode;
 /** If TRUE, the module is enabled												*/

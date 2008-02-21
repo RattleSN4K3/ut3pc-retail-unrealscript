@@ -175,6 +175,8 @@ function SetHolder(Controller C)
 {
 	local UTCTFSquadAI S;
 	local UTPawn UTP;
+	local UTBot B;
+
 	// when the flag is picked up we need to set the flag translation so it doesn't stick in the ground
 	SkelMesh.SetTranslation( vect(0.0,0.0,0.0) );
 	UTP = UTPawn(C.Pawn);
@@ -184,9 +186,10 @@ function SetHolder(Controller C)
 	ClearTimer( 'SetFlagDynamicLightToNotBeDynamic' );
 
 	// AI Related
-	if ( UTBot(C) != None )
+	B = UTBot(C);
+	if ( B != None )
 	{
-		S = UTCTFSquadAI(UTBot(C).Squad);
+		S = UTCTFSquadAI(B.Squad);
 	}
 	else if ( PlayerController(C) != None )
 	{
@@ -199,6 +202,10 @@ function SetHolder(Controller C)
 	}
 
 	Super.SetHolder(C);
+	if ( B != None )
+	{
+		B.SetMaxDesiredSpeed();
+	}
 }
 
 function bool ValidHolder(Actor Other)

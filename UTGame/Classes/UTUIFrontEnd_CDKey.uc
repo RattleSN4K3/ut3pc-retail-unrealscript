@@ -16,7 +16,7 @@ event PostInitialize( )
 	Super.PostInitialize();
 
 	for(EditboxIdx=0; EditboxIdx<4; EditboxIdx++)
-	{
+	{	
 		CDKeyEditbox[EditboxIdx] = UIEditBox(FindChild(name("txtKey"$(EditboxIdx+1)),true));
 		CDKeyEditbox[EditboxIdx].NotifyActiveStateChanged = OnNotifyActiveStateChanged;
 		CDKeyEditbox[EditboxIdx].OnSubmitText=OnSubmitText;
@@ -48,19 +48,18 @@ function OnCancel()
 /** Tries to create the user's account. */
 function OnAccept()
 {
-//@todo ut3merge
-//	local int EditboxIdx;
-//	local string CDKey;
-//
-//	for(EditboxIdx=0; EditboxIdx<4; EditboxIdx++)
-//	{
-//		CDKey $= CDKeyEditbox[EditboxIdx].GetValue();
-//	}
+	local int EditboxIdx;
+	local string CDKey;
+
+	CDKey = CDKeyEditbox[EditboxIdx].GetValue();
+	// Concatenate the remaining strings WITH HYPHENS
+	for (EditboxIdx=1; EditboxIdx<4; EditboxIdx++)
+	{	
+		CDKey $= "-"$CDKeyEditbox[EditboxIdx].GetValue();
+	}
 
 	// Verify contents of user name box
-//@todo ut3merge
-//	if(AccountInterface.SaveKey(CDKey))
-	if ( true )
+	if(AccountInterface.SaveKey(CDKey))
 	{
 		CloseScene(self);
 	}

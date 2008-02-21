@@ -51,6 +51,9 @@ defaultproperties
 	BloodEffects[1]=(Template=ParticleSystem'T_FX.Effects.P_FX_Bloodhit_Corrupt_Mid',MinDistance=350.0)
 	BloodEffects[2]=(Template=ParticleSystem'T_FX.Effects.P_FX_Bloodhit_Corrupt_Near',MinDistance=0.0)
 
+	
+	DefaultMeshScale=1.075
+	BaseTranslationOffset=14.0
 }
 
 

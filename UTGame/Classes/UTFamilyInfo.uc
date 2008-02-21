@@ -149,6 +149,10 @@ var float DrivingDrawScale;
 /** Whether these are female characters */
 var bool bIsFemale;
 
+/** Mesh scaling */
+var float DefaultMeshScale;
+var float BaseTranslationOffset;
+
 /**
  * Returns the # of emotes in a given group
  */
@@ -228,6 +232,12 @@ defaultproperties
 	FamilyEmotes[9]=(CategoryName="Order",EmoteTag="OrderD",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true,Command="Follow",bRequiresPlayer=true)
 	FamilyEmotes[10]=(CategoryName="Order",EmoteTag="OrderE",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true,Command="Freelance",bRequiresPlayer=true)
 
+	FamilyEmotes[11]=(CategoryName="Status",EmoteTag="Encouragement",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+	FamilyEmotes[12]=(CategoryName="Status",EmoteTag="Ack",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+	FamilyEmotes[13]=(CategoryName="Status",EmoteTag="InPosition",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+	FamilyEmotes[14]=(CategoryName="Status",EmoteTag="UnderAttack",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+	FamilyEmotes[15]=(CategoryName="Status",EmoteTag="AreaSecure",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+
 	NonTeamEmissiveColor=(R=10.0,G=0.2,B=0.2)
 	NonTeamTintColor=(R=4.0,G=2.0,B=0.5)
 
@@ -248,4 +258,7 @@ defaultproperties
 	DrivingDrawScale=1.0
 
 	MergeLODsToStrip=1
+	
+	DefaultMeshScale=1.075
+	BaseTranslationOffset=7.0
 }

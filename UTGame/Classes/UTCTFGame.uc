@@ -344,11 +344,19 @@ function ViewObjective(PlayerController PC)
 	{
 		a = Flags[1].HomeBase.GetBestViewTarget();
 		PC.SetViewTarget( a );
+		if ( UTPlayerController(PC) != None )
+		{
+			UTPlayerController(PC).ClientSetBehindView(true);
+		}
 	}
 	else
 	{
 		a = Flags[0].HomeBase.GetBestViewTarget();
 		PC.SetViewTarget( a );
+		if ( UTPlayerController(PC) != None )
+		{
+			UTPlayerController(PC).ClientSetBehindView(true);
+		}
 	}
 }
 

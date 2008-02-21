@@ -47,6 +47,26 @@ simulated function BlowupVehicle()
 	}
 }
 
+simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
+{
+	local class<UTDamageType> UTDT;
+	
+	if ( !bCanFly )
+	{
+	  UTDT = class<UTDamageType>(DamageType);
+	  if ( UTDT != None )
+	  {
+		  if ( (class<UTDmgType_FlakShard>(UTDT) != None)
+				  || (class<UTDmgType_Rocket>(UTDT) != None)
+				  || (class<UTDmgType_ShockPrimary>(UTDT) != None) )
+		  {
+			  Damage *= 1.2;
+		  }
+	  }
+	}
+	super.TakeDamage(Damage, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
+}
+
 defaultproperties
 {
 	bCanBeBaseForPawns=false

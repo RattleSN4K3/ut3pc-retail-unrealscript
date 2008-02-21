@@ -4,12 +4,9 @@
 class ParticleModuleSubUV extends ParticleModuleSubUVBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/**
- *	The index of the sub-image that should be used for the particle.
- *	The value is retrieved using the RelativeTime of the particles.
- */
 var(SubUV) rawdistributionfloat	SubImageIndex;
 
 

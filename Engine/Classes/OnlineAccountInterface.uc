@@ -79,3 +79,17 @@ function bool DeleteLocalAccount(string UserName,optional string Password);
  * @return true if the list was read, false otherwise
  */
 function bool GetLocalAccountNames(out array<string> Accounts);
+
+/**
+ * @return true if the product key is valid, false if it is invalid
+ */
+function bool IsKeyValid();
+
+/**
+ * Saves the product key
+ *
+ * @param ProductKey the product key the user entered
+ *
+ * @return true if the key was stored successfully, false otherwise
+ */
+function bool SaveKey(string ProductKey);

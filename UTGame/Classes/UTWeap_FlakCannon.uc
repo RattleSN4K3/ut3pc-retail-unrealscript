@@ -246,17 +246,14 @@ function float GetAIRating()
 	if ( B == None )
 		return AIRating;
 
-	if (B.Focus != None && Pawn(B.Focus) == None)
+	if ( UTOnslaughtPowerNode(B.Focus) != None )
 	{
 		EnemyDist = VSize(B.FocalPoint - Instigator.Location);
 		if (EnemyDist < 1250.0)
 		{
 			return 0.9;
 		}
-		if (EnemyDist > 2000.0)
-		{
-			return AIRating * 0.8;
-		}
+		return AIRating * 1500.0/EnemyDist;
 	}
 
 	if ( B.Enemy == None )
@@ -266,9 +263,9 @@ function float GetAIRating()
 	EnemyDist = VSize(EnemyDir);
 	if ( EnemyDist > 750 )
 	{
-		if ( EnemyDist > 2000 )
+		if ( EnemyDist > 1700 )
 		{
-			if ( EnemyDist > 3500 )
+			if ( EnemyDist > 2500 )
 				return 0.2;
 			return (AIRating - 0.3);
 		}
@@ -404,9 +401,4 @@ defaultproperties
 
 	QuickPickGroup=4
 	QuickPickWeight=0.9
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
-		Samples(0)=(LeftAmplitude=90,RightAmplitude=50,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.200)
-	End Object
-	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

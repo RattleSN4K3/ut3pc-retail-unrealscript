@@ -115,6 +115,11 @@ simulated function StartNextPath()
 			}
 		}
 	}
+	if ( (UTPlayerController(Owner) != None) && UTPlayerController(Owner).bHideObjectivePaths )
+	{
+		Destroy();
+		return;
+	}
 
 	if (++Position >= NumPoints)
 	{
@@ -144,6 +149,12 @@ state Pathing
 	{
 		local float MaxSpeed;
 		local Pawn OwnerPawn;
+
+		if ( (UTPlayerController(Owner) != None) && UTPlayerController(Owner).bHideObjectivePaths )
+		{
+			Destroy();
+			return;
+		}
 
 		DesiredRotation = rotator(WayPoints[Position] - Location);
 

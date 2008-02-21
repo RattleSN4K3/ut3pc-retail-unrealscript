@@ -237,9 +237,4 @@ defaultproperties
 	AmmoDisplayType=EAWDS_BarGraph
 
 	VehicleClass=class'UTVehicle_Darkwalker_Content'
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
-		Samples(0)=(LeftAmplitude=30,RightAmplitude=30,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.7)
-	End Object
-	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

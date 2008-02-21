@@ -345,11 +345,6 @@ simulated function VehicleWeaponFired( bool bViaReplication, vector HitLocation,
 			}
 			SetBeamEmitterHidden(false);
 		}
-
-		if (Seats[SeatIndex].Gun != None)
-		{
-			Seats[SeatIndex].Gun.ShakeView();
-		}
 	}
 }
 

@@ -109,6 +109,7 @@ function ItemChosen(UTSimpleList SourceList, int SelectedIndex, int PlayerIndex)
 
 	if (bSelectingChapter)
 	{
+
 		if ( ChapterLocked[ChapterList.Selection] == 0 )
 		{
 			DisplayMessageBox("<strings:UTGameUI.Campaign.ChapterLockedMsg>","<strings:UTGameUI.Campaign.ChapterLockedTitle>");
@@ -151,13 +152,12 @@ function ItemChosen(UTSimpleList SourceList, int SelectedIndex, int PlayerIndex)
 				GotoOptions(true);
 			}
 			break;
-
 		case 1:
 			GotoOptions(false);
 			break;
 
 		case 2: //	Server Browser
-			if ( CheckLinkConnectionAndError() && CheckOnlinePrivilegeAndError() )
+			if ( CheckLinkConnectionAndError() )
 			{
 				OpenSceneByName(class'UTUIFrontEnd_Multiplayer'.default.JoinScene,,JoinOpen);
 			}
@@ -198,6 +198,8 @@ function JoinOpen(UIScene OpenedScene, bool bInitialActivation)
 		JoinScene.UseCampaignMode();
 	}
 }
+
+
 
 function MB_Selection(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
 {

@@ -4,12 +4,9 @@
 class ParticleModuleLocation extends ParticleModuleLocationBase
 	native(Particle)
 	editinlinenew
+	collapsecategories
 	hidecategories(Object);
 
-/** 
- *	The location the particle should be emitted, relative to the emitter.
- *	Retrieved using the EmitterTime at the spawn of the particle.
- */
 var(Location) rawdistributionvector	StartLocation;
 
 
@@ -21,17 +18,6 @@ defaultproperties
 	Begin Object Class=DistributionVectorUniform Name=DistributionStartLocation
 	End Object
 	StartLocation=(Distribution=DistributionStartLocation)
-
-
-
-
-
-
-
-
-
-
-
 
 	bSupported3DDrawMode=true
 }

@@ -6,6 +6,7 @@ class MaterialExpressionStaticSwitchParameter extends MaterialExpressionParamete
 	collapsecategories
 	hidecategories(Object);
 
+var() name	ParameterName;
 var() bool	DefaultValue;
 var() bool	ExtendedCaptionDisplay;
 

@@ -74,16 +74,6 @@ var transient float		ToastScale;
 var transient LinearColor	ToastColor;
 var transient LinearColor	ToastTextColor;
 
-
-/**
- * Screen warning messages.  These are fairly intrusive messages that cover up the center of the viewport.
- * Useful for vital modal warnings, such as 'Controller Disconnected' on console platforms.
- */
-
-/** Screen warning message text.  Will be implicitly visible when string isn't empty. */
-var transient string ScreenWarningMessage;
-
-
 /** Whether or not to dim the entire screen, used for the network dialog on ps3. */
 var transient bool bDimScreen;
 
@@ -189,31 +179,6 @@ event FinishToast()
 	bHidingToast=true;
 	bFirstFrame = false;
 }
-
-
-
-/**
- * Displays a screen warning message.  This message will be displayed prominently centered in the viewport and
- * will persist until you call ClearScreenWarningMessage().  It's useful for important modal warnings, such
- * as when the controller is disconnected on a console platform.
- *
- * @param Message Message to display
- */
-function ShowScreenWarningMessage( string Message )
-{
-	ScreenWarningMessage = Message;	
-}
-
-
-
-/**
- * Clears the screen warning message if one was set.  It will no longer be rendered.
- */
-function ClearScreenWarningMessage()
-{
-	ScreenWarningMessage = "";
-}
-
 
 
 defaultproperties

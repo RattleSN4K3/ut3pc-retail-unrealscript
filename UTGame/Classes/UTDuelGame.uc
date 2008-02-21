@@ -21,6 +21,16 @@ static function bool AllowMutator( string MutatorClassName )
 	return Super.AllowMutator(MutatorClassName);
 }
 
+function bool AllowBecomeActivePlayer(PlayerController P)
+{
+	if ( NumPlayers > 1 )
+	{
+		P.ReceiveLocalizedMessage(GameMessageClass, 13);
+		return false;
+	}
+	return super.AllowBecomeActivePlayer(P);
+}
+
 event InitGame(string Options, out string ErrorMessage)
 {
 	Super.InitGame(Options, ErrorMessage);
@@ -53,7 +63,7 @@ event PostLogin(PlayerController NewPlayer)
 
 	Super.PostLogin(NewPlayer);
 
-	if (NumPlayers + NumBots > 2)
+	if (NumPlayers + NumTravellingPlayers + NumBots > 2)
 	{
 		PRI = UTDuelPRI(NewPlayer.PlayerReplicationInfo);
 		if (PRI != None && !PRI.bOnlySpectator)
@@ -132,7 +142,8 @@ function Logout(Controller Exiting)
 		Queue.Remove(Index, 1);
 		UpdateQueuePositions();
 	}
-	else if ( !bRotateQueueEachKill && Exiting.PlayerReplicationInfo != None && Exiting.PlayerReplicationInfo.Team != None &&
+	else if ( (!bRotateQueueEachKill || !GameReplicationInfo.bMatchHasBegun || WorldInfo.IsInSeamlessTravel()) &&
+		Exiting.PlayerReplicationInfo != None && Exiting.PlayerReplicationInfo.Team != None &&
 		Exiting.PlayerReplicationInfo.Team.Size == 1 )
 	{
 		if (!GameReplicationInfo.bMatchHasBegun || WorldInfo.IsInSeamlessTravel())
@@ -465,6 +476,129 @@ event HandleSeamlessTravelPlayer(out Controller C)
 	}
 }
 
+/**
+* Writes out the stats for the DUEL game type  - specatators don't report/survival mode mutator check
+*/
+function WriteOnlineStats()
+{
+	local UTLeaderboardWriteDM Stats;
+	local UTPlayerController PC;
+	local UTDuelPRI PRI;
+	local UniqueNetId ZeroUniqueId;
+	local bool bIsPureGame;
+	local float TimeInGame;
+
+	if ((SinglePlayerMissionID > INDEX_None) || (WorldInfo.NetMode == NM_Standalone))
+	{
+		//We don't record single player stats
+		return;
+	}
+
+	// Only calc this if the subsystem can write stats
+	if (OnlineSub != None && OnlineSub.StatsInterface != None)
+	{
+		//Epic content + No bots => Pure
+		bIsPureGame = IsPureGame() && !bPlayersVsBots;
+
+		if (!bIsPureGame || bRotateQueueEachKill)
+		{
+			  Super.WriteOnlineStats();
+		}
+		else
+		{
+			//Pure DUEL 1v1
+			foreach WorldInfo.AllControllers(class'UTPlayerController', PC)
+			{
+				PRI = UTDuelPRI(PC.PlayerReplicationInfo);
+				if (PRI != None && (PRI.UniqueId != ZeroUniqueId) && !PRI.bOnlySpectator)
+				{
+					//If we are the winner or not in the queue, then we played this match, record stats
+					if ((PRI.Team == GameReplicationInfo.Winner) || (Queue.Find(PRI) == INDEX_NONE))
+					{
+						TimeInGame = float(GameReplicationInfo.ElapsedTime - PRI.StartTime);
+						//Game has lasted more than 10 seconds, you've been in at least 30 secs of it or 90% of the elapsed time 
+						if (WorldInfo.GRI.ElapsedTime > 10 && (TimeInGame >= Min(30.0f, float(GameReplicationInfo.ElapsedTime) * 0.9f)))
+						{
+							`log("Writing out DUEL1V1 stats for player"@PRI.PlayerName);
+							//Write out all relevant stats
+							Stats = UTLeaderboardWriteDM(new OnlineStatsWriteClass);
+							Stats.CopyAndWriteAllStats(PC.PlayerReplicationInfo.UniqueId, PRI, bIsPureGame, OnlineSub.StatsInterface);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/**
+* Write player scores used in skill calculations
+*/
+function WriteOnlinePlayerScores()
+{
+	local int Count;
+	local UTPlayerController PC;
+	local UTDuelPRI PRI;
+	local array<OnlinePlayerScore> PlayerScores;
+	local float TimeInGame;
+	local UniqueNetId ZeroUniqueId;
+	local bool bIsPureGame;
+
+	if ((SinglePlayerMissionID > INDEX_None) || (WorldInfo.NetMode == NM_Standalone))
+	{
+		//We don't record single player stats
+		return;
+	}
+
+	if (OnlineSub != None && OnlineSub.StatsInterface != None)
+	{
+		//Epic content + No bots => Pure
+		bIsPureGame = IsPureGame() && !bPlayersVsBots;
+
+		if (!bIsPureGame || bRotateQueueEachKill)
+		{
+			Super.WriteOnlineStats();
+		}
+		else
+		{
+			//Pure DUEL 1v1
+			foreach WorldInfo.AllControllers(class'UTPlayerController', PC)
+			{
+				PRI = UTDuelPRI(PC.PlayerReplicationInfo);
+				if (PRI != None && (PRI.UniqueId != ZeroUniqueId) && !PRI.bOnlySpectator)
+				{
+					//If we are the winner or not in the queue, then we played this match, record stats
+					if ((PRI.Team == GameReplicationInfo.Winner) || (Queue.Find(PRI) == INDEX_NONE))
+					{
+						TimeInGame = float(GameReplicationInfo.ElapsedTime - PRI.StartTime);
+						//Game has lasted more than 10 seconds, you've been in at least 30 secs of it or 90% of the elapsed time 
+						if (WorldInfo.GRI.ElapsedTime > 10 && (TimeInGame >= Min(30.0f, float(GameReplicationInfo.ElapsedTime) * 0.9f)))
+						{
+							// Build the skill data for this player
+							Count++;
+							PlayerScores.Length = Count;
+							PlayerScores[Count-1].PlayerId = PRI.UniqueId;
+							PlayerScores[Count-1].Score = PRI.Score;
+							// Each player is on their own team (rated as individuals)
+							PlayerScores[Count-1].TeamId = 255;
+						}
+					}
+				}
+			}
+
+			if (PlayerScores.Length > 0)
+			{
+				// Now write out the scores
+				OnlineSub.StatsInterface.WriteOnlinePlayerScores(PlayerScores);
+			}
+			else
+			{
+				`warn("There were no playerscores to write out");
+			}
+		}
+	}
+}
+
 defaultproperties
 {
 	Acronym="Duel"
@@ -476,7 +610,7 @@ defaultproperties
 	bWeaponStay=false
 
 	// Class used to write stats to the leaderboard
-	OnlineStatsWriteClass=class'UTGame.UTLeaderboardWriteTDM'
+	OnlineStatsWriteClass=class'UTGame.UTLeaderboardWriteDUEL'
 	OnlineGameSettingsClass=class'UTGameSettingsDUEL'
 	MidgameScorePanelTag=DuelPanel
 

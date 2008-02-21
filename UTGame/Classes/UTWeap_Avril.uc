@@ -106,6 +106,11 @@ replication
 		MyRocket, DeferredReloadTime, bLockedOnTarget, LockedTarget;
 }
 
+function float RelativeStrengthVersus(Pawn P, float Dist)
+{
+	return CanLockOnTo(P) ? 0.75 : 0.0;
+}
+
 simulated function AttachWeaponTo(SkeletalMeshComponent MeshCpnt, optional Name SocketName)
 {
 	local SkeletalMeshComponent SkelMesh;

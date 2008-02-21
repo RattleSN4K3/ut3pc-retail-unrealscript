@@ -85,6 +85,10 @@ function bool DriverEnter(Pawn P)
 	InstigatorController = Controller;
 	SetCollision(true);
 	bCanHitDriver = true;
+	if (Driver != None)
+	{
+		Driver.Acceleration = vect(0,0,0);
+	}
 
 	SetOnlyControllableByTilt( TRUE );
 	return true;
@@ -237,13 +241,11 @@ simulated native function bool IsPlayerPawn() const;
 
 event Landed(vector HitNormal, Actor FloorActor)
 {
-`log("HITL "$flooractor);
 	BlowUp();
 }
 
 event HitWall(vector HitNormal, Actor Wall, PrimitiveComponent WallComp)
 {
-`log("HIT "$wall);
 	BlowUp();
 }
 
@@ -256,14 +258,12 @@ singular event Touch(Actor Other, PrimitiveComponent OtherComp, vector HitLocati
 {
 	if (Other.bProjTarget && !Other.IsA('Volume') && (bCanHitDriver || Other != Driver) && (Projectile(Other) == None) )
 	{
-`log("TOUCH "$other);
 		BlowUp();
 	}
 }
 
 singular event Bump(Actor Other, PrimitiveComponent OtherComp, vector HitNormal)
 {
-`log("BUMP "$other);
 	BlowUp();
 }
 
@@ -274,7 +274,6 @@ event TakeDamage(int Damage, Controller InstigatedBy, vector HitLocation, vector
 		if ( InstigatedBy == None || DamageType == class'DmgType_Crushed'
 			|| (class<UTDamageType>(DamageType) != None && class<UTDamageType>(DamageType).default.bVehicleHit) )
 		{
-`log("takedamage "$damagetype);
 			BlowUp();
 		}
 		else
@@ -331,7 +330,6 @@ simulated function DrawHUD(HUD H)
 
 function bool Died(Controller Killer, class<DamageType> damageType, vector HitLocation)
 {
-`log("died "$damagetype);
 	BlowUp();
 	return true;
 }

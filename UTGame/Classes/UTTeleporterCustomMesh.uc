@@ -6,6 +6,9 @@ var() StaticMeshComponent Mesh;
 /** Sound to be played when someone teleports in*/
 var SoundCue TeleportingSound;
 
+var UTPawn LastPawn;
+var float LastTime;
+
 simulated event bool Accept( actor Incoming, Actor Source )
 {
 	local UTPlayerReplicationInfo PRI;
@@ -19,12 +22,26 @@ simulated event bool Accept( actor Incoming, Actor Source )
 	if (Super.Accept(Incoming,Source))
 	{
 		PlaySound(TeleportingSound);
+		if ( UTPawn(Incoming) != None )
+		{
+			LastPawn = UTPawn(Incoming);
+			LastTime = WorldInfo.TimeSeconds;
+		}
 		return true;
 	}
 	else
 	{
 		return false;
 	}
+}
+
+event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
+{
+	if ( (Other == LastPawn) && (WorldInfo.TimeSeconds - LastTime < 0.2) )
+	{
+		return;
+	}
+	super.Touch(Other, OtherComp, HitLocation, HitNormal);
 }
 
 defaultproperties

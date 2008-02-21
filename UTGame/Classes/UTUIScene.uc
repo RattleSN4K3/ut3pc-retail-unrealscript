@@ -9,6 +9,7 @@ class UTUIScene extends UIScene
 	native(UI)
 	dependson(OnlinePlayerInterface,UTGameInteraction);
 
+`include(Core/Globals.uci)
 `include(UTOnlineConstants.uci)
 
 /** Possible factions for the bots. */
@@ -116,6 +117,12 @@ native function string GetCurrentAudioDevice();
  * @return	TRUE if the user's machine is below the minimum required specs to play the game.
  */
 native final function bool IsBelowMinSpecs() const;
+
+/** returns true if a username/password was specified on the command line and an auto login is in progress */
+native static function bool CheckForAutoLogin(out string Username, out string Password);
+
+/** Launch the URL specified on the command line */
+native static function bool OpenCmdLineURL();
 
 /**
  * Sets the audio device to use for playback.
@@ -742,7 +749,7 @@ function SavePlayerProfile(optional int PlayerIndex=GetBestPlayerIndex())
 }
 
 /** @return Returns the name of the specified player if they have an alias or are logged in, or "DefaultPlayer" otherwise. */
-function string GetPlayerName(int PlayerIndex=GetBestPlayerIndex())
+function string GetPlayerName(int PlayerIndex=INDEX_NONE)
 {
 	local string PlayerName;
 
@@ -794,7 +801,7 @@ function name GetBotTeamNameFromIndex(EUTBotTeam TeamIndex)
 }
 
 /** @return Checks to see if the specified player is logged in, if not an error message is shown and FALSE is returned. */
-function bool CheckLoginAndError(int ControllerId=GetBestControllerId(), optional bool bMustBeLoggedInOnline=false, optional string AlternateTitle, optional string AlternateMessage)
+function bool CheckLoginAndError(int ControllerId=INDEX_NONE, optional bool bMustBeLoggedInOnline=false, optional string AlternateTitle, optional string AlternateMessage)
 {
 	local UTUIScene_MessageBox MessageBoxReference;
 	local bool bResult;
@@ -848,7 +855,7 @@ function bool CheckLinkConnectionAndError( optional string AlternateTitle, optio
 }
 
 /** @return Checks to see if the specified player can play online games, if not an error message is shown and FALSE is returned. */
-function bool CheckOnlinePrivilegeAndError(int ControllerId=GetBestControllerId(),  optional string AlternateTitle, optional string AlternateMessage )
+function bool CheckOnlinePrivilegeAndError(int ControllerId=INDEX_NONE,  optional string AlternateTitle, optional string AlternateMessage )
 {
 	local bool bResult;
 
@@ -879,7 +886,7 @@ function bool CheckOnlinePrivilegeAndError(int ControllerId=GetBestControllerId(
 
 
 /** @return Checks to see if the specified player can play online games, if not an error message is shown and FALSE is returned. */
-function bool CheckContentPrivilegeAndError(int ControllerId=GetBestControllerId(),  optional string AlternateTitle, optional string AlternateMessage )
+function bool CheckContentPrivilegeAndError(int ControllerId=INDEX_NONE,  optional string AlternateTitle, optional string AlternateMessage )
 {
 	local bool bResult;
 	local OnlinePlayerInterface PlayerInt;
@@ -912,7 +919,7 @@ function bool CheckContentPrivilegeAndError(int ControllerId=GetBestControllerId
 
 
 /** @return Checks to see if the specified player can play online games, if not an error message is shown and FALSE is returned. */
-function bool CheckCommunicationPrivilegeAndError(int ControllerId=GetBestControllerId(),  optional string AlternateTitle, optional string AlternateMessage )
+function bool CheckCommunicationPrivilegeAndError(int ControllerId=INDEX_NONE,  optional string AlternateTitle, optional string AlternateMessage )
 {
 	local bool bResult;
 	local OnlinePlayerInterface PlayerInt;
@@ -1110,10 +1117,9 @@ static function OnlineAccountInterface GetAccountInterface()
 }
 
 /** Displays the login interface using the online subsystem. */
-function bool ShowLoginUI(optional bool bOnlineOnly=false)
+function ShowLoginUI(optional bool bOnlineOnly=false)
 {
 	local OnlinePlayerInterface PlayerInt;
-	local bool bResult;
 
 	PlayerInt = GetPlayerInterface();
 
@@ -1124,8 +1130,7 @@ function bool ShowLoginUI(optional bool bOnlineOnly=false)
 		PlayerInt.AddLoginChangeDelegate(OnLoginUI_LoginChange, GetPlayerOwner().ControllerId);
 		PlayerInt.AddLoginFailedDelegate(GetPlayerOwner().ControllerId, OnLoginUI_LoginFailed);
 
-		bResult = PlayerInt.ShowLoginUI(bOnlineOnly);
-		if ( !bResult )
+		if (PlayerInt.ShowLoginUI(bOnlineOnly) == false)
 		{
 			`Log("UTUIScene::ShowLoginUI() - Failed to show login UI!");
 			UTGameUISceneClient(GetSceneClient()).bDimScreen=false;
@@ -1133,8 +1138,6 @@ function bool ShowLoginUI(optional bool bOnlineOnly=false)
 			PlayerInt.ClearLoginFailedDelegate(GetPlayerOwner().ControllerId, OnLoginUI_LoginFailed);
 		}
 	}
-
-	return bResult;
 }
 
 /** Callback for when the login changes after showing the login UI. */
@@ -1219,37 +1222,6 @@ static function HideOnlineToast()
 		UTGameUISceneClient(GetSceneClient()).FinishToast();
 	}
 }
-
-
-/**
- * Displays a screen warning message.  This message will be displayed prominently centered in the viewport and
- * will persist until you call ClearScreenWarningMessage().  It's useful for important modal warnings, such
- * as when the controller is disconnected on a console platform.
- *
- * @param Message Message to display
- */
-static function ShowScreenWarningMessage( string Message )
-{
-	// NOTE: Currently we don't bother drawing these on Xbox since they automatically display things like
-	//   'please reconnect controller', etc.
-	if( !IsConsole( CONSOLE_Xbox360 ) )
-	{
-		UTGameUISceneClient( GetSceneClient() ).ShowScreenWarningMessage( Message );
-	}
-}
-
-
-/**
- * Clears the screen warning message if one was set.  It will no longer be rendered.
- */
-static function ClearScreenWarningMessage()
-{
-	if( !IsConsole( CONSOLE_Xbox360 ) )
-	{
-		UTGameUISceneClient( GetSceneClient() ).ClearScreenWarningMessage();
-	}
-}
-
 
 
 /**

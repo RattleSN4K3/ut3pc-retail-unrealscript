@@ -71,11 +71,9 @@ var	bool		bForceFloorCheck;	// force the pawn in PHYS_Walking to do a check for 
 var bool		bForceKeepAnchor;	// Force ValidAnchor function to accept any non-NULL anchor as valid (used to override when we want to set anchor for path finding)
 
 //@fixme - remove these post-ship, as they aren't general enough to warrant being placed here
-var config bool bCanMantle;			// can this pawn mantle over cover
-var		   bool bCanClimbCeilings;	// can this pawn climb ceiling nodes
-var config bool bCanSwatTurn;		// can this pawn swat turn between cover
-var config bool bCanLeap;			// can this pawn use LeapReachSpec
-var config bool	bCanCoverSlip;		// can this pawn coverslip
+var config bool bCanMantle;				// can this pawn mantle over cover
+var bool bCanClimbCeilings;			// can this pawn climb ceiling nodes
+var config bool bCanSwatTurn;				// can this pawn swat turn between cover
 
 /** if set, display "MAP HAS PATHING ERRORS" and message in the log when a Pawn fails a full path search */
 var globalconfig bool bDisplayPathErrors;
@@ -108,13 +106,8 @@ enum EPathSearchType
 	PST_Default,
 	PST_Breadth,
 	PST_NewBestPathTo,
-	PST_Constraint,
 };
 var EPathSearchType	PathSearchType;
-
-/** List of search constraints for pathing */
-var PathConstraint		PathConstraintList;
-var PathGoalEvaluator	PathGoalList;
 
 var		float	DesiredSpeed;
 var		float	MaxDesiredSpeed;
@@ -237,7 +230,7 @@ var		int		AllowedYawError;
 
 /** Inventory Manager */
 var class<InventoryManager>		InventoryManagerClass;
-var repnotify InventoryManager			InvManager;
+var InventoryManager			InvManager;
 
 /** Weapon currently held by Pawn */
 var()	Weapon					Weapon;
@@ -1674,9 +1667,6 @@ simulated event Destroyed()
 
 	Weapon = None;
 
-	//debug
-	ClearPathStep();
-
 	super.Destroyed();
 }
 
@@ -1723,9 +1713,6 @@ event PostBeginPlay()
 		else
 			InvManager.SetupFor( Self );
 	}
-
-	//debug
-	ClearPathStep();
 }
 
 
@@ -2069,7 +2056,7 @@ simulated event bool IsSameTeam( Pawn Other )
  *
  * @returns true if allowed
  */
-function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLocation)
+function bool Died(Controller Killer, class<DamageType> damageType, vector HitLocation)
 {
 	local SeqAct_Latent Action;
 	// allow the current killer to override with a different one for kill credit
@@ -2117,7 +2104,7 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 	else if ( Weapon != None )
 	{
 		Weapon.HolderDied();
-		ThrowActiveWeapon( DamageType );
+		ThrowActiveWeapon();
 	}
 	// notify the gameinfo of the death
 	if ( Controller != None )
@@ -2613,18 +2600,16 @@ simulated function DrawHUD( HUD H )
 
 /**
  * Toss active weapon using default settings (location+velocity).
- *
- * @param DamageType  allows this function to do different behaviors based on the damage type
  */
-function ThrowActiveWeapon( optional class<DamageType> DamageType )
+function ThrowActiveWeapon()
 {
 	if ( Weapon != None )
 	{
-		TossInventory(Weapon, , DamageType);
+		TossWeapon(Weapon);
 	}
 }
 
-function TossInventory( Inventory Inv, optional vector ForceVelocity, optional class<DamageType> DamageType )
+function TossWeapon(Weapon Weap, optional vector ForceVelocity)
 {
 	local vector	POVLoc, TossVel;
 	local rotator	POVRot;
@@ -2642,7 +2627,7 @@ function TossInventory( Inventory Inv, optional vector ForceVelocity, optional c
 	}
 
 	GetAxes(Rotation, X, Y, Z);
-	Inv.DropFrom(Location + 0.8 * CylinderComponent.CollisionRadius * X - 0.5 * CylinderComponent.CollisionRadius * Y, TossVel);
+	Weap.DropFrom(Location + 0.8 * CylinderComponent.CollisionRadius * X - 0.5 * CylinderComponent.CollisionRadius * Y, TossVel);
 }
 
 /* SetActiveWeapon
@@ -2964,16 +2949,6 @@ event SoakPause()
 		break;
 	}
 }
-
-native function ClearConstraints();
-native function AddPathConstraint( PathConstraint Constraint );
-native function AddGoalEvaluator( PathGoalEvaluator Evaluator );
-
-native function IncrementPathStep( int Cnt, Canvas C );
-native function IncrementPathChild( int Cnt, Canvas C );
-native function DrawPathStep( Canvas C );
-native function	ClearPathStep();
-
 
 defaultproperties
 {

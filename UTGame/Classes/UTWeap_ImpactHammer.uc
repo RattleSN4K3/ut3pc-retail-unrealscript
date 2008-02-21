@@ -59,6 +59,11 @@ var CameraAnim ImpactKillCameraAnim;
 
 
 
+function float RelativeStrengthVersus(Pawn P, float Dist)
+{
+	return FMax(0, (2500 - Dist)/2500);
+}
+
 simulated function SetSkin(Material NewMaterial)
 {
 	super.SetSkin(NewMaterial);
@@ -598,15 +603,6 @@ simulated state WeaponRecharge
 
 simulated function StopFireEffects(byte FireModeNum);
 
-
-/** You always run around with the impact hammer hammering! **/
-simulated function bool CanViewAccelerationWhenFiring()
-{
-	return TRUE;
-}
-
-
-
 defaultproperties
 {
 	WeaponColor=(R=255,G=255,B=128,A=255)
@@ -736,9 +732,4 @@ defaultproperties
 	AltHitEffect=ParticleSystem'WP_ImpactHammer.Particles.P_WP_ImpactHammer_Secondary_Hit_Impact'
 
 	ImpactKillCameraAnim=CameraAnim'Camera_FX.Gameplay.C_Impact_CharacterGib_Near'
-
-	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
-		Samples(0)=(LeftAmplitude=100,RightAmplitude=60,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.10)
-	End Object
-	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

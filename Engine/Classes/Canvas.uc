@@ -38,6 +38,8 @@ var Texture2D DefaultTexture;
 
 // native functions.
 native final function DrawTile( Texture2D Tex, float XL, float YL, float U, float V, float UL, float VL );
+/** the only difference in this new version is you can pass in other types of textures (e.g. ScriptedTexture) */
+native final function DrawTileNew(Texture Tex, float XL, float YL, float U, float V, float UL, float VL);
 
 /**
  * Draws the emissive channel of a material to an axis-aligned quad at CurX,CurY.

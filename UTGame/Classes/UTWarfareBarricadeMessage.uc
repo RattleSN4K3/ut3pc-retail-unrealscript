@@ -20,6 +20,6 @@ static function string GetString(
 defaultproperties
 {
 	MessageArea=2
-	FontSize=2
+	FontSize=1
 	bIsPartiallyUnique=true
 }

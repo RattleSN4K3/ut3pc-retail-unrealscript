@@ -20,7 +20,7 @@ var transient	UTUIDataProvider_ServerDetails	ServerDetailsProvider;
  *
  * @return	TRUE if the list of enabled mutators was successfully retrieved.
  */
-native final function bool GetEnabledMutators( out array<int> MutatorIndices );
+native function bool GetEnabledMutators( out array<int> MutatorIndices );
 
 /**
  * Registers the delegate with the online subsystem
