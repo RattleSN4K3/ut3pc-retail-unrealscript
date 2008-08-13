@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 // This special blend node will use the LookDir and Acceleration from the Actor that
 // owns the SkeletalMeshComponent to blend the four directional animations together.

@@ -1,7 +1,7 @@
 ﻿/**
  * Dataprovider that provides an array of strings.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_StringArray extends UTUIDataProvider_SimpleElementProvider
 	native(UI);

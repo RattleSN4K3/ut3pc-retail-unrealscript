@@ -1,7 +1,7 @@
 ﻿/**
  * Specialization type of sequence used to store the events associated with a single widget.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UISequence extends Sequence
 	native(UISequence)

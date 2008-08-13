@@ -1,6 +1,6 @@
 ﻿// Utility object for moving actors around.
 // Note - it really doesn't care which actor its a component of - you can use it to pick its owner up or anything else.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 
 class RB_Handle extends ActorComponent
 	collapsecategories

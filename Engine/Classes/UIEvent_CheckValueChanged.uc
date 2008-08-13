@@ -1,7 +1,7 @@
 ﻿/**
  * This event is activated when a checkbox is checked or unchecked.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * @note: native because C++ code activates this event
  */

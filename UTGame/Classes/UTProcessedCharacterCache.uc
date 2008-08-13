@@ -1,4 +1,8 @@
-﻿/** this is used when to hold constructed character data temporarily when a PRI is destroyed, so that if the same character comes back
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+/** this is used when to hold constructed character data temporarily when a PRI is destroyed, so that if the same character comes back
  * shortly afterward (e.g. because the PRI was getting replaced via seamless travel) the mesh doesn't need to be re-created
  */
 class UTProcessedCharacterCache extends Actor;

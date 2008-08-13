@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTVehicle extends UTVehicleBase
 	abstract
@@ -2982,7 +2982,7 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 		screenLoc.Y >= Canvas.ClipY)
 	{
 		// what if should draw "E to enter"
-		if ( !bShowLocked && !bPlayingSpawnEffect && ((UTPawn(PC.Pawn) != None) || (UTVehicle_Hoverboard(PC.Pawn) != None)) )
+		if ( !bShowLocked && !bShowUseable && !bPlayingSpawnEffect && ((UTPawn(PC.Pawn) != None) || (UTVehicle_Hoverboard(PC.Pawn) != None)) )
 		{
 			bShowUseable = ShouldShowUseable(PC, Dist);
 		}
@@ -3113,6 +3113,26 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 				{
 					HUD.DrawToolTip(Canvas, PC, "GBA_Use", Canvas.ClipX * 0.5, Canvas.ClipY * 0.6, EnterToolTipIconCoords.U, EnterToolTipIconCoords.V, EnterToolTipIconCoords.UL, EnterToolTipIconCoords.VL, Canvas.ClipY / 768);
 				}
+			}
+
+			// don't draw main beacon if clipped out
+			if (screenLoc.X < 0 ||
+				screenLoc.X >= Canvas.ClipX ||
+				screenLoc.Y < 0 ||
+				screenLoc.Y >= Canvas.ClipY)
+			{
+	            // should I register as friendly for crosshair?
+	            if ( (HUD != None) && !HUD.bCrosshairOnFriendly )
+	            {
+		            ScreenLoc = Canvas.Project(Location);
+		            MaxOffset = HUDExtent/Dist;
+		            if ( (Abs(screenLoc.X - 0.5*Canvas.ClipX) < MaxOffset * Canvas.ClipX)
+		            && (Abs(screenLoc.Y - 0.5*Canvas.ClipY) < MaxOffset * Canvas.ClipY) )
+		            {
+			            HUD.bCrosshairOnFriendly = true;
+		            }
+	            }
+				return;
 			}
 		}
 		else
@@ -5823,6 +5843,8 @@ simulated function AttachDriver( Pawn P )
 
 simulated function SitDriver( UTPawn UTP, int SeatIndex)
 {
+	local float ClampedTranslation;
+
 	if (Seats[SeatIndex].SeatBone != '')
 	{
 		UTP.SetBase( Self, , Mesh, Seats[SeatIndex].SeatBone);
@@ -5852,7 +5874,10 @@ simulated function SitDriver( UTPawn UTP, int SeatIndex)
 		UTP.SetRelativeLocation( Seats[SeatIndex].SeatOffset );
 		UTP.SetRelativeRotation( Seats[SeatIndex].SeatRotation );
 		UTP.Mesh.SetCullDistance(5000);
-		UTP.Mesh.SetTranslation(vect(0,0,1) * UTP.BaseTranslationOffset);
+
+		//HACK - don't let this translation get too large (for Liandri riding high)
+		ClampedTranslation = Clamp(UTP.BaseTranslationOffset, -7.0, 7.0);
+		UTP.Mesh.SetTranslation(vect(0,0,1) * ClampedTranslation);
 		UTP.SetHidden(false);
 	}
 	else

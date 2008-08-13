@@ -5,7 +5,7 @@
  * This class stores temporary state and debug date used during development which is easily
  * accessible via the "set" command from the console and "GEngine->DebugManager" from C++.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 /** Index of first miplevel which is colored instead of using the texture data */

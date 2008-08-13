@@ -1,4 +1,8 @@
-﻿class UTScriptedVoiceMessage extends UTLocalMessage
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTScriptedVoiceMessage extends UTLocalMessage
 	abstract;
 
 static function SoundNodeWave AnnouncementSound(int MessageIndex, Object OptionalObject, PlayerController PC)

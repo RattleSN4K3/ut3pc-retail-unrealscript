@@ -2,7 +2,7 @@
  * Event which is activated by gameplay code when a projectile lands.
  * Originator: the Pawn that owns this event.
  * Instigator: a projectile actor which was fired by the Pawn that owns this event
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_ProjectileLanded extends SequenceEvent
 	native(Sequence);

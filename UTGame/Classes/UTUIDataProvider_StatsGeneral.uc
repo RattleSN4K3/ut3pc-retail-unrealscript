@@ -1,7 +1,7 @@
 ﻿/**
  * Dataprovider that returns a row for each general stat for a user.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_StatsGeneral extends UTUIDataProvider_StatsElementProvider
 	native(UI);
@@ -53,7 +53,6 @@ DefaultProperties
 
 	//WAR
 	Stats.Add((StatName="EVENT_RETURNEDORB"))
-	Stats.Add((StatName="EVENT_SCOREDORB"))
 	Stats.Add((StatName="NODE_DAMAGEDCORE"))
 	Stats.Add((StatName="NODE_DESTROYEDCORE"))
 	Stats.Add((StatName="NODE_DESTROYEDNODE"))

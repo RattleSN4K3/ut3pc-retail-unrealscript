@@ -1,4 +1,8 @@
-﻿/** this plays the "X minutes/seconds remaining" announcements */
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+/** this plays the "X minutes/seconds remaining" announcements */
 class UTTimerMessage extends UTLocalMessage
 	abstract;
 

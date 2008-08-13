@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTVehicle_SPMA extends UTVehicle_Deployable
@@ -547,4 +547,6 @@ defaultproperties
 	bHasAlternateTargetLocation=true
 
 	HornIndex=1
+
+	DeployIconOffset=0.92
 }

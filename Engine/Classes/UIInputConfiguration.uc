@@ -2,7 +2,7 @@
  * Simple container class for storing the UI system's input mappings.  An instance of this class is never actually created, since
  * it is only used as a storage location for UI input mappings.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIInputConfiguration extends UIRoot
 	config(Input)

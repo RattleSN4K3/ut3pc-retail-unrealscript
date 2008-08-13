@@ -7,7 +7,7 @@
  * @todo UIString is supposed to support persistence, so that designers can override the extents for individual nodes
  *	in the string, so this class should not be marked transient
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIEditboxString extends UIString
 	within UIEditBox

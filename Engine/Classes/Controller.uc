@@ -12,7 +12,7 @@
 // in response to this event, intercepting the event and superceding the Pawn's default
 // behavior.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Controller extends Actor
 	native

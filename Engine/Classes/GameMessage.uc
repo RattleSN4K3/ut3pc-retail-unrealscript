@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class GameMessage extends LocalMessage;
 
@@ -18,6 +18,8 @@ var localized string NewTeamMessageTrailer;
 var localized string NoNameChange;
 var localized string VoteStarted;
 var localized string VotePassed;
+var localized string MapVoteEnabled;
+var localized string MapVoteInitiated;
 var localized string MustHaveStats;
 var localized string CantBeSpectator;
 var localized string CantBePlayer;
@@ -108,6 +110,12 @@ static function string GetString(
 
             return RelatedPRI_1.GetPlayerAlias()$Default.SpecEnteredMessage;
             break;
+
+	case 17:
+		return default.MapVoteEnabled;
+
+	case 18:
+		return default.MapVoteInitiated;
 	}
 	return "";
 }

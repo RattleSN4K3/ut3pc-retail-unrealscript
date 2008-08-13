@@ -1,7 +1,7 @@
 ﻿/**
  *  base class of dropped pickups for items that don't actually have an Inventory class (e.g. armor)
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTDroppedItemPickup extends UTDroppedPickup;

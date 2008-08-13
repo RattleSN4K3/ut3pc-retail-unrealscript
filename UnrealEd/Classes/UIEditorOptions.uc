@@ -4,7 +4,7 @@
  * user changes options in the ui editor, those values are stored here.  When the editor window is destroyed, the values are saved
  * to the ini using standard PerObjectConfig naming rules.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIEditorOptions extends UIRoot
 	config(Editor)

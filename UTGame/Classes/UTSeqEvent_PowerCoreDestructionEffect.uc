@@ -1,4 +1,8 @@
-﻿/** client side event triggered by power core when it wants to play its destruction effect
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+/** client side event triggered by power core when it wants to play its destruction effect
  * use this to make a level specific effect instead of the default
  */
 class UTSeqEvent_PowerCoreDestructionEffect extends SequenceEvent;

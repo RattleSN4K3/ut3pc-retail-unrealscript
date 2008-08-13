@@ -1,4 +1,6 @@
-﻿/** message class for announcements played through "Play Announcement" Kismet action */
+﻿/** message class for announcements played through "Play Announcement" Kismet action
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
 class UTKismetAnnouncement extends UTObjectiveSpecificMessage;
 
 static function ObjectiveAnnouncementInfo GetObjectiveAnnouncement(byte MessageIndex, Object Objective, PlayerController PC)

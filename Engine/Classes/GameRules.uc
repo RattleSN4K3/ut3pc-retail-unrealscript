@@ -4,7 +4,7 @@
 // The GameRules class handles game rule modifications for the GameInfo such as scoring,
 // finding player starts, and damage modification.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class GameRules extends Info;
 

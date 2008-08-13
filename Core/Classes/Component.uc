@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * This class is the base class for any kind of object that wants the following features:
  *  - be a subobject inside a class definition (called the owner class)

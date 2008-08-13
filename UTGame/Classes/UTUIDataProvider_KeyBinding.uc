@@ -1,7 +1,7 @@
 ﻿/**
  * Provides a possible key binding for the game.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_KeyBinding extends UTUIResourceDataProvider
 	native(UI)

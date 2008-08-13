@@ -1,7 +1,7 @@
 ﻿/**
  * Dataprovider that returns a row for each reward stat for a user.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_StatsRewards extends UTUIDataProvider_StatsGeneral
 	native(UI);

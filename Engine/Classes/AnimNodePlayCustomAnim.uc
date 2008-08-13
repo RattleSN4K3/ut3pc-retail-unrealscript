@@ -5,7 +5,7 @@
  * . Custom branch must be connected to an AnimNodeSequence.
  * This node can then take over the upper body to play a cutom animation given various parameters.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class AnimNodePlayCustomAnim extends AnimNodeBlend
 	DependsOn(AnimNodeSequence)

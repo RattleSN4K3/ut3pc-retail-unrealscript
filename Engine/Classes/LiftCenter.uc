@@ -3,7 +3,7 @@
 // Used to support AI navigation on lifts.
 // should be placed in the center of the navigable lift surface.
 // Used in conjunction with LiftExits
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class LiftCenter extends NavigationPoint
 	placeable

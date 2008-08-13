@@ -2,7 +2,7 @@
 // DynamicSMActor.
 // A non-static version of StaticMeshActor. This class is abstract, but used as a
 // base class for things like KActor and InterpActor.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 class DynamicSMActor extends Actor

@@ -2,7 +2,7 @@
  * when this node becomes relevant, it selects an animation from its list based on the rotation of 
  * the given bone relative to the rotation of the owning actor
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTAnimNodeSequenceByBoneRotation extends AnimNodeSequence;

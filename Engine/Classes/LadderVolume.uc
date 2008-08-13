@@ -1,7 +1,7 @@
 ﻿/*=============================================================================
 // LadderVolumes, when touched, cause ladder supporting actors to use Phys_Ladder.
 // note that underwater ladders won't be waterzones (no breathing problems)
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 ============================================================================= */
 
 class LadderVolume extends PhysicsVolume

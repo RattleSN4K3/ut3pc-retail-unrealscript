@@ -1,6 +1,6 @@
 ﻿/**
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTWalkerBody_Scavenger extends UTWalkerBody
@@ -124,7 +124,7 @@ simulated function RetractLegs()
 }
 
 simulated function ExtendLegs()
-{
+{											
 	//Transition from retracting legs to extending legs immediately
 	RetractionBlend.SetActiveChild(2, 0.0f);
 
@@ -165,6 +165,14 @@ simulated event OnLanded()
 simulated event Cloak(bool bIsEnabled)
 {
 	SetHidden(bIsEnabled);
+}
+
+/** 
+ * Called when the actor falls out of the world 'safely' (below KillZ and such) 
+ * Overridden here to bind the lifetime of the walker legs to the Scavenger vehicle itself
+ */
+simulated event FellOutOfWorld(class<DamageType> dmgType)
+{
 }
 
 defaultproperties

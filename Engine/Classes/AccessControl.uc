@@ -6,7 +6,7 @@
 // login in the PreLogin() function, and also controls whether or not a player
 // can enter as a spectator or a game administrator.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class AccessControl extends Info
 	config(Game);
@@ -130,7 +130,6 @@ function Controller GetControllerFromString(string Target)
 
 	return FinalC;
 }
-
 
 function Kick( string Target )
 {
@@ -440,7 +439,6 @@ function bool IsIDBanned(const out UniqueNetID NetID)
 			return true;
 		}
 	}
-
 	return false;
 }
 

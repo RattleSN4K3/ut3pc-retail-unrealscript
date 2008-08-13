@@ -1,4 +1,8 @@
-﻿class UTSeqAct_AttachTowCable extends SequenceAction;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTSeqAct_AttachTowCable extends SequenceAction;
 
 /** vehicle to attach to */
 var UTVehicle AttachTo;

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Character customization screen for UT3
  */
@@ -277,12 +277,12 @@ function FindPreviewActor()
 	ForEach PlayerOwner.GetCurrentWorldInfo().AllActors(class'UTCustomChar_Preview', PreviewActorIter)
 	{
 		// If this is a faction that we don't have a specific preview actor for, fall back to Ironguard one.
-		if(PreviewActorIter.UseForFaction == "Ironguard")
+		if(PreviewActorIter.UseForFaction ~= "Ironguard")
 		{
 			FallbackPreviewActor = PreviewActorIter;
 		}
 
-		if(PreviewActorIter.UseForFaction == Faction)
+		if(PreviewActorIter.UseForFaction ~= Faction)
 		{
 			PreviewActor=PreviewActorIter;
 			break;
@@ -328,7 +328,14 @@ function LoadCharacterData()
 			FindPreviewActor();
 
 			// Activate kismet for faction's scene
-			EventName = "CharacterCustomizationEnter_"$Faction;
+			if (PreviewActor != None)
+			{
+				EventName = "CharacterCustomizationEnter_"$PreviewActor.UseForFaction;
+			}
+			else
+			{
+				EventName = "CharacterCustomizationEnter_"$Faction;
+			}
 			ActivateLevelEvent( name(EventName) );
 
 			PreviewActor.Character.CharData = LoadedCharData;
@@ -352,7 +359,14 @@ function LoadCharacterData()
 		FindPreviewActor();
 
 		// Activate kismet for faction's scene
-		EventName = "CharacterCustomizationEnter_"$Faction;
+		if (PreviewActor != None)
+		{
+			EventName = "CharacterCustomizationEnter_"$PreviewActor.UseForFaction;
+		}
+		else
+		{
+			EventName = "CharacterCustomizationEnter_"$Faction;
+		}
 		ActivateLevelEvent( name(EventName) );
 
 		bHaveLoadedCharData = false;

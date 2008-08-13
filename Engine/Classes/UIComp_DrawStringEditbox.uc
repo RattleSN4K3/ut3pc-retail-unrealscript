@@ -5,7 +5,7 @@
  *	2. Ensuring that the text surrounding the caret is always visible
  *	3. Tracking the text that was typed by the user independently from the data source that the owning widget is bound to.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * @todo - register this component with the data store for the caret image node so that it receives the refreshdatastore callback
  */

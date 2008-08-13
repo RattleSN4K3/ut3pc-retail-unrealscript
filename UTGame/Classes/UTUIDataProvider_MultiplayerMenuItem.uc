@@ -1,7 +1,7 @@
 ﻿/**
  * Provides menu items for the multiplayer menu.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_MultiplayerMenuItem extends UTUIResourceDataProvider
 	native(UI)

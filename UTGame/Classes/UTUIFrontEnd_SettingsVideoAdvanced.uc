@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Advanced video settings for the PC.
  */
@@ -20,6 +20,7 @@ enum EPossibleVideoSettings
 	PVS_VSyncValue,
 	PVS_SmoothFramerate,
 	PVS_PlayerFOV,
+	PVS_EnableMotionBlur,
 };
 
 /** Array of setting types to widget names. */
@@ -251,4 +252,5 @@ DefaultProperties
 	SettingWidgetMapping(PVS_VSyncValue)="VSyncValue";
 	SettingWidgetMapping(PVS_SmoothFramerate)="SmoothFramerate";
 	SettingWidgetMapping(PVS_PlayerFOV)="PlayerFOV";
+	SettingWidgetMapping(PVS_EnableMotionBlur)="EnableMotionBlur";
 }

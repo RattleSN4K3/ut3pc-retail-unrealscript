@@ -6,7 +6,7 @@
 * to apply that to the gamepad. It does this by evaluating the function
 * defined in the waveform sample data.
 *
-* Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+* Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 */
 
 class ForceFeedbackManager extends Object within PlayerController

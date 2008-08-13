@@ -1,6 +1,6 @@
 ﻿//=============================================================================
 // Player: Corresponds to a real player (a local camera or remote net player).
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Player extends Object
 	native

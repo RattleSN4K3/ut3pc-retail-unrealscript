@@ -1,6 +1,6 @@
 ﻿/**
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 /** this is used to handle auto objective announcements (what the game thinks the player should do next) */
 class UTObjectiveAnnouncement extends UTObjectiveSpecificMessage

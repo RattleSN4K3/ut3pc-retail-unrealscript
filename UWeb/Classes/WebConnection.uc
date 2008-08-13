@@ -3,7 +3,7 @@
 	the web server and the client's browser.
 
 	*  Ported to UE3 by Josh Markiewicz
-	� 1997-2008 Epic Games, Inc. All Rights Reserved
+	© 1997-2008 Epic Games, Inc. All Rights Reserved
 =============================================================================*/
 
 class WebConnection extends TcpLink config(Web);
@@ -248,9 +248,9 @@ function CheckRawBytes()
 {
 	if(RawBytesExpecting <= 0)
 	{
-		if(!(Request.ContentType ~= "application/x-www-form-urlencoded"))
+		if(InStr(Locs(Request.ContentType), "application/x-www-form-urlencoded") != 0)
 		{
-			`Log("WebConnection: Unknown form data content-type: "$Request.ContentType);
+			`log("WebConnection: Unknown form data content-type: "$Request.ContentType);
 			Response.HTTPError(400); // Can't deal with this type of form data
 		}
 		else

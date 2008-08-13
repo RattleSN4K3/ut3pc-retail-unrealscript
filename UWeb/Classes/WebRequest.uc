@@ -1,7 +1,7 @@
 ﻿/*=============================================================================
 // WebRequest: Parent class for handling/decoding web server requests
 *  Ported to UE3 by Josh Markiewicz
-� 1997-2008 Epic Games, Inc. All Rights Reserved
+© 1997-2008 Epic Games, Inc. All Rights Reserved
 =============================================================================*/
 class WebRequest extends Object
 	native;
@@ -34,6 +34,7 @@ native final function AddVariable(string VariableName, coerce string Value);
 native final function string GetVariable(string VariableName, optional string DefaultValue);
 native final function int GetVariableCount(string VariableName);
 native final function string GetVariableNumber(string VariableName, int Number, optional string DefaultValue);
+native final function GetVariables(out array<string> varNames);
 
 native final function Dump(); // only works in dev mode
 

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTPawn extends GamePawn
 	config(Game)
@@ -1010,6 +1010,12 @@ simulated function NotifyTeamChanged()
 		}
 		else
 		{
+			// force proper LOD levels for default mesh (hack code fix)
+			for ( i=0; i<DefaultMesh.LODInfo.Length; i++ )
+			{
+				DefaultMesh.LODInfo[i].DisplayFactor = FMax(0.0, 0.6 - 0.2*i);
+			}
+
 			bMeshChanged = (DefaultMesh != Mesh.SkeletalMesh);
 			OldPhysAsset = Mesh.PhysicsAsset;
 
@@ -1571,6 +1577,7 @@ reliable server function ServerPlayAnim( name AnimName, bool bLooping )
 	AnimRepInfo.AnimName = AnimName;
 	AnimRepInfo.bLooping = bLooping;
 	AnimRepInfo.bNewData = !AnimRepInfo.bNewData;
+
 	DoPlayAnim( AnimRepInfo );
 }
 
@@ -1647,12 +1654,29 @@ event EncroachedBy(Actor Other)
 
 function gibbedBy(actor Other)
 {
+	local Pawn P;
+	local UTWeap_Translocator TL;
+
 	if ( Role < ROLE_Authority )
 		return;
-	if ( Pawn(Other) != None )
+
+	P = Pawn(Other);
+	if ( P != None )
+	{
+		TL = UTWeap_Translocator(P.Weapon);
+		if ( (TL != None) && TL.bTranslocationInProgress )
+		{
+			Died(Pawn(Other).Controller, class'UTDmgType_Telefrag', Location);
+		}
+		else
+		{
 		Died(Pawn(Other).Controller, class'UTDmgType_Encroached', Location);
+		}
+	}
 	else
+	{
 		Died(None, class'UTDmgType_Encroached', Location);
+}
 }
 
 //Base change - if new base is pawn or decoration, damage based on relative mass and old velocity
@@ -2799,7 +2823,7 @@ event PlayJumpingSound()
 /** @return whether or not we should gib due to damage from the passed in damagetype */
 simulated function bool ShouldGib(class<UTDamageType> UTDamageType)
 {
-	return ( !class'GameInfo'.static.UseLowGore(WorldInfo) && (Mesh != None) && (bTearOffGibs || UTDamageType.Static.ShouldGib(self)) );
+	return ( (Mesh != None) && (bTearOffGibs || UTDamageType.Static.ShouldGib(self)) );
 }
 
 /** spawn a special gib for this pawn's head and sets it as the ViewTarget for any players that were viewing this pawn */
@@ -3068,6 +3092,7 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 			bHideOnListenServer = true;
 
 			// check if should gib (for clients)
+			UTDamageType = class<UTDamageType>(DamageType);
 			if (UTDamageType != None && ShouldGib(UTDamageType))
 			{
 				bTearOffGibs = true;
@@ -3086,7 +3111,7 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 	}
 
 	UTDamageType = class<UTDamageType>(DamageType);
-	if (UTDamageType != None && ShouldGib(UTDamageType))
+	if (UTDamageType != None && !class'GameInfo'.static.UseLowGore(WorldInfo) && ShouldGib(UTDamageType))
 	{
 		SpawnGibs(UTDamageType, HitLoc);
 	}
@@ -4535,10 +4560,15 @@ simulated event SetHeadScale(float NewScale)
 	local SkelControlBase SkelControl;
 
 	HeadScale = NewScale;
+	if ( (class'GameInfo'.Static.UseLowGore(WorldInfo)) && (HeadScale < 0.1) )
+	{
+		return;
+	}
 	SkelControl = Mesh.FindSkelControl('HeadControl');
 	if (SkelControl != None)
 	{
 		SkelControl.BoneScale = NewScale;
+		SkelControl.IgnoreAtOrAboveLOD = 1000;
 	}
 
 	// we need to scale the neck bone also as otherwise the head piece leaves a point and doesn't show the neck cavity
@@ -4547,6 +4577,7 @@ simulated event SetHeadScale(float NewScale)
 	{
 		// NeckScale should only ever between 0 or 1
 		SkelControl.BoneScale = FClamp( NewScale, 0.f, 1.0f );
+		SkelControl.IgnoreAtOrAboveLOD = 1000;
 	}
 }
 
@@ -5413,6 +5444,8 @@ state FeigningDeath
 		local UTPlayerController PC;
 		local UTWeapon UTWeap;
 
+		PC = UTPlayerController(Controller);
+
 		bCanPickupInventory = false;
 		StopFiring();
 		bNoWeaponFiring = true;
@@ -5424,10 +5457,9 @@ state FeigningDeath
 		}
 		if(UTWeap != none && PC != none)
 		{
-			UTPlayerController(Controller).EndZoom();
+			PC.EndZoom();
 		}
 
-		PC = UTPlayerController(Controller);
 		if (PC != None)
 		{
 			PC.SetBehindView(true);
@@ -5601,6 +5633,15 @@ ignores OnAnimEnd, Bump, HitWall, HeadVolumeChange, PhysicsVolumeChange, Falling
 
 		if ( class'GameInfo'.Static.UseLowGore(WorldInfo) )
 		{
+			if ( !bGibbed )
+			{
+				UTDamage = class<UTDamageType>(DamageType);
+				if (UTDamage != None && ShouldGib(UTDamage))
+				{
+					bTearOffGibs = true;
+					bGibbed = true;
+				}
+			}
 			return;
 		}
 

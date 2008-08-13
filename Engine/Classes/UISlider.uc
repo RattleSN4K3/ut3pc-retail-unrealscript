@@ -1,7 +1,7 @@
 ﻿/**
  * This widget presents the user with an interface for choosing a value within a certain range.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * @todo - make rendering the caption optional
  * @todo - hook up data store resolution

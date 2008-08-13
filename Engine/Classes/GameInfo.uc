@@ -14,7 +14,7 @@
 // The GameType used can be overridden in the GameInfo script event SetGameType(), called
 // on the game class picked by the above process.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class GameInfo extends Info
 	config(Game)
@@ -208,6 +208,21 @@ var const class<OnlineGameSettings> OnlineGameSettingsClass;
 /** The options to apply for dedicated server when it starts to register */
 var string ServerOptions;
 
+/** Current adjusted net speed - Used for dynamically managing netspeed for listen servers*/
+var int AdjustedNetSpeed;	
+
+/**  Last time netspeed was updated for server (by client entering or leaving) */
+var float LastNetSpeedUpdateTime;
+
+/** Total available bandwidth for listen server, split dynamically across net connections */
+var globalconfig int TotalNetBandwidth;
+
+/** Minimum bandwidth dynamically set per connection */
+var globalconfig int MinDynamicBandwidth;
+
+/** Maximum bandwidth dynamically set per connection */
+var globalconfig int MaxDynamicBandwidth;
+
 
 
 //------------------------------------------------------------------------------
@@ -226,6 +241,7 @@ event PreBeginPlay()
 		}
 	}
 
+	AdjustedNetSpeed = MaxDynamicBandwidth;
 	SetGameSpeed(GameSpeed);
 	GameReplicationInfo = Spawn(GameReplicationInfoClass);
 	WorldInfo.GRI = GameReplicationInfo;
@@ -974,6 +990,8 @@ function bool AtCapacity(bool bSpectator)
 		return ( (MaxPlayers>0) && (GetNumPlayers() >= MaxPlayers) );
 }
 
+native final function int GetNextPlayerID();
+
 //
 // Log a player in.
 // Fails login if you set the Error string.
@@ -1060,7 +1078,7 @@ event PlayerController Login
 	NewPlayer.StartSpot = StartSpot;
 
 	// Set the player's ID.
-	NewPlayer.PlayerReplicationInfo.PlayerID = CurrentID++;
+	NewPlayer.PlayerReplicationInfo.PlayerID = GetNextPlayerID();
 
 	// Init player's name
 	if( InName=="" )
@@ -1457,6 +1475,8 @@ event PostLogin( PlayerController NewPlayer )
 		NewPlayer.Pawn.ClientSetRotation(NewPlayer.Pawn.Rotation);
 
 	NewPlayer.ClientCapBandwidth(NewPlayer.Player.CurrentNetSpeed);
+	UpdateNetSpeeds();
+
 	if ( BaseMutator != None )
 		BaseMutator.NotifyLogin(NewPlayer);
 
@@ -1499,6 +1519,43 @@ event PostLogin( PlayerController NewPlayer )
 	{
 		NewPlayer.ClientGotoState('Spectating');
 	}
+}
+
+function UpdateNetSpeeds()
+{
+	local int NewNetSpeed;
+	local PlayerController PC;
+
+	if ( (WorldInfo.NetMode == NM_DedicatedServer) || (WorldInfo.NetMode == NM_Standalone) 
+		|| ((OnlineSub != None) && (OnlineSub.GameInterface != None) && (OnlineSub.GameInterface.GetGameSettings() != None)&& OnlineSub.GameInterface.GetGameSettings().bIsLanMatch) )
+	{
+		return;
+	}
+
+	if ( WorldInfo.TimeSeconds - LastNetSpeedUpdateTime < 1.0 )
+	{
+		SetTimer(1.0, false, 'UpdateNetSpeeds');
+		return;
+	}
+
+	LastNetSpeedUpdateTime = WorldInfo.TimeSeconds;
+
+	NewNetSpeed = CalculatedNetSpeed();
+	`log("New Dynamic NetSpeed "$NewNetSpeed$" vs old "$AdjustedNetSpeed);
+
+	if ( AdjustedNetSpeed != NewNetSpeed )
+	{
+		AdjustedNetSpeed = NewNetSpeed;
+		ForEach WorldInfo.AllControllers(class'PlayerController', PC)
+		{
+			PC.SetNetSpeed(AdjustedNetSpeed);
+		}
+	}
+}
+
+function int CalculatedNetSpeed()
+{
+	return Clamp(TotalNetBandwidth/Max(NumPlayers,1), MinDynamicBandwidth, MaxDynamicBandwidth);
 }
 
 /**
@@ -1566,6 +1623,7 @@ function Logout( Controller Exiting )
 	{
 		BaseMutator.NotifyLogout(Exiting);
 	}
+	UpdateNetSpeeds();
 }
 
 //
@@ -3089,8 +3147,27 @@ function OnConnectionStatusChange(EOnlineServerConnectionStatus ConnectionStatus
 	// Any error other than we are connected means destroy the game
 	if (ConnectionStatus != OSCS_Connected)
 	{
-		OnlineSub.GameInterface.DestroyOnlineGame();
+		// Set the destroy delegate so we can know when that is complete
+		OnlineSub.GameInterface.AddDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+		// Now we can destroy the game
+		`Log("GameInfo::OnConnectionStatusChange() - Destroying Online Game");
+		if ( !OnlineSub.GameInterface.DestroyOnlineGame() )
+		{
+			OnDestroyOnlineGameComplete(true);
+		}
 	}
+}
+
+function OnDestroyOnlineGameComplete(bool bWasSuccessful)
+{
+	`Log("GameInfo::OnDestroyOnlineGameComplete() bWasSuccesful:"@bWasSuccessful);
+	if (OnlineSub != None && OnlineSub.GameInterface != None)
+	{
+		OnlineSub.GameInterface.ClearDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+	}
+
+	//Clear the cache
+	GameSettings = None;
 }
 
 defaultproperties

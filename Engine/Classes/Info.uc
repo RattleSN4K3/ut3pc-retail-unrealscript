@@ -2,7 +2,7 @@
  * Info, the root of all information holding klasses.
  * Doesn't have any movement / collision related code.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class Info extends Actor

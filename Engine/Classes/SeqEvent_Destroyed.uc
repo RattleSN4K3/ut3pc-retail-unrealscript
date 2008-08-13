@@ -2,7 +2,7 @@
  * Event which is activated when an actor is destroyed.
  * Originator: the Actor that was destroyed.
  * Instigator: the Actor that was destroyed
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_Destroyed extends SequenceEvent
 	native(Sequence);

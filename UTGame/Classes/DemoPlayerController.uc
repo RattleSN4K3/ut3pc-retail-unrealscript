@@ -3,7 +3,7 @@
  * Demo specific playercontroller
  * implements physics spectating state for demoing purpose
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class DemoPlayerController extends GamePlayerController

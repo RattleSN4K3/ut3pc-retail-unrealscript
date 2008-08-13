@@ -2,7 +2,7 @@
 	native(Interpolation);
 
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * A track type used for binding the view of a Player (attached to this tracks group) to the actor of a different group.
  *

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTWeap_ImpactHammer extends UTWeapon
 	HideDropDown
@@ -159,6 +159,19 @@ function byte BestMode()
 		P = UTPawn(B.Enemy);
 		return (P != None && (P.bIsInvulnerable || P.ShieldBeltArmor > 0)) ? 1 : 0;
 	}
+}
+
+/**
+  * Always keep charging impact hammer
+  */
+function bool CanAttack(Actor Other)
+{
+	return true;
+}
+
+function float SuggestAttackStyle()
+{
+	return 1.0;
 }
 
 reliable client function ClientAutoFire()
@@ -325,15 +338,18 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact )
 					P.TakeDamage(Damage, Instigator.Controller, Impact.HitLocation, Force * Impact.RayDir, InstantHitDamageTypes[0], Impact.HitInfo, self);
 
 					PC = UTPlayerController(Instigator.Controller);
-					if (P.Health <= 0 && PC != None && !class'GameInfo'.static.UseLowGore(WorldInfo) )
+					if (P.Health <= 0 && PC != None )
 					{
-						UTDT = class<UTDamageType>(InstantHitDamageTypes[0]);
-						if (UTDT != None)
+						if ( !class'GameInfo'.static.UseLowGore(WorldInfo) )
 						{
-							CameraEffect = UTDT.static.GetDeathCameraEffectInstigator(P);
-							if (CameraEffect != None)
+							UTDT = class<UTDamageType>(InstantHitDamageTypes[0]);
+							if (UTDT != None)
 							{
-								UTPlayerController(Instigator.Controller).ClientSpawnCameraEffect(CameraEffect);
+								CameraEffect = UTDT.static.GetDeathCameraEffectInstigator(P);
+								if (CameraEffect != None)
+								{
+									UTPlayerController(Instigator.Controller).ClientSpawnCameraEffect(CameraEffect);
+								}
 							}
 						}
 						PC.ClientPlayCameraAnim(ImpactKillCameraAnim);

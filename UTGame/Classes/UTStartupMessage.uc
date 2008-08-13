@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTStartupMessage extends UTLocalMessage;
 
@@ -68,7 +68,7 @@ static function string GetString(
 		for (i = 0; i < GRI.PRIArray.Length; i++)
 		{
 			if ( GRI.PRIArray[i] != None && !GRI.PRIArray[i].bOnlySpectator
-			     && (!GRI.PRIArray[i].bIsSpectator || GRI.PRIArray[i].bWaitingPlayer) )
+			     && !GRI.PRIArray[i].bBot && (!GRI.PRIArray[i].bIsSpectator || GRI.PRIArray[i].bWaitingPlayer) )
 				PlayerCount++;
 		}
 		if (UTGameReplicationInfo(GRI).MinNetPlayers - PlayerCount > 0)

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Scene to let user's select which mutators to use.
  */
@@ -184,7 +184,7 @@ function AddMutatorAndFilterList(int NewMutator)
 	OnMutatorListChanged();
 }
 
-function name GetClassNameFromIndex(int MutatorIndex)
+static function name GetClassNameFromIndex(int MutatorIndex)
 {
 	local name Result;
 	local string DataStoreMarkup;

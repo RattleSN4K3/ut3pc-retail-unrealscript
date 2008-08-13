@@ -7,7 +7,7 @@
 // or replace all other actors when they are spawned with CheckRelevance(), which
 // is called from the PreBeginPlay() function of all actors except those (Decals,
 // Effects and Projectiles for performance reasons) which have bGameRelevant==true.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Mutator extends Info
 	native

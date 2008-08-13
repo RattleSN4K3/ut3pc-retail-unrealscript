@@ -1,6 +1,6 @@
 ﻿//=============================================================================
 // Canvas: A drawing canvas.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Canvas extends Object
 	native
@@ -97,6 +97,7 @@ native(468) final function DrawTileClipped( Texture2D Tex, float XL, float YL, f
 
 
 native final function vector Project(vector location);			// Convert a 3D vector to a 2D screen coords.
+native final function vector DeProject(vector location);		// Convert a 2D screen position to a 3D vector.
 
 /**
  * Pushes a translation matrix onto the canvas.

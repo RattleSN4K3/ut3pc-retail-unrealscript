@@ -1,7 +1,7 @@
 ﻿/**
  * base class for gibs
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTGib extends Actor
 	config(Game)

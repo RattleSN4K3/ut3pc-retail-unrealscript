@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 /** defines a place bots should defend. Bots automatically determine reasonable defending positions in sight of their
  * objective (e.g. flag room), so these should only be used for hard to reach camping spots or choke points far from the objective area

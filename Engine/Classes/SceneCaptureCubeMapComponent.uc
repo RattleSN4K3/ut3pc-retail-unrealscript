@@ -3,7 +3,7 @@
  *
  * Allows a scene capture to up to 6 2D texture render targets
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SceneCaptureCubeMapComponent extends SceneCaptureComponent
 	native;

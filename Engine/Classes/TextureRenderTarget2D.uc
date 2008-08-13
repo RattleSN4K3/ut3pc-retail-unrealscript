@@ -4,7 +4,7 @@
  * 2D render target texture resource. This can be used as a target
  * for rendering as well as rendered as a regular 2D texture resource.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class TextureRenderTarget2D extends TextureRenderTarget
 	native

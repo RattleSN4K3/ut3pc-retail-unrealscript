@@ -2,7 +2,7 @@
 // Ladders are associated with the LadderVolume that encompasses them, and provide AI navigation
 // support for ladder volumes.  Direction should be the direction that climbing pawns
 // should face
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 ============================================================================= */
 
 class Ladder extends NavigationPoint

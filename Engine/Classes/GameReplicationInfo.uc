@@ -1,6 +1,9 @@
 ﻿//=============================================================================
 // GameReplicationInfo.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+//
+// Every GameInfo creates a GameReplicationInfo, which is always relevant, to replicate
+// important game data to clients (as the GameInfo is not replicated).
 //=============================================================================
 class GameReplicationInfo extends ReplicationInfo
 	config(Game)
@@ -8,22 +11,23 @@ class GameReplicationInfo extends ReplicationInfo
 
 `include(Core/Globals.uci)
 
-var class<GameInfo> GameClass;				// Class of the server's gameinfo, assigned by GameInfo.
+/** Class of the server's gameinfo, assigned by GameInfo. */
+var class<GameInfo> GameClass;
 
-/**
- * The data store instance responsible for presenting state data for the current game session.
- */
+/** The data store instance responsible for presenting state data for the current game session. */
 var	private		CurrentGameDataStore		CurrentGameData;
 
 var bool bStopCountDown;
 var repnotify bool bMatchHasBegun;
 var repnotify bool bMatchIsOver;
+
 /**
  * Used to determine if the end of match/session clean up is needed. Game invites
  * might have already cleaned up the match/session so doing so again would break
  * the traveling to the invited game
  */
 var bool bNeedsOnlineCleanup;
+
 /** Used to determine who handles session ending */
 var bool bIsArbitrated;
 
@@ -45,9 +49,10 @@ var() databinding globalconfig string MessageOfTheDay;
 
 var databinding Actor Winner;			// set by gameinfo when game ends
 
+/** Array of all PlayerReplicationInfos, maintained on both server and clients (PRIs are always relevant) */
 var		array<PlayerReplicationInfo> PRIArray;
 
-/** This list mirror's the GameInfo's list of inactive PRI objects */
+/** This list mirrors the GameInfo's list of inactive PRI objects */
 var		array<PlayerReplicationInfo> InactivePRIArray;
 
 // stats
@@ -254,6 +259,7 @@ simulated function SetTeam( int Index, TeamInfo TI )
 		{
 			if ( Index < Teams.Length && Teams[Index] != None )
 			{
+				// team is being replaced with another instance - see HandleSeamlessTravelPlayer
 				CurrentGameData.RemoveTeamDataProvider( Teams[Index] );
 			}
 
@@ -505,14 +511,42 @@ simulated event OnlineSession_EndMatch()
 simulated event OnlineSession_EndSession(bool bForced)
 {
 	local OnlineGameInterface GI;
-	GI = GetOnlineGameInterface();
+	
 	if ( bForced || WorldInfo.NetMode != NM_StandAlone )
 	{
 		// Only clean up if required
 		if (bNeedsOnlineCleanup)
 		{
-			GI.DestroyOnlineGame();
+			GI = GetOnlineGameInterface();
+			if (GI != None && GI.GetOnlineGameState() != OGS_NoSession)
+			{
+				// Set the destroy delegate so we can know when that is complete
+				GI.AddDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+				// Now we can destroy the game
+				`Log("GameReplicationInfo::OnlineSession_EndSession() - Destroying Online Game");
+				if ( !GI.DestroyOnlineGame() )
+				{
+					OnDestroyOnlineGameComplete(true);
+				}
+			}
 		}
+	}
+}
+
+function OnDestroyOnlineGameComplete(bool bWasSuccessful)
+{
+	local OnlineGameInterface GI;
+
+	`Log("GameReplicationInfo::OnDestroyOnlineGameComplete() bWasSuccesful:"@bWasSuccessful);
+	GI = GetOnlineGameInterface();
+	if (GI != None)
+	{
+		GI.ClearDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+	}
+
+	if (WorldInfo.Game != None)
+	{
+		WorldInfo.Game.GameSettings = None;
 	}
 }
 

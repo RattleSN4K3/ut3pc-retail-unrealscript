@@ -2,7 +2,7 @@
  * Simple action that records the amount of time elapsed
  * between activating the first link "Start" and the second
  * link "Stop".
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqAct_Timer extends SequenceAction
 	native(Sequence);

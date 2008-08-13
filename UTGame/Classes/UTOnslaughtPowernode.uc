@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTOnslaughtPowernode extends UTOnslaughtPanelNode
 	native(Onslaught)
@@ -567,6 +567,7 @@ function bool CheckFlag(Pawn P)
 	if (bIsActive)
 	{
 		GotoState('NeutralNode');
+		SendChangedEvent(P.Controller);
 	}
 
 	FindNewHomeForFlag(); // NOT UpdateCloseActors(), because we want vehicles to simply swap teams instead of being destroyed and respawned

@@ -1,7 +1,7 @@
 ﻿/**
  * This class is used for defining the list of packages which are considered "official packages".
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTOfficialContent extends Object
 	native(UI)

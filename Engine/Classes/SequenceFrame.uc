@@ -2,7 +2,7 @@
  * This class is used for rendering a box around a group of kismet objects in the kismet editor, for organization
  * and clarity.  Corresponds to a "comment box" in the kismet editor.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SequenceFrame extends SequenceObject
 	native(Sequence);

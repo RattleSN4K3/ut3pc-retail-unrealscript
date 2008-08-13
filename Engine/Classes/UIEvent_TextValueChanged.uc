@@ -1,7 +1,7 @@
 ﻿/**
  * This event is activated when the value of a UIEditbox changes.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * @note: native because C++ code activates this event
  */

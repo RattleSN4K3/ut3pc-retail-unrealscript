@@ -1,4 +1,8 @@
-﻿/** version of Teleporter that has a custom mesh/material */
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+/** version of Teleporter that has a custom mesh/material */
 class UTTeleporterCustomMesh extends Teleporter;
 
 var() StaticMeshComponent Mesh;

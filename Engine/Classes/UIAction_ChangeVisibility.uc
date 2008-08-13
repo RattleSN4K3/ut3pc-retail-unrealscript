@@ -1,7 +1,7 @@
 ﻿/**
  * This action changes the visibility of a widget
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_ChangeVisibility extends UIAction;
 

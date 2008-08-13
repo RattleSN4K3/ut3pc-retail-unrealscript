@@ -1,7 +1,7 @@
 ﻿/**
  * This class stores options global to the entire editor.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UnrealEdOptions extends Object
 	Config(Editor)

@@ -1,6 +1,6 @@
 ﻿/**
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTGame extends GameInfo
@@ -18,7 +18,9 @@ var bool				bTeamScoreRounds;
 var bool				bSoaking;
 var bool				bPlayersVsBots;
 var bool				bCustomBots;
-var bool				bNoCustomCharacters;
+
+/** If true, no custom characters will be allowed, all players will be default */
+var globalconfig	bool	bNoCustomCharacters;
 
 var string Acronym;
 var localized string Description;
@@ -162,13 +164,29 @@ var NavigationPoint ScriptedStartSpot;
 
 /**** Map Voting ************/
 
-/** If true, users will be presented with a map list to move on at the end of the round */
-var config bool bAllowMapVoting;
+/** If true, users can vote in order to pick the next map */
+var globalconfig bool bAllowMapVoting;
 
-/** How long the voting will take MAX. */
-var config int VoteDuration;
+/** If false, users will only be presented with a map list at the end of the round */
+var globalconfig bool bMidGameMapVoting;
 
-/** The object that manages voting */
+/** How long the voting will take MAX (applies only to endgame voting) */
+var globalconfig int VoteDuration;
+
+/** The percentage of votes needed to secure an immediate map switch */
+var globalconfig int MapVotePercentage;
+
+/** The minimum number of votes required to initiate a map switch midgame */
+var globalconfig int MinMapVotes;
+
+/** The amount of time that must pass before voting is initialized (only applies to midgame voting)*/
+var globalconfig int InitialVoteDelay;
+
+
+/** Name of the object that manages voting */
+Var globalconfig string VoteCollectorClassName;
+
+/** The actual object that manages voting */
 var UTVoteCollector VoteCollector;
 
 var UTUIScene MidGameMenuTemplate;
@@ -696,14 +714,13 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 		else
 		{
 			// assume it's some kind of environmental damage
-			if ( KillerPRI == KilledPRI )
+			if ( (KillerPRI == KilledPRI) || (KillerPRI == None) )
 			{
 				KilledPRI.IncrementSuicideStat('SUICIDES_ENVIRONMENT');
 			}
 			else
 			{
-				if ( KillerPRI != None )
-					KillerPRI.IncrementKillStat('KILLS_ENVIRONMENT');
+				KillerPRI.IncrementKillStat('KILLS_ENVIRONMENT');
 				KilledPRI.IncrementDeathStat('DEATHS_ENVIRONMENT');
 			}
 		}
@@ -975,13 +992,20 @@ event InitGame( string Options, out string ErrorMessage )
 
 		if (bVoteOverride)
 		{
-			`log("-- MAPVOTE has been disabled due to lack of maps!");
+			`log("-- MAPVOTE has been disabled due to lack of maps!",, 'UTVoting');
 			bAllowMapVoting = false;
 		}
-
 		else
 		{
-			`log("-- MAPVOTE is ENABLED!!!!!");
+			`log("-- MAPVOTE is ENABLED!!!!!",, 'UTVoting');
+
+			if (bMidGameMapVoting)
+			{
+				if (InitialVoteDelay <= 0)
+					InitializeVoteCollector();
+				else
+					SetTimer(InitialVoteDelay * WorldInfo.TimeDilation, false, 'InitializeVoteCollector');
+			}
 		}
 	}
 
@@ -1028,12 +1052,7 @@ function int LevelRecommendedPlayers()
 	return (MapInfo != None) ? Min(12, (MapInfo.RecommendedPlayersMax + MapInfo.RecommendedPlayersMin) / 2) : 1;
 }
 
-event PlayerController Login
-(
-    string Portal,
-    string Options,
-    out string ErrorMessage
-)
+event PlayerController Login(string Portal, string Options, out string ErrorMessage)
 {
 	local PlayerController NewPlayer;
 	local Controller C;
@@ -1081,7 +1100,7 @@ function float SpawnWait(AIController B)
 		if ( WantFastSpawnFor(B) )
 			return 0;
 
-		return (FMax(2,NumBots-4) * FRand());
+		return (FMax(2,NumBots-4) * (0.25 + 0.5*FRand()));
 	}
 	return bPlayersVsBots ? 0.5 : FRand();
 }
@@ -1112,7 +1131,6 @@ function bool TooManyBots(Controller botToRemove)
 
 function RestartGame()
 {
-
 	if (bAllowMapVoting && VoteCollector != none && !VoteCollector.bVoteDecided)
 	{
 		VoteCollector.TimesUp();
@@ -1121,10 +1139,8 @@ function RestartGame()
 	if ( bGameRestarted )
 		return;
 
-	if ( EndTime > WorldInfo.TimeSeconds ) // still showing end screen
+	if ( EndTime > WorldInfo.RealTimeSeconds ) // still showing end screen
 		return;
-
-
 
 	Super.RestartGame();
 }
@@ -1193,7 +1209,7 @@ function bool CheckEndGame(PlayerReplicationInfo Winner, string Reason)
 		}
 	}
 
-	EndTime = WorldInfo.TimeSeconds + EndTimeDelay;
+	EndTime = WorldInfo.RealTimeSeconds + EndTimeDelay;
 	GameReplicationInfo.Winner = Winner;
 
 	SetEndGameFocus(Winner);
@@ -1280,6 +1296,9 @@ event PostLogin( playercontroller NewPlayer )
 		{
 			SkipCinematics(PC);
 		}
+
+		if (VoteCollector != none)
+			VoteCollector.NotifyPlayerJoined(PC);
 	}
 
 	//@hack: unfortunately the character construction process requires game tick so we can't be paused while
@@ -1379,6 +1398,10 @@ function RestartPlayer(Controller aPlayer)
 	if ( aPlayer.Pawn == None )
 	{
 		// pawn spawn failed
+		if ( (UTBot(aPlayer) != None) && !aPlayer.IsInState('Dead') )
+		{
+			aPlayer.GotoState('Dead');
+		}
 		return;
 	}
 	if ( bExtraHealth
@@ -1589,7 +1612,10 @@ function Logout(controller Exiting)
 		CheckMaxLives(None);
 	}
 
-	//VotingHandler.PlayerExit(Exiting);
+
+	// Added for midgame voting (must be positioned after 'Super.Logout')
+	if (ExitingPC != none && VoteCollector != none)
+		VoteCollector.NotifyPlayerExiting(ExitingPC);
 }
 
 exec function KillBots()
@@ -1728,7 +1754,7 @@ function UTBot AddBot(optional string BotName, optional bool bUseTeamIndex, opti
 		`warn("Failed to spawn bot.");
 		return none;
 	}
-	NewBot.PlayerReplicationInfo.PlayerID = CurrentID++;
+	NewBot.PlayerReplicationInfo.PlayerID = GetNextPlayerID();
 	NumBots++;
 	if ( WorldInfo.NetMode == NM_Standalone )
 	{
@@ -2621,33 +2647,72 @@ function bool InitialProcessingIsComplete()
 	return true;
 }
 
-function DoMapVote()
-{
-	local int i;
-	local name GameClassName;
+function DoMapVote();
 
-	VoteCollector = Spawn(class'UTVoteCollector',none);
-	if ( VoteCollector != none )
+function InitializeVoteCollector()
+{
+	local class<UTVoteCollector> VCClass;
+	local name GameClassName;
+	local int i;
+	local PlayerController PC;
+
+	if (VoteCollector != none)
+		return;
+
+
+	if (VoteCollectorClassName != "")
+		VCClass = Class<UTVoteCollector>(DynamicLoadObject(VoteCollectorClassName, Class'Class'));
+
+	if (VCClass == none)
+		VCClass = Class'UTVoteCollector';
+
+
+	VoteCollector = Spawn(VCClass);
+	VoteCollector.GameInfoRef = Self;
+
+	if (VoteCollector != none)
 	{
-		GameClassName = class.name;
-		for (i=0; i<default.GameSpecificMapCycles.Length; i++)
+		GameClassName = Class.Name;
+
+		// TODO: Implement gametype voting, and move maplist input to a different UTVoteCollector function
+		for (i=0; i<default.GameSpecificMapCycles.Length; ++i)
 		{
 			if (default.GameSpecificMapCycles[i].GameClassName == GameClassName)
 			{
 				VoteCollector.Initialize(default.GameSpecificMapCycles[i].Maps);
+				break;
+			}
+		}
+
+		// Message all clients that voting has been enabled
+		if (InitialVoteDelay > 0 || !bMidGameMapVoting)
+		{
+			foreach WorldInfo.AllControllers(Class'PlayerController', PC)
+			{
+				PC.ReceiveLocalizedMessage(GameMessageClass, 17);
 			}
 		}
 	}
 	else
 	{
-		`log("Could not create the voting collector.");
+		`log("Could not create the vote collector",, 'UTVoting');
 	}
+}
+
+function DoEndGameMapVote()
+{
+	if (VoteCollector == none)
+		InitializeVoteCollector();
+
+	VoteCollector.NotifyEndGameVote();
 
 	if (RestartWait < VoteDuration)
-	{
 		RestartWait = VoteDuration;
-	}
-	UTGameReplicationInfo(GameReplicationInfo).MapVoteTimeRemaining = RestartWait;
+
+
+	// If 'MapVoteTimeRemaining' is not -1, there is already a countdown in progress
+	if (UTGameReplicationInfo(GameReplicationInfo).MapVoteTimeRemaining == -1)
+		UTGameReplicationInfo(GameReplicationInfo).MapVoteTimeRemaining = RestartWait;
 }
 
 state MatchInProgress
@@ -2775,7 +2840,7 @@ State MatchOver
 
 		Global.Timer();
 
-		if ( !bGameRestarted && (WorldInfo.TimeSeconds > EndTime + RestartWait) )
+		if ( !bGameRestarted && (WorldInfo.RealTimeSeconds > EndTime + RestartWait) )
 		{
 			RestartGame();
 		}
@@ -2843,7 +2908,7 @@ State MatchOver
 
 		if ( SinglePlayerMissionID == INDEX_NONE && bAllowMapVoting )
 		{
-			DoMapVote();
+			DoEndGameMapVote();
 		}
 	}
 
@@ -2855,7 +2920,7 @@ State MatchOver
 
 state RoundOver extends MatchOver
 {
-	ignores DoMapVote;
+	ignores DoMapVote, DoEndGameMapVote;
 
 	event BeginState(name PreviousStateName)
 	{

@@ -3,7 +3,7 @@
 // touch() and untouch() notifications to the volume as actors enter or leave it
 // enteredvolume() and leftvolume() notifications when center of actor enters the volume
 // pawns with bIsPlayer==true  cause playerenteredvolume notifications instead of actorenteredvolume()
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Volume extends Brush
 	native

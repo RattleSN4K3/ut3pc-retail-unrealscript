@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 /** spawns a projectile at a certain location that moves toward the given location with the given Instigator */
 class UTSeqAct_SpawnProjectile extends SequenceAction;

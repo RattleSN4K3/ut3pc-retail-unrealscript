@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class Interaction extends UIRoot
 	native(UserInterface)
@@ -57,6 +57,12 @@ delegate bool OnReceivedNativeInputChar( int ControllerId, string Unicode );
  * @param	DeltaTime - The time since the last frame.
  */
 event Tick(float DeltaTime);
+
+/**
+ * Called once a frame to allow the interaction to draw to the canvas
+ * @param Canvas Canvas object to draw to
+ */
+event PostRender(Canvas Canvas);
 
 /**
  * Called when the interaction is added to the GlobalInteractions array.

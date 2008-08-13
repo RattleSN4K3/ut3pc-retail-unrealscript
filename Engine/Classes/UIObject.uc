@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for all UI widgets.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIObject extends UIScreenObject
 	native(UIPrivate)

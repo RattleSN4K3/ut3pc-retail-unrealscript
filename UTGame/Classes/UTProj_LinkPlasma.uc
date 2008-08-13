@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTProj_LinkPlasma extends UTProjectile;
 
@@ -55,7 +55,7 @@ defaultproperties
 	Damage=26
 	DamageRadius=0
 	MomentumTransfer=0
-	CheckRadius=28.0
+	CheckRadius=26.0
 
 	MyDamageType=class'UTDmgType_LinkPlasma'
 	LifeSpan=3.0

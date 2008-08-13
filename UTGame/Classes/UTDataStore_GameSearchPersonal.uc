@@ -3,7 +3,7 @@
  * servers that the player wishes to query.  It is aware of the main game search data store, and ensures that the main
  * search data store is not busy before allowing any action to take place.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTDataStore_GameSearchPersonal extends UTDataStore_GameSearchBase
 	config(Game)
@@ -44,12 +44,12 @@ function bool HasOutstandingQueries( optional bool bRestrictCheckToSelf )
 	return bResult;
 }
 
-/** 
- *  Tells this provider to rebuild it's array data 
- *  In this overloaded case, we check the personal servers list against the returned
- *  array from the master server.  Any missing servers are added as placeholder. 
- */
-function BuildSearchResults()
+/**
+* Called by the online subsystem when the game search has completed
+*
+* @param bWasSuccessful true if the async action completed without error, false if there was an error
+*/
+function OnSearchComplete(bool bWasSuccessful)
 {
 	local GameSearchCfg Cfg;
 	local OnlineGameSearchResult Result;
@@ -59,6 +59,10 @@ function BuildSearchResults()
 	local ServerEntry AServer;
 	local array<ServerEntry> OfflineServers;
 
+	/*  
+	 * We check the personal servers list against the returned
+	 * array from the master server.  Any missing servers are added as placeholder. 
+	 */
 	if((ActiveSearchIndex != INDEX_NONE) && (HasOutstandingQueries()==false))
 	{
 		//Copy the list so we can work on it
@@ -105,7 +109,7 @@ function BuildSearchResults()
 		}
 	}
 
-	Super.BuildSearchResults();
+	Super.OnSearchComplete(bWasSuccessful);
 }
 
 /**

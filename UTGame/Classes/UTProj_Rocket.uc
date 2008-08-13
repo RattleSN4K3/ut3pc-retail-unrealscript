@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTProj_Rocket extends UTProjectile
 	native;
@@ -30,7 +30,7 @@ defaultproperties
 	RotationRate=(Roll=50000)
 	DesiredRotation=(Roll=30000)
 	bCollideWorld=true
-	CheckRadius=40.0
+	CheckRadius=44.0
 	bCheckProjectileLight=true
 	ProjectileLightClass=class'UTGame.UTRocketLight'
 	ExplosionLightClass=class'UTGame.UTRocketExplosionLight'

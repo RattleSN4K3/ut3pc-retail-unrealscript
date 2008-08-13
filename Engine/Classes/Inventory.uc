@@ -7,7 +7,7 @@
 // PickupClass).  When tossed out (using the DropFrom() function), inventory items
 // spawn a DroppedPickup actor to hold them.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 class Inventory extends Actor

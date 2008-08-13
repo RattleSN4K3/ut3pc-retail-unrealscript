@@ -1,7 +1,7 @@
 ﻿/**
  * Represents the "disabled" widget state.  Disabled widgets cannot respond to input or recieve focus.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIState_Disabled extends UIState
 	native(inherit);

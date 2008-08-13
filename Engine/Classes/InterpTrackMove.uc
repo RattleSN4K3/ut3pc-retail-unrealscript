@@ -2,7 +2,7 @@
 	native(Interpolation);
 
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Track containing data for moving an actor around over time.
  * There is no UpdateTrack function. In the game, its the PHYS_Interpolating physics mode which 

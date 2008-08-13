@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTDeployedActor extends Actor
 	abstract
@@ -115,12 +115,6 @@ function Reset()
 
 simulated event Attach(Actor Other)
 {
-	if ( Other.IsA('UTPawn') || Other.IsA('UTVehicle_Hoverboard') )
-	{
-		Velocity += 100 * VRand();
-		Velocity.Z = 200;
-		SetPhysics(PHYS_Falling);
-	}
 }
 
 defaultproperties

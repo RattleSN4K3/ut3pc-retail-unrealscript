@@ -11,7 +11,7 @@
 *
 * Also, SeqVar_ObjectList objects are not persistent.  ObjectLists (for now) are
 * meant to be runtime list storage.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class SeqVar_ObjectList extends SeqVar_Object

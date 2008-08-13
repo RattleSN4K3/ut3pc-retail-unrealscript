@@ -2,7 +2,7 @@
  * Despite the name, seem to be activated anytime a pawn is killed in the game.
  * Originator: the pawn that owns this event
  * Instigator: the pawn that was killed
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_SeeDeath extends SequenceEvent
 	native(Sequence);

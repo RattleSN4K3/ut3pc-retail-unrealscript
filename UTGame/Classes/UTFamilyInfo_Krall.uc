@@ -1,5 +1,5 @@
 ﻿/**
-* Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+* Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 */
 
 class UTFamilyInfo_Krall extends UTFamilyInfo
@@ -25,4 +25,5 @@ defaultproperties
 	
 	DefaultMeshScale=1.0
 	BaseTranslationOffset=2.0
+	PortraitExtraOffset=(X=35,Z=2)  //adjustment to fit the Krall head in the portrait
 }

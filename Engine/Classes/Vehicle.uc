@@ -1,6 +1,6 @@
 ﻿//=============================================================================
 // Vehicle: The base class of all vehicles.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 class Vehicle extends Pawn
@@ -59,6 +59,8 @@ var		bool	bSeparateTurretFocus;	// hint for AI (for tank type turreted vehicles)
 var		bool	bFollowLookDir;			// used by AI to know that controller's rotation determines vehicle rotation
 var		bool	bHasHandbrake;			// hint for AI
 var		bool	bScriptedRise;			// hint for AI
+var		bool	bDuckObstacles;			// checks for and ducks under obstacles
+
 /** if set, AI avoids going in reverse unless it has to */
 var		bool	bAvoidReversing;
 

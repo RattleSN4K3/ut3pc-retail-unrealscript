@@ -2,7 +2,7 @@
  *	a delay, and handling hitting other actors in transit
  *	the Originator of this event should be the mover (InterpActor or subclass), which notifies us when things we might care about happen
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_Mover extends SequenceEvent
 	native(Sequence)

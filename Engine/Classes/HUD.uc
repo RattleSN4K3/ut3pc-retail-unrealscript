@@ -1,7 +1,7 @@
 ﻿//=============================================================================
 // HUD: Superclass of the heads-up display.
 //
-//Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+//Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class HUD extends Actor
 	native
@@ -521,7 +521,7 @@ function DrawEngineHUD()
 	Canvas.DrawText(myText, true);
 
 	Canvas.SetDrawColor(200,200,200,255);
-	myText = "Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.";
+	myText = "Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.";
 	Canvas.Font = class'Engine'.Static.GetTinyFont();
 	Canvas.StrLen(myText, XL, YL);
 	Canvas.SetPos( CenterX - (XL/2), Y);

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * This is a simple class that allows for secure writing of output files from within Script.  The directory to which it writes
  * files is determined by the file type member variable.

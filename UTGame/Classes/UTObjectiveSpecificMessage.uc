@@ -1,4 +1,8 @@
-﻿/** base class for messages that get their text/sound from the objective actor passed to them */
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+/** base class for messages that get their text/sound from the objective actor passed to them */
 class UTObjectiveSpecificMessage extends UTLocalMessage
 	abstract;
 

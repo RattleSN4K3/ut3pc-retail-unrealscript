@@ -4,7 +4,7 @@
  * multiple normal StaticMeshActors in content which has been cooked for the a console platform, becoming the owner for
  * those StaticMeshActors' StaticMeshComponent.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class StaticMeshCollectionActor extends StaticMeshActorBase
 	native

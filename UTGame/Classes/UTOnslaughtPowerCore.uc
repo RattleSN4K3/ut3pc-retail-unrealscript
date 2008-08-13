@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTOnslaughtPowerCore extends UTOnslaughtPanelNode
 	native(Onslaught)
@@ -393,6 +393,9 @@ simulated function ScaleDamage(out int Damage, Controller InstigatedBy, class<Da
 {
 	Super.ScaleDamage(Damage, InstigatedBy, DamageType);
 
+	// only apply special "last minute" and "camping" modifiers if being damaged by a person, leave kismet damage alone
+	if (InstigatedBy != None)
+	{
 	if ( (WorldInfo.GRI.RemainingTime < 120) && (WorldInfo.GRI.RemainingTime > 0) )
 	{
 		Damage *= 1.75;
@@ -401,6 +404,7 @@ simulated function ScaleDamage(out int Damage, Controller InstigatedBy, class<Da
 	{
 		Damage *= 0.5;
 	}
+}
 }
 
 simulated event TakeDamage(int Damage, Controller InstigatedBy, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)

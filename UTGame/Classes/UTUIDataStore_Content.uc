@@ -1,7 +1,7 @@
 ﻿/**
  * Specific derivation of UIDataStore to expose downloadable content data to the UI.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataStore_Content extends UIDataStore
 	native(inherit)

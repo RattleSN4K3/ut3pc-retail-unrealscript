@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTWeap_RocketLauncher extends UTWeapon
 	native;
@@ -1213,6 +1213,9 @@ simulated state WeaponWaitingForFire
 	{
 		DrawLFMData(HUD);
 	}
+
+	simulated function WeaponEmpty()
+	{}
 
 	/**
 	 * We override BeginFire to detect a normal fire press and switch in to flocked mode

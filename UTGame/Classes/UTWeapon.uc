@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTWeapon extends GameWeapon
 	native
@@ -710,6 +710,7 @@ simulated function DrawWeaponCrosshair( Hud HUD )
 	local vector2d CrosshairSize;
 	local float x,y,PickupScale, ScreenX, ScreenY;
 	local UTHUD	H;
+	local UTPlayerController PC;
 
 	H = UTHUD(HUD);
 	if ( H == None )
@@ -732,8 +733,17 @@ simulated function DrawWeaponCrosshair( Hud HUD )
 		PickupScale = 1.0;
 	}
 
- 	CrosshairSize.Y = H.ConfiguredCrosshairScaling * CrosshairScaling * CrossHairCoordinates.VL * PickupScale * H.Canvas.ClipY/768;
-  	CrosshairSize.X = CrosshairSize.Y * ( CrossHairCoordinates.UL / CrossHairCoordinates.VL );
+	PC = UTPlayerController(Instigator.Controller);
+	if ( PC.bSimpleCrosshair )
+	{
+ 		CrosshairSize.Y = FMax(0.5,H.ConfiguredCrosshairScaling) * CrosshairScaling * CrossHairCoordinates.VL * PickupScale * H.Canvas.ClipY/768;
+  		CrosshairSize.X = CrosshairSize.Y * ( CrossHairCoordinates.UL / CrossHairCoordinates.VL ) * H.Canvas.ClipX/1024;
+	}
+	else
+	{
+ 		CrosshairSize.Y = H.ConfiguredCrosshairScaling * CrosshairScaling * CrossHairCoordinates.VL * PickupScale * H.Canvas.ClipY/768;
+  		CrosshairSize.X = CrosshairSize.Y * ( CrossHairCoordinates.UL / CrossHairCoordinates.VL );
+	}
 
 	X = H.Canvas.ClipX * 0.5;
 	Y = H.Canvas.ClipY * 0.5;
@@ -1325,7 +1335,7 @@ simulated function ChangeVisibility(bool bIsVisible)
 
 	if ( OverlayMesh != none )
 	{
-		OverlayMesh.SetHidden(!bIsVisible);
+		OverlayMesh.SetHidden(!bIsVisible || (GetHand() == HAND_Hidden));
 	}
 }
 

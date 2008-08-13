@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTCTFSquadAI extends UTSquadAI;
 
@@ -589,7 +589,7 @@ function EnemyFlagTakenBy(Controller C)
 
 function bool AllowTaunt(UTBot B)
 {
-	return ( (FRand() < 0.5) && (PriorityObjective(B) < 1));
+	return ( (FRand() < 0.5 - 0.06 * B.Skill) && (PriorityObjective(B) < 1));
 }
 
 function bool ShouldDeferTo(Controller C)

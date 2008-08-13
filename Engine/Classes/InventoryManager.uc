@@ -3,7 +3,7 @@
 //	Base class to manage Pawn's inventory
 //	This provides a simple interface to control and interact with the Pawn's inventory,
 //	such as weapons, items and ammunition.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 class InventoryManager extends Actor
@@ -428,10 +428,19 @@ simulated function float GetWeaponRatingFor( Weapon W )
 	if ( !W.HasAnyAmmo() )
 		return -1;
 
-	Rating = 1;
+	if (!Instigator.IsHumanControlled())
+	{
+		Rating = W.AIRating;
 	// tend to stick with same weapon
-	if ( !Instigator.IsHumanControlled() && IsActiveWeapon( W ) && (Instigator.Controller.Enemy != None) )
+		if (IsActiveWeapon(W) && Instigator.Controller != None && Instigator.Controller.Enemy != None)
+		{
 		Rating += 0.21;
+		}
+	}
+	else
+	{
+		Rating = 1;
+	}
 
 	return Rating;
 }

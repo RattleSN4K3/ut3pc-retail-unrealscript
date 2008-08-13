@@ -1,7 +1,7 @@
 ﻿/**
  * Panel class that locks its position and size to match the safe region for the viewport.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UISafeRegionPanel extends UIContainer
 	config(Game)

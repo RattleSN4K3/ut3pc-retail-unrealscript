@@ -6,7 +6,7 @@
 * unchecked then if ANY of the objects attached to Object(s)ToTest are found, then we will
 * set "In List" to hot
 *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqAct_IsInObjectList extends SequenceAction
 	native(Sequence);

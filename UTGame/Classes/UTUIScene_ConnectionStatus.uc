@@ -21,12 +21,42 @@ function OptionSelected(int OptionIdx, int PlayerIndex)
 
 	// Store a reference to the game interface
 	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
-	if ( OnlineSub != None && OnlineSub.GameInterface != None )
+	
+	//Is an online session in progress?
+	if (OnlineSub != None && OnlineSub.GameInterface != None && OnlineSub.GameInterface.GetOnlineGameState() != OGS_NoSession)
 	{
+		// Set the destroy delegate so we can know when that is complete
+		OnlineSub.GameInterface.AddDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+		// Now we can destroy the game
+		`Log("UTUIScene_ConnectionStatus::OptionSelected() - Destroying Online Game");
+		
 		// kill the pending connection
 		OnlineSub.GameInterface.DestroyOnlineGame();
 	}
+
 	ConsoleCommand("CANCEL");
+}
+
+function OnDestroyOnlineGameComplete(bool bWasSuccessful)
+{
+	local OnlineSubsystem OnlineSub;
+	local UTPlayerController PC;
+
+	// Store a reference to the game interface
+	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
+
+	`Log("UTUIScene_ConnectionStatus::OnDestroyOnlineGameComplete() bWasSuccesful:"@bWasSuccessful);
+	if (OnlineSub != None && OnlineSub.GameInterface != None)
+	{
+		OnlineSub.GameInterface.ClearDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+	}
+
+	//Clear the cache
+	PC = GetUTPlayerOwner();
+	if (PC != None && PC.WorldInfo.Game != None)
+	{
+	   PC.WorldInfo.Game.GameSettings = None;
+	}
 }
 
 DefaultProperties

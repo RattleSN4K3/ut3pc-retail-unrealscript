@@ -11,7 +11,7 @@
  *		SSBL - Scale Size By Life
  *		IRR  - Initial Rotation Rate
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
  
 class ParticleModuleUberLTISIVCLILIRSSBLIRR extends ParticleModuleUberBase

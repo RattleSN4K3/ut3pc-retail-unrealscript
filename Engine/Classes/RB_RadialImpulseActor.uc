@@ -6,7 +6,7 @@
  *	Encapsulates a RB_RadialImpulseComponent to let a level designer place one in a level.
  *	When toggled from Kismet, will apply a kick to surrounding physics objects within blast radius.
  *	@see AddRadialImpulse
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 var						DrawSphereComponent			RenderComponent;

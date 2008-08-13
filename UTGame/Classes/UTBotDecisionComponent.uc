@@ -3,7 +3,7 @@
  * this is so the AI's state code, timers, etc happen in TG_PreAsyncWork while the decision logic happens
  * in TG_DuringAsyncWork
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTBotDecisionComponent extends ActorComponent

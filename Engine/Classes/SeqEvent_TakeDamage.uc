@@ -3,7 +3,7 @@
  * which types of damage should be be required (or ignored).
  * Originator: the actor that was damaged
  * Instigator: the actor that did the damaging
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_TakeDamage extends SequenceEvent;
 

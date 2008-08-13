@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Tab page for a server browser.
  */
@@ -21,6 +21,8 @@ var transient UIList						ServerList;
 var transient UIList						DetailsList;
 /** reference to the list of mutators for the selected server */
 var transient UIList						MutatorList;
+/** reference to the list of players for the selected server */
+var transient UIList						PlayerList;
 
 /** Reference to a label to display when refreshing. */
 var transient UIObject						RefreshingLabel;
@@ -47,7 +49,7 @@ var transient OnlineSubsystem				OnlineSub;
 var transient OnlineGameInterface			GameInterface;
 
 /** Indices for the button bar buttons */
-var	transient int							BackButtonIdx, JoinButtonIdx, RefreshButtonIdx, CancelButtonIdx, SpectateButtonIdx, DetailsButtonIdx, AddFavoriteIdx;
+var	transient int							BackButtonIdx, JoinButtonIdx, RefreshButtonIdx, CancelButtonIdx, SpectateButtonIdx, DetailsButtonIdx, PlayerMutDetailsIdx, AddFavoriteIdx;
 
 /** Indicates that the current gametype was changed externally - submit a new query when possible */
 var	private transient bool					bGametypeOutdated, bSpectate;
@@ -130,6 +132,7 @@ event PostInitialize( )
 
 	DetailsList = UIList(FindChild('lstDetails', true));
 	MutatorList = UIList(FindChild('lstMutators', true));
+	PlayerList = UIList(FindChild('lstPlayers', true));
 
 	// Get reference to the refreshing/searching label.
 	RefreshingLabel = FindChild('lblRefreshing', true);
@@ -313,6 +316,14 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 	{
 		DetailsButtonIdx = ButtonBar.AppendButton( "<Strings:UTGameUI.ButtonCallouts.ServerDetails>", OnButtonBar_ServerDetails );
 	}
+	else {
+		if (MutatorList != none && PlayerList != none)
+		{
+			PlayerMutDetailsIdx = ButtonBar.AppendButton( "<Strings:UTGameUI.JoinGame.Players>", OnButtonBar_PlayerDetails );
+			PlayerList.SetVisibility(false);
+			MutatorList.SetVisibility(true);
+		}
+	}
 
 	SetupExtraButtons(ButtonBar);
 
@@ -340,6 +351,7 @@ function UpdateButtonStates()
 	local UITabControl TabControlOwner;
 	local OnlineGameSearchResult SelectedGame;
 	local bool bValidServerSelected, bHasPendingSearches, bIsLANMatch, bIsCampaignMode;
+	local bool bPlayerMutButEnabled;
 	local int PlayerIndex, CurrentGameMode;
 
 	TabControlOwner = GetOwnerTabControl();
@@ -359,6 +371,10 @@ function UpdateButtonStates()
 				if (bValidServerSelected)
 				{
 					SearchDataStore.GetSearchResultFromIndex(ServerList.GetCurrentItem(), SelectedGame);
+					if (SelectedGame.GameSettings != None)
+					{
+						bIsLANMatch = SelectedGame.GameSettings.bIsLanMatch;
+					}
 				}
 
 				if ( CancelButtonIdx != INDEX_NONE )
@@ -413,11 +429,21 @@ function UpdateButtonStates()
 				// Can't add LAN games as favorites
 				if ( AddFavoriteIdx != INDEX_NONE )
 				{								   
-					if (SelectedGame.GameSettings != None)
-					{
-						bIsLANMatch = SelectedGame.GameSettings.bIsLanMatch;
-					}
 					ButtonBar.Buttons[AddFavoriteIdx].SetEnabled(!bHasPendingSearches && bValidServerSelected && !bIsLANMatch && !HasSelectedServerInFavorites(GetBestControllerId()));
+				}
+
+				// Can't see player lists in LAN games (force mutator uilist)
+				if (PlayerMutDetailsIdx != INDEX_NONE )
+				{								   
+					bPlayerMutButEnabled = !bHasPendingSearches && bValidServerSelected && !bIsLANMatch;
+					
+					//If we are about to disable the button force the mutators list
+					if (ButtonBar.Buttons[PlayerMutDetailsIdx].IsEnabled() && !bPlayerMutButEnabled)
+					{
+						 OnButtonBar_MutatorDetails(GetButtonBarButton(PlayerMutDetailsIdx), PlayerIndex);
+					}
+					
+					ButtonBar.Buttons[PlayerMutDetailsIdx].SetEnabled(bPlayerMutButEnabled);
 				}
 
 				// the refresh button and gametype combo can only be enabled if there are no searches currently working
@@ -1048,6 +1074,11 @@ function RefreshDetailsList()
 	{
 	   MutatorList.RefreshSubscriberValue();
 	}
+	
+	if (PlayerList != None)
+	{
+	   PlayerList.RefreshSubscriberValue();
+	}
 }
 
 /**
@@ -1185,6 +1216,32 @@ function bool OnButtonBar_ServerDetails( UIScreenObject InButton, int InPlayerIn
 	if ( InButton != None && InButton.IsEnabled(InPlayerIndex) )
 	{
 		ShowServerDetails();
+	}
+	return true;
+}
+
+function bool OnButtonBar_PlayerDetails( UIScreenObject InButton, int InPlayerIndex )
+{
+	local UTUIButtonBar ButtonBar;
+	ButtonBar = GetButtonBar();
+	if ( ButtonBar != None && InButton != None && InButton.IsEnabled(InPlayerIndex) && MutatorList != None && PlayerList != None )
+	{
+		MutatorList.SetVisibility(false);
+		PlayerList.SetVisibility(true);
+		ButtonBar.SetButton(PlayerMutDetailsIdx, "<Strings:UTGameUI.Frontend.TabCaption_Mutators>", OnButtonBar_MutatorDetails);
+	}
+	return true;
+}
+
+function bool OnButtonBar_MutatorDetails( UIScreenObject InButton, int InPlayerIndex )
+{
+	local UTUIButtonBar ButtonBar;
+	ButtonBar = GetButtonBar();
+	if ( ButtonBar != None && InButton != None && InButton.IsEnabled(InPlayerIndex) && MutatorList != None && PlayerList != None  )
+	{
+		PlayerList.SetVisibility(false);
+		MutatorList.SetVisibility(true);
+		ButtonBar.SetButton(PlayerMutDetailsIdx, "<Strings:UTGameUI.Campaign.PlayerLabel>", OnButtonBar_PlayerDetails);
 	}
 	return true;
 }

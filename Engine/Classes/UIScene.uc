@@ -3,7 +3,7 @@
  * relationship between maps and the actors placed in a map, in that all UIObjects must be contained by a UIScene.
  * Widgets cannot be rendered directly.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIScene extends UIScreenObject
 	native(UIPrivate);

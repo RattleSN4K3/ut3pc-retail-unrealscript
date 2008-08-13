@@ -1,7 +1,7 @@
 ﻿/**
  * Base class of any sequence object that can be executed, such
  * as SequenceAction, SequenceCondtion, etc.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SequenceOp extends SequenceObject
 	native(Sequence)

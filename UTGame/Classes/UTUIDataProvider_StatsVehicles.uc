@@ -1,7 +1,7 @@
 ﻿/**
  * Dataprovider that returns a row for each vehicle/vehicle weapons with kills/death/suicides given a user's stats results.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_StatsVehicles extends UTUIDataProvider_StatsElementProvider
 	native(UI);

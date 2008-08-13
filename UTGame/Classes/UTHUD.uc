@@ -3,7 +3,7 @@
  * UT Heads Up Display
  *
  *
-* Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+* Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTHUD extends GameHUD
 	dependson(UTWeapon)
@@ -18,6 +18,7 @@ var array<Actor> PostRenderedActors;
 /** Cached reference to the another hud texture */
 var Texture2D AltHudTexture;
 var Texture2D IconHudTexture;
+var Texture2D TalkingTexture;
 
 /** Holds a reference to the font to use for a given console */
 var config string ConsoleIconFontClassName;
@@ -545,7 +546,6 @@ simulated function PostBeginPlay()
 	local UTOnslaughtNodeTeleporter NT;
 	local int i;
 	local bool bFound;
-	local PostProcessEffect MotionBlur;
 
 	super.PostBeginPlay();
 	SetTimer(1.0, true);
@@ -633,16 +633,6 @@ simulated function PostBeginPlay()
 			HitEffect.Material = HitEffectMaterialInstance;
 		}
 		HitEffect.bShowInGame = false;
-	}
-
-	// remove motion blur on PC
-	if (!WorldInfo.IsConsoleBuild())
-	{
-		MotionBlur = LocalPlayer(UTPlayerOwner.Player).PlayerPostProcess.FindPostProcessEffect('MotionBlur');
-		if (MotionBlur != None)
-		{
-			MotionBlur.bShowInGame = false;
-		}
 	}
 
 	// find the controller icons font
@@ -857,7 +847,7 @@ event PostRender()
 	HUDScaleY = Canvas.ClipX/1280;
 
 	ResolutionScaleX = Canvas.ClipX/1024;
-	ResolutionScale = Canvas.ClipY/768;
+	ResolutionScale = Canvas.ClipY / 768;
 
 	GetTeamColor(TeamIndex, TeamHUDColor, TeamTextColor);
 
@@ -1010,6 +1000,7 @@ function DrawGameHud()
 	local float TempResScale;
 	local Pawn P;
 	local int i, len;
+	local UniqueNetId OtherPlayerNetId;
 
 	// Draw any spectator information
 	if (UTOwnerPRI != None)
@@ -1106,9 +1097,11 @@ function DrawGameHud()
 		len = WorldInfo.GRI.PRIArray.Length;
 		for ( i=0; i<len; i++ )
 		{
-			if ( PlayerOwner.VoiceInterface.IsRemotePlayerTalking(WorldInfo.GRI.PRIArray[i].UniqueID) 
+			OtherPlayerNetId = WorldInfo.GRI.PRIArray[i].UniqueID;
+			if ( PlayerOwner.VoiceInterface.IsRemotePlayerTalking(OtherPlayerNetId) 
 				&& (WorldInfo.GRI.PRIArray[i] != PlayerOwner.PlayerReplicationInfo) 
-				&& (UTPlayerReplicationInfo(WorldInfo.GRI.PRIArray[i]) != None) )
+				&& (UTPlayerReplicationInfo(WorldInfo.GRI.PRIArray[i]) != None) 
+				&& (PlayerOwner.GameplayVoiceMuteList.Find('Uid', OtherPlayerNetId.Uid) == INDEX_NONE) )
 			{
 				ShowPortrait(UTPlayerReplicationInfo(WorldInfo.GRI.PRIArray[i]));
 				break;
@@ -1141,15 +1134,29 @@ function DrawGameHud()
 			ResolutionScale *=2;
 		}
 		DisplayMap();
-		ResolutionScale = TEmpResScale;
+		ResolutionScale = TempResScale;
 	}
 
 	DisplayDamage();
+
+	if (UTPlayerOwner.bIsTyping && WorldInfo.NetMode != NM_Standalone)
+	{
+		DrawMicIcon();
+	}
 
 	if ( bShowQuickPick )
 	{
 		DisplayQuickPickMenu();
 	}
+}
+
+function DrawMicIcon()
+{
+	local vector2d Pos;
+	Pos.X = 0.0;
+	Pos.Y = Canvas.ClipY * CharPortraitYPerc + CharPortraitSize.Y * (Canvas.ClipY/768.0) + 6;
+	Canvas.SetPos(Pos.X,Pos.Y);
+	Canvas.DrawTile(TalkingTexture, 64, 64, 0, 0, 64, 64);
 }
 
 function DisplayLocalMessages()
@@ -1232,7 +1239,10 @@ function DrawPostGameHud()
 {
 	local bool bWinner;
 
-	if (WorldInfo.GRI != None && PlayerOwner.PlayerReplicationInfo != None && !PlayerOwner.PlayerReplicationInfo.bOnlySpectator)
+	if (WorldInfo.GRI != None 
+		&& PlayerOwner.PlayerReplicationInfo != None 
+		&& !PlayerOwner.PlayerReplicationInfo.bOnlySpectator
+		&& !PlayerOwner.IsInState('InQueue') )
 	{
 		if ( UTPlayerReplicationInfo(WorldInfo.GRI.Winner) != none )
 		{
@@ -2000,15 +2010,12 @@ function DisplayHUDMessage(string Message, optional float XOffsetPct = 0.05, opt
 
 	if (!bHudMessageRendered)
 	{
-
 		// Preset the Canvas
-
 		Canvas.SetDrawColor(255,255,255,255);
 		Canvas.Font = GetFontSizeIndex(2);
 		Canvas.StrLen(Message,XL,YL);
 
 		// Figure out sizes/positions
-
 		BarHeight = YL * 1.1;
 		YBuffer = Canvas.ClipY * YOffsetPct;
 		XBuffer = Canvas.ClipX * XOffsetPct;
@@ -2017,17 +2024,14 @@ function DisplayHUDMessage(string Message, optional float XOffsetPct = 0.05, opt
 		YCenter = Canvas.ClipY - YBuffer - (Height * 0.5);
 
 		// Draw the Bar
-
 		Canvas.SetPos(0,YCenter - (BarHeight * 0.5) );
 		Canvas.DrawTile(AltHudTexture, Canvas.ClipX, BarHeight, 382, 441, 127, 16);
 
 		// Draw the Symbol
-
 		Canvas.SetPos(XBuffer, YCenter - (Height * 0.5));
 		Canvas.DrawTile(AltHudTexture, Height * 1.33333, Height, 734,190, 82, 70);
 
 		// Draw the Text
-
 		Canvas.SetPos(XBuffer + Height * 1.5, YCenter - (YL * 0.5));
 		Canvas.DrawText(Message);
 
@@ -2322,8 +2326,8 @@ function DisplayLeaderBoard(vector2d POS)
 			MySpread = UTOwnerPRI.Score - UTGRI.PRIArray[i + 1].Score;
 		}
 		else
-		{
-			MySpread = 0;
+	{
+		MySpread = 0;
 		}
 		MyPosition = 0;
 	}
@@ -2843,4 +2847,6 @@ defaultproperties
     WeaponSwitchMessage=class'UTWeaponSwitchMessage'
 
 	ConfiguredCrosshairScaling=1.0
+
+	TalkingTexture=Texture2D'PS3Patch.Talking'
 }

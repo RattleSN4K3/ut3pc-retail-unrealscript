@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTConsolePlayerInput extends UTPlayerInput within UTConsolePlayerController
@@ -151,7 +151,7 @@ function PreProcessInput( float DeltaTime )
 	//`log( "bUsingGamepad: " $ bUsingGamepad );
 	// whenever a player uses a non Gamepad for input the input for that frame is set to:  bUsingGamepad=false  so we do not even attempt
 	// to do any input help
-	if( bUsingGamepad == FALSE ) 
+	if (!bUsingGamepad)
 	{
 		// if we are playing in a Game that only allows Gamepads and we have received input from a non gamepad we disconnect the player
 		// as we consider that cheating

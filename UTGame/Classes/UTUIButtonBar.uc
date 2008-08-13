@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Container class that holds multiple UTUIButtonBarButton instances.  This class autopositions itself and its buttons at the bottom of the screen.
  */

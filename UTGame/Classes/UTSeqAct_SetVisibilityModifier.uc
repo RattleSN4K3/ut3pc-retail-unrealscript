@@ -1,4 +1,8 @@
-﻿class UTSeqAct_SetVisibilityModifier extends SequenceAction;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTSeqAct_SetVisibilityModifier extends SequenceAction;
 
 var() float NewVisibilityModifier;
 

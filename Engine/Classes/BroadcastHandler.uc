@@ -7,7 +7,7 @@
 // GameInfos produce localized messages using their DeathMessageClass and
 // GameMessageClass classes.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class BroadcastHandler extends Info
 	config(Game);

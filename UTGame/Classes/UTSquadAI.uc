@@ -1,7 +1,7 @@
 ﻿/**
  * operational AI control for TeamGame
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTSquadAI extends ReplicationInfo
@@ -1448,7 +1448,7 @@ function bool TellBotToFollow(UTBot B, Controller C)
 
 function bool AllowTaunt(UTBot B)
 {
-	return ( FRand() < 0.5 );
+	return ( FRand() < 0.5 - 0.06 * B.Skill );
 }
 
 function AddTransientCosts(UTBot B, float f)
@@ -2131,7 +2131,7 @@ function bool CheckHoverboard(UTBot B)
 
 	// if no vehicle nearby, objective is far away, and no visible enemies, use hoverboard
 	if ( P != None && P.bHasHoverboard && P.Anchor != None && UTGameObjective(P.Anchor) == None &&
-		WorldInfo.TimeSeconds - B.LastTryHoverboardTime > 2.0 &&
+			WorldInfo.TimeSeconds - B.LastTryHoverboardTime > 4.0 &&
 		(B.PlayerReplicationInfo.bHasFlag || !B.NeedWeapon()) 
 		&& ShouldUseHoverboard(B)
 		&& !B.Pawn.IsFiring() && !B.IsShootingObjective() &&

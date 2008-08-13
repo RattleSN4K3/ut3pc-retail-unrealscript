@@ -2,7 +2,7 @@
  *	ParticleModuleTrailSpawn
  *	The trail spawn module.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class ParticleModuleTrailSpawn extends ParticleModuleTrailBase
 	native(Particle)

@@ -1,7 +1,7 @@
 ﻿/**
  * Dataprovider that returns a row for each installed content package.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_InstalledContent extends UTUIDataProvider_SimpleElementProvider
 	native(UI);

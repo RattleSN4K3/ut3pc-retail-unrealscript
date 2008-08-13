@@ -1,4 +1,8 @@
-﻿class UTProj_LoadedRocket extends UTProj_Rocket;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTProj_LoadedRocket extends UTProj_Rocket;
 
 /** Used for the curling rocket effect */
 

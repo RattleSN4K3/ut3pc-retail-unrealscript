@@ -1,7 +1,7 @@
 ﻿/**
  * Dataprovider that providers detailed stats information for a given stats row.  Should be subclassed.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_StatsElementProvider extends UTUIDataProvider_SimpleElementProvider
 	native(UI);

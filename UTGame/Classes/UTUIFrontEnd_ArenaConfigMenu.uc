@@ -1,4 +1,8 @@
-﻿class UTUIFrontEnd_ArenaConfigMenu extends UTUIFrontEnd;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTUIFrontEnd_ArenaConfigMenu extends UTUIFrontEnd;
 
 var transient UTUIComboBox WeaponCombo;
 

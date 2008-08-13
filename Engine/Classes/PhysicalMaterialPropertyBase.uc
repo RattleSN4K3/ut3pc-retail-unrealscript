@@ -16,7 +16,7 @@
  * var() editinline MyGameSpecificImpactEffects ImpactEffects;
  * var() editinline MyGameSpecificImpactSounds ImpactSounds;
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class PhysicalMaterialPropertyBase extends Object

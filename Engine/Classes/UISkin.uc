@@ -16,7 +16,7 @@
  * the style of that widget for that skin set and any UISkin that is based on the custom UISkin.  Custom UISkins can be
  * hierarchical, in that custom UISkins can be based on other custom UISkins.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UISkin extends UIDataStore
 	native(inherit)

@@ -2,7 +2,7 @@
  * Event which is activated when some pawn has a line of sight to an LOS trigger.
  * Originator: the trigger that owns this event
  * Instigator: the Pawn of the Player that saw the LOS trigger which owns this event
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_LOS extends SequenceEvent;
 

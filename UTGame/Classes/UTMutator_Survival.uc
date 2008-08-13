@@ -1,4 +1,8 @@
-﻿class UTMutator_Survival extends UTMutator;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTMutator_Survival extends UTMutator;
 
 function PostBeginPlay()
 {

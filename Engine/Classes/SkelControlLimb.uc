@@ -2,7 +2,7 @@
 	native(Anim);
 	
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  *	Controller Specifically designed for 2-bone limbs with an elbow-like joint in the middle.
  *	Should be set up to act on the bone at the end of the limb - ie the hand in the case of an arm.

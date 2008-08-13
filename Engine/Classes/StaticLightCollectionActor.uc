@@ -4,7 +4,7 @@
  * multiple normal static Light actors in content which has been cooked for the a console platform, becoming the owner for
  * those Light's LightComponent.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class StaticLightCollectionActor extends Light
 	native

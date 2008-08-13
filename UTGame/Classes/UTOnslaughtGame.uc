@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTOnslaughtGame extends UTTeamGame
 	abstract;
@@ -1121,10 +1121,6 @@ function ScoreFlag(Controller Scorer, UTOnslaughtFlag TheFlag)
 	{
 		BroadcastLocalizedMessage(TheFlag.MessageClass, 1 + 7 * TheFlag.Team.TeamIndex, ScorerPRI, None, TheFlag.Team);
 		ScorerPRI.IncrementEventStat('EVENT_RETURNEDORB');
-	}
-	else
-	{
-		ScorerPRI.IncrementEventStat('EVENT_SCOREDORB');
 	}
 }
 

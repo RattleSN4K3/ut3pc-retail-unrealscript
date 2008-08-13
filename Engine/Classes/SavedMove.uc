@@ -1,7 +1,7 @@
 ﻿//=============================================================================
 // SavedMove is used during network play to buffer recent client moves,
 // for use when the server modifies the clients actual position, etc.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class SavedMove extends Object
 	native;

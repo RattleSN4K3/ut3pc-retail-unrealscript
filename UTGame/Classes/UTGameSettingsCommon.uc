@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 /** Holds the settings that are common to all match types */
@@ -280,6 +280,7 @@ function int NewGenerateMutatorBitmaskFromURL( UTUIDataStore_MenuItems MenuDataS
 {
 	local int Idx, MutatorIdx, EnabledMutatorBitmask;
 	local string GameModeString;
+	local string BitIndexValue;
 
 	// Some mutators are filtered out based on the currently selected gametype, so in order to guarantee
 	// that our bitmasks always match up (i.e. between a client and server), clear the setting that mutators
@@ -292,7 +293,8 @@ function int NewGenerateMutatorBitmaskFromURL( UTUIDataStore_MenuItems MenuDataS
 		MutatorIdx = MenuDataStore.FindValueInProviderSet('OfficialMutators', 'ClassName', MutatorClassNames[Idx]);
 		if ( MutatorIdx != INDEX_NONE )
 		{
-			EnabledMutatorBitmask = EnabledMutatorBitmask | (1 << MutatorIdx);
+			MenuDataStore.GetValueFromProviderSet('OfficialMutators', 'BitValue', MutatorIdx, BitIndexValue);
+			EnabledMutatorBitmask += int(BitIndexValue);
 			MutatorClassNames.Remove(Idx--, 1);
 		}
 	}

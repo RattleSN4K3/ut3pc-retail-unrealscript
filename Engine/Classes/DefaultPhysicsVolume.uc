@@ -1,7 +1,7 @@
 ﻿//=============================================================================
 // DefaultPhysicsVolume:  the default physics volume for areas of the level with
 // no physics volume specified
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class DefaultPhysicsVolume extends PhysicsVolume
 	native

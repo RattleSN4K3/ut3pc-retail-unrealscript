@@ -2,7 +2,7 @@
 	native(Anim);
 	
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  *	Controller that configures the bones above the controlled one in the hierarchy into a smooth curve.
  */

@@ -2,7 +2,7 @@
  * This is used to light components / actors during the game.  Doing something like:
  * LightEnvironment=FooLightEnvironment
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class DynamicLightEnvironmentComponent extends LightEnvironmentComponent
 	native;

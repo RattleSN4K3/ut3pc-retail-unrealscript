@@ -3,7 +3,7 @@
 	native(Anim);
 	
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  *	SkelControlLimb subclass designed for placing feet on the ground.
  *	The SkeletalMeshComponent must be adjusted in gameplay code so that the feet can pass into some world geometry,

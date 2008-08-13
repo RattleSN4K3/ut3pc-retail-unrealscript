@@ -11,6 +11,7 @@
 //   Enter | XBOX_KeyA - to call "FreezeRendering" console command
 //   Alt+C | LeftThumbstick - to toggle debug camera
 //
+// * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //-----------------------------------------------------------
 class DebugCameraController extends PlayerController;
 

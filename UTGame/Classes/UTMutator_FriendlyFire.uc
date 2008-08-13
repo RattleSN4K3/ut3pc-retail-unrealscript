@@ -1,11 +1,11 @@
-﻿// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 class UTMutator_FriendlyFire extends UTMutator;
 
 var float FriendlyFireScale;
 
 function bool MutatorIsAllowed()
 {
-	return UTTeamGame(WorldInfo.Game) != None && Super.MutatorIsAllowed();
+	return UTTeamGame(WorldInfo.Game) != None && UTDuelGame(WorldInfo.Game) == None && Super.MutatorIsAllowed();
 }
 
 function InitMutator(string Options, out string ErrorMessage)

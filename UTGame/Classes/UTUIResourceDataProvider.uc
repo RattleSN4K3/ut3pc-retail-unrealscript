@@ -1,7 +1,7 @@
 ﻿/**
  * Extends the resource data provider to have a 'filter' accessor so we can decide whether or not to include the provider in a list of items.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIResourceDataProvider extends UIResourceDataProvider
 	native(UI)

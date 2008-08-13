@@ -2,7 +2,7 @@
  * Activated when a "usable" actor (such as a trigger) is used.
  * Originator: the usable actor that was used
  * Instigator: The pawn associated with the player did the using
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_Used extends SequenceEvent
 	native(Sequence);

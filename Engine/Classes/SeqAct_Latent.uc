@@ -2,7 +2,7 @@
  * This is a basic action that supports latent execution on actors.  It will
  * remain active by default until all targeted actors have either finished the
  * latent behavior, or have been destroyed.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqAct_Latent extends SequenceAction
 	abstract

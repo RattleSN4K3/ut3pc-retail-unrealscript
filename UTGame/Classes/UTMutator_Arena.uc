@@ -1,4 +1,8 @@
-﻿class UTMutator_Arena extends UTMutator
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTMutator_Arena extends UTMutator
 	config(Game);
 
 /** full path to class of weapon to use */

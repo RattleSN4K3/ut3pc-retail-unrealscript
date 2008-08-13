@@ -5,7 +5,7 @@
  * Classes which implement this interface would also need to specify custom property item windows
  * @see UnrealEd.CustomPropertyItemBindings
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 interface CustomPropertyItemHandler
 	native;

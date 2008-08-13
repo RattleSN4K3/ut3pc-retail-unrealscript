@@ -1,7 +1,7 @@
 ﻿/**
  * Changes the value of a label's text
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_SetLabelText extends UIAction_SetValue;
 

@@ -1,7 +1,7 @@
 ﻿/**
  *  skeletal controller that tries to keep a bone within a certain distance of the ground within its constraints
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTSkelControl_HugGround extends SkelControlSingleBone

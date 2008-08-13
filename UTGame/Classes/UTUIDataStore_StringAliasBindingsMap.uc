@@ -1,7 +1,7 @@
 ﻿/**
  * This datastore allows games to map aliases to strings that may change based on the current platform or language setting.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  */
 class UTUIDataStore_StringAliasBindingsMap extends UIDataStore_StringAliasMap

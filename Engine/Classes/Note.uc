@@ -1,7 +1,7 @@
 ﻿//=============================================================================
 // A sticky note.  Level designers can place these in the level and then
 // view them as a batch in the error/warnings window.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 class Note extends Actor

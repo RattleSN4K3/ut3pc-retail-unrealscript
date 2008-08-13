@@ -1,7 +1,7 @@
 ﻿/**
  * This action allows designers to change the value of a widget that contains boolean data.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_SetBoolValue extends UIAction_SetValue;
 

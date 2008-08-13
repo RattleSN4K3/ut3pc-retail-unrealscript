@@ -3,7 +3,7 @@
  * It contains the combined properties and settings from all other gametypes, because it must potentially display different
  * information for each server in the history list.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTGameSettingsPersonal extends UTGameSettingsCommon;
 

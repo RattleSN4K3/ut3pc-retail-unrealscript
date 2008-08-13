@@ -1,6 +1,6 @@
 ﻿//=============================================================================
 // Engine: The base class of the global application object classes.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Engine extends Subsystem
 	native(GameEngine)

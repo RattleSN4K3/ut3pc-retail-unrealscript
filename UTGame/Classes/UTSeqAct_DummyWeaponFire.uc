@@ -1,4 +1,8 @@
-﻿/** spawns a ghost to magically fire a weapon for cinematics
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+/** spawns a ghost to magically fire a weapon for cinematics
  * @note: no replication, expected to execute completely clientside
  */
 class UTSeqAct_DummyWeaponFire extends SeqAct_Latent;

@@ -7,7 +7,7 @@
 // well as other VolumePathNodes with overlapping cylinders.
 // NavigationPoints directly below the volumepathnode cylinder will also
 // be tested for connectivity during path building.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 class VolumePathNode extends PathNode

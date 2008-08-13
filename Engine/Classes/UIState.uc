@@ -6,7 +6,7 @@
  * Examples of things a UIState may do include replacing the widget's image or changing the appearance of the widget in
  * some other fashion, such as brightening, adding a bevel, etc.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIState extends UIRoot
 	native(inherit)

@@ -2,7 +2,7 @@
  * More configurable image widget that allows the user to specify 9 image components to have 
  * a background box that scales properly while maintaining the aspect ratio of its corners.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIFrameBox extends UIContainer
 	placeable

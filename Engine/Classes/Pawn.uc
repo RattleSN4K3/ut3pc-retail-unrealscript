@@ -6,7 +6,7 @@
 // and hold weapons and other inventory.  In short, they are responsible for all
 // physical interaction between the player or AI and the world.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Pawn extends Actor
 	abstract

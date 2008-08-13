@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * This class contains a list of thumbnail rendering entries, which can be
  * configured from Editor.ini. The idea is for thumbnail rendering to be

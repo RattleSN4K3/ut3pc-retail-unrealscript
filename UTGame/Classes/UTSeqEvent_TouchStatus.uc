@@ -1,4 +1,8 @@
-﻿class UTSeqEvent_TouchStatus extends SeqEvent_Touch
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTSeqEvent_TouchStatus extends SeqEvent_Touch
 	native(Sequence)
 	hidecategories(SeqEvent_Touch);
 

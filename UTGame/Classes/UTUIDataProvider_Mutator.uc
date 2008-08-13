@@ -1,7 +1,7 @@
 ﻿/**
  * Provides data for a UT3 mutator.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_Mutator extends UTUIResourceDataProvider
 	PerObjectConfig
@@ -33,6 +33,11 @@ var config bool bStandaloneOnly;
  * is initialized.
  */
 var	const private bool bOfficialMutator;
+
+/**
+ * For official mutators, specify a unique bit index, so that all bits are the same independent of language
+ */
+var config int BitValue;
 
 
 

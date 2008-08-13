@@ -1,4 +1,8 @@
-﻿/** this class is used for status announcements related to UTOnslaughtSpecialObjectives */
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+/** this class is used for status announcements related to UTOnslaughtSpecialObjectives */
 class UTSpecialObjectiveStatusMessage extends UTObjectiveSpecificMessage
 	dependson(UTPlayerController);
 

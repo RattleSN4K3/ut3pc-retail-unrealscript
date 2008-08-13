@@ -20,7 +20,12 @@ event Query(WebRequest Request, WebResponse Response)
 	local string Image;
 
 	Image = Request.URI;
-	if( Right(Caps(Image), 4) == ".JPG" || Right(Caps(Image), 5) == ".JPEG" )
+	if (!Response.FileExists(Path $ Image))
+	{
+		Response.HTTPError(404);
+		return;
+	}
+	else if( Right(Caps(Image), 4) == ".JPG" || Right(Caps(Image), 5) == ".JPEG" )
 	{
 		Response.SendStandardHeaders("image/jpeg", true);
 	}
@@ -38,8 +43,7 @@ event Query(WebRequest Request, WebResponse Response)
 	}
 	else
 	{
-		Response.HTTPError(404);
-		return;
+		Response.SendStandardHeaders("application/octet-stream", true);
 	}
 	Response.IncludeBinaryFile( Path $ Image );
 }

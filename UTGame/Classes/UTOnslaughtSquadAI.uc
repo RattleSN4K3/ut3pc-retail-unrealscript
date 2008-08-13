@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTOnslaughtSquadAI extends UTSquadAI;
 
@@ -24,6 +24,11 @@ return true if bot should use guile in hunting opponent (more expensive)
 function bool BeDevious(Pawn Enemy)
 {
 	return false;
+}
+
+function bool AllowTaunt(UTBot B)
+{
+	return ( (FRand() < 0.5 - 0.06 * B.Skill) && (PriorityObjective(B) < 1));
 }
 
 function name GetOrders()
@@ -671,9 +676,10 @@ function bool CheckSquadObjectives(UTBot B)
 	}
 
 	// check if should pick up dropped orb
-	if ( (UTPawn(B.Pawn) != None) && UTPawn(B.Pawn).bJustDroppedOrb )
+	if ( (UTPawn(B.Pawn) != None) && UTPawn(B.Pawn).bJustDroppedOrb && (Team.TeamFlag.Holder == None) )
 	{
-		if (FindPathToObjective(B, Team.TeamFlag))
+		Team.TeamFlag.CheckTouching();
+		if ( (Team.TeamFlag.Holder == None) && FindPathToObjective(B, Team.TeamFlag) )
 		{
 			B.RouteGoal = Team.TeamFlag.LastAnchor;
 			return true;

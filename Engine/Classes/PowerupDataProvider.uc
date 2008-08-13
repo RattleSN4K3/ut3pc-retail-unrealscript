@@ -1,7 +1,7 @@
 ﻿/**
  * Provides data about a powerup currently in inventory.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class PowerupDataProvider extends InventoryDataProvider
 	native(inherit);

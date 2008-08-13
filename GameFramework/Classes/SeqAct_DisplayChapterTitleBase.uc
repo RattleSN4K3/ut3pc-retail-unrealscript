@@ -2,7 +2,7 @@
  * Base class for DisplayingChapter titles on the screen.  Each game
  * should sub class this and do their own Activated() function
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqAct_DisplayChapterTitleBase extends SequenceAction
 	abstract;

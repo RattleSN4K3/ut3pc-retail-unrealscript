@@ -3,7 +3,7 @@
  *
  *	Base-class for 'uber' modules, which combine other modules together.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
  
 class ParticleModuleUberBase extends ParticleModule

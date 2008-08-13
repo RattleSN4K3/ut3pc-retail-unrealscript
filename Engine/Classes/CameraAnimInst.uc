@@ -1,7 +1,7 @@
 ﻿
 /**
  *	CameraAnim: defines a pre-packaged animation to be played on a camera.
- * 	Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * 	Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class CameraAnimInst extends Object
 	notplaceable

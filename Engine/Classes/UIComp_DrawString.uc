@@ -2,7 +2,7 @@
  * This component handles rendering UIStrings for widgets.  It is responsible for managing any
  * formatting data that is specific to each widget instance (thus inappropriate for storage in UIStyles).
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIComp_DrawString extends UIComp_DrawComponents
 	native(UIPrivate)

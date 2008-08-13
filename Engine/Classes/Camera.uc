@@ -1,6 +1,6 @@
 ﻿/**
  *	Camera: defines the Point of View of a player in world space.
- * 	Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * 	Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class Camera extends Actor
 	notplaceable

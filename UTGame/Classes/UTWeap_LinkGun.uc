@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTWeap_LinkGun extends UTBeamWeapon;
 
@@ -945,7 +945,7 @@ function float GetAIRating()
 	local UTVehicle V;
 	local UTGameObjective O;
 	local float Dist;
-	
+
 	B = UTBot(Instigator.Controller);
 	if (B == None || B.Squad == None)
 	{
@@ -973,7 +973,7 @@ function float GetAIRating()
 	{
 		return 1.2;
 	}
-	
+
 	if ( B.Enemy != None )
 	{
 		Dist = VSize(B.Enemy.Location - Instigator.Location);
@@ -1071,7 +1071,7 @@ function byte BestMode()
 	{
 		return 0;
 	}
-	return 0;
+	return 1;
 }
 
 function bool CanHeal(Actor Other)

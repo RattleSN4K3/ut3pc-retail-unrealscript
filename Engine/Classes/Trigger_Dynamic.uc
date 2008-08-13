@@ -4,7 +4,7 @@
  * Dynamic Trigger
  * Can be attached and moved in the level. More expensive than (static) triggers, use only when necessary.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 defaultproperties

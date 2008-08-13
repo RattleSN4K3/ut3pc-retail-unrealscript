@@ -5,7 +5,7 @@
 //
 // This is a built-in Unreal class and it shouldn't be modified.
 // for the change in Possess().
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class PlayerController extends Controller
 	config(Game)
@@ -703,7 +703,7 @@ event InitInputSystem()
 	if (OnlineSub != None)
 	{
 		VoiceInterface = OnlineSub.VoiceInterface;
-		if (OnlineSub.SystemInterface != None)
+		if (OnlineSub.SystemInterface != None && LocalPlayer(Player) != None)
 		{
 			// Register the callback for when external UI is shown/hidden
 			// This will pause/unpause a single player game based upon the UI state
@@ -2349,6 +2349,10 @@ unreliable client function ClientAdjustPosition
 /** sets NetSpeed on the server, so it won't send the client more than this many bytes */
 reliable server function ServerSetNetSpeed(int NewSpeed)
 {
+	if ( (WorldInfo.Game != None) && (WorldInfo.NetMode == NM_ListenServer) )
+	{
+		NewSpeed = Min(NewSpeed, WorldInfo.Game.AdjustedNetSpeed);
+	}
 	SetNetSpeed(NewSpeed);
 }
 
@@ -2364,18 +2368,6 @@ final function UpdatePing(float TimeStamp)
 		PlayerReplicationInfo.UpdatePing(TimeStamp);
 		if ( WorldInfo.TimeSeconds - LastPingUpdate > 4 )
 		{
-			if ( bDynamicNetSpeed && (OldPing > DynamicPingThreshold * 0.001) && (PlayerReplicationInfo.ExactPing > DynamicPingThreshold * 0.001) )
-			{
-				if ( WorldInfo.MoveRepSize < 64 )
-					WorldInfo.MoveRepSize += 8;
-				else if ( Player.CurrentNetSpeed >= 6000 )
-				{
-					SetNetSpeed(Player.CurrentNetSpeed - 1000);
-					ServerSetNetSpeed(Player.CurrentNetSpeed);
-				}
-				OldPing = 0;
-			}
-			else
 				OldPing = PlayerReplicationInfo.ExactPing;
 			LastPingUpdate = WorldInfo.TimeSeconds;
 			ServerUpdatePing(1000 * PlayerReplicationInfo.ExactPing);
@@ -4754,7 +4746,9 @@ function ViewAPlayer(int dir)
 	}
 
 	if ( bSuccess )
+	{
 		SetViewTarget(PRI);
+	}
 }
 
 unreliable server function ServerViewSelf()

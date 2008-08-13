@@ -3,7 +3,7 @@
  * Actions perform tasks for widgets, in response to some external event.  Actions are created by programmers and are
  * bound to widget events by designers using the UI editor.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction extends SequenceAction
 	native(UISequence)

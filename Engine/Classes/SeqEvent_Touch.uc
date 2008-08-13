@@ -4,7 +4,7 @@
  *
  * Originator: the actor that owns this event
  * Instigator: the actor that was touched
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_Touch extends SequenceEvent
 	native(Sequence);

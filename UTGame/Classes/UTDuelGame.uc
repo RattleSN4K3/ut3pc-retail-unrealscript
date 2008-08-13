@@ -1,4 +1,7 @@
-﻿class UTDuelGame extends UTTeamGame;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+class UTDuelGame extends UTTeamGame;
 
 /** queue of players that will take on the winner */
 var array<UTDuelPRI> Queue;
@@ -17,6 +20,11 @@ static function bool AllowMutator( string MutatorClassName )
 	{
 		// survival mutator only for Duel
 		return true;
+	}
+	if ( MutatorClassName ~= "UTGame.UTMutator_FriendlyFire")
+	{
+		// survival mutator only for Duel
+		return false;
 	}
 	return Super.AllowMutator(MutatorClassName);
 }
@@ -132,7 +140,9 @@ function Logout(Controller Exiting)
 {
 	local int Index;
 	local Controller C;
+	local UTPlayerController Host;
 	local PlayerReplicationInfo Winner;
+	local bool HostExiting;
 
 	Super.LogOut(Exiting);
 
@@ -164,9 +174,22 @@ function Logout(Controller Exiting)
 					break;
 				}
 			}
+			HostExiting = false;
+			foreach LocalPlayerControllers(class'UTPlayerController', Host)
+			{
+				// see if the host is exiting
+				if (Host == Exiting )
+				{
+					HostExiting = true;
+				}
+			}
+			// if it's not the host that's leaving
+			if (!HostExiting)
+			{
 			EndGame(Winner, "LastMan");
 		}
 	}
+}
 }
 
 function AddToQueue(UTDuelPRI Who)

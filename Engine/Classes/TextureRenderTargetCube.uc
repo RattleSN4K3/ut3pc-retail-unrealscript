@@ -4,7 +4,7 @@
  * Cube render target texture resource. This can be used as a target
  * for rendering as well as rendered as a regular cube texture resource.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class TextureRenderTargetCube extends TextureRenderTarget
 	native

@@ -2,7 +2,7 @@
  *	Abstract base class for a skeletal controller.
  *	A SkelControl is a module that can modify the position or orientation of a set of bones in a skeletal mesh in some programmtic way.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class SkelControlBase extends Object

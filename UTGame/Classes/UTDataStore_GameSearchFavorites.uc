@@ -2,7 +2,7 @@
  * This data store class provides query and search results for the "Favorites" page.  In functionality, it's essentially
  * the same as the history data store - just stores a different list of servers.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTDataStore_GameSearchFavorites extends UTDataStore_GameSearchPersonal;
 

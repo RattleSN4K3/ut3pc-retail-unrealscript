@@ -14,7 +14,7 @@
  *
  *  static void UpdateMICResources(UMaterialInstanceTimeVarying* Instance)   (to send the data over to the rendering thread (if it needs it)
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class MaterialInstanceTimeVarying extends MaterialInstance
 	native(Material);

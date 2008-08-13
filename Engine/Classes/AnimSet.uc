@@ -2,7 +2,7 @@
  * This is a set of AnimSequences
  * All sequence have the same number of tracks, and they relate to the same bone names.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class AnimSet extends Object

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Abstract base class for a track of interpolated data. Contains the actual data.
  * The Outer of an InterpTrack is the InterpGroup.

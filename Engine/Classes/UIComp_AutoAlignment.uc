@@ -1,7 +1,7 @@
 ﻿/**
  * This component when present in a widget is supposed add ability to auto align its children widgets in a specified fashion
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIComp_AutoAlignment extends UIComponent
 	within UIObject

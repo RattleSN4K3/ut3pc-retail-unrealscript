@@ -2,7 +2,7 @@
 	native(Interpolation);
 
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * 
  * An instance of an InterpGroup for a particular Actor. There may be multiple InterpGroupInsts for a single

@@ -1,9 +1,8 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTDrawCommandPanel extends UTDrawPanel;
-
 
 var transient UTHud MyHud;
 var transient UTUIScene_Hud UTHudScene;
@@ -26,7 +25,6 @@ var() color SelTexColor;
 var() texture2D BkgTexture;
 var() TextureCoordinates BkgTexCoords;
 var() color BkgTexColor;
-
 
 var() float TransitionTime;
 

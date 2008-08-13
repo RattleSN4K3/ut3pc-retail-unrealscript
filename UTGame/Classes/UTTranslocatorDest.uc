@@ -1,4 +1,8 @@
-﻿/** builds UTTranslocatorReachSpecs towards this node for each entry in the StartPoints array  */
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+/** builds UTTranslocatorReachSpecs towards this node for each entry in the StartPoints array  */
 class UTTranslocatorDest extends NavigationPoint
 	native
 	placeable;

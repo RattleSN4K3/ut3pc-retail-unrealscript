@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTDmgType_ImpactHammer extends UTDamageType
 	abstract;
@@ -9,9 +9,9 @@ class UTDmgType_ImpactHammer extends UTDamageType
 simulated static function class<UTEmitCameraEffect> GetDeathCameraEffectInstigator( UTPawn UTP )
 {
 		// robots need to splatter oil instead of blood
-		if( ( UTP != none ) && ( ClassIsChildOf( UTP.GetFamilyInfo(), class'UTFamilyInfo_Liandri' ) == TRUE ) )
+		if( (UTP != none) && (UTP.GetFamilyInfo() != None) )
 		{
-			return class'UTEmitCameraEffect_OilSplatter';
+			return UTP.GetFamilyInfo().default.DeathCameraEffect;
 		}
 		else
 		{

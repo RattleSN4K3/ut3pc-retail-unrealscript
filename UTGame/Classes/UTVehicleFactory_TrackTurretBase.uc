@@ -1,6 +1,6 @@
 ﻿/**
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTVehicleFactory_TrackTurretBase extends UTVehicleFactory
@@ -158,6 +158,7 @@ defaultproperties
 	bDestinationOnly=true
 	bReplicateChildVehicle=true
 	bIgnoreEncroachers=True
+	NetPriority=2.7
 
 	SupportedEvents.Add(class'UTSeqEvent_TurretSpawn')
 	SupportedEvents.Add(class'UTSeqEvent_TurretStatusChanged')

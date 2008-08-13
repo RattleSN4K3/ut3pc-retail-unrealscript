@@ -1,6 +1,6 @@
 ﻿//=============================================================================
 // Console - A quick little command line console that accepts most commands.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Console extends Interaction
 	within GameViewportClient
@@ -354,6 +354,70 @@ function FlushPlayerInput()
 	}
 }
 
+/** looks for Control key presses and the copy/paste combination that apply to both the console bar and the full open console */
+function bool ProcessControlKey(name Key, EInputEvent Event)
+{
+	if (Key == 'LeftControl' || Key == 'RightControl')
+	{
+		if (Event == IE_Released)
+		{
+			bCtrl = false;
+		}
+		else if (Event == IE_Pressed)
+		{
+			bCtrl = true;
+		}
+
+		return true;
+	}
+	else if (bCtrl && Event == IE_Pressed && GamePlayers.length > 0 && GamePlayers[0].Actor != None)
+	{
+		if (Key == 'v')
+		{
+			// paste
+			AppendInputText(GamePlayers[0].Actor.PasteFromClipboard());
+			return true;
+		}
+		else if (Key == 'c')
+		{
+			// copy
+			GamePlayers[0].Actor.CopyToClipboard(TypedStr);
+			return true;
+		}
+		else if (Key == 'x')
+		{
+			// cut
+			if (TypedStr != "")
+			{
+				GamePlayers[0].Actor.CopyToClipboard(TypedStr);
+				SetInputText("");
+				SetCursorPos(0);
+			}
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/** appends the specified text to the string of typed text */
+function AppendInputText(string Text)
+{
+	local int Character;
+
+	while (Len(Text) > 0)
+	{
+		Character = Asc(Left(Text, 1));
+		Text = Mid(Text, 1);
+
+		if (Character >= 0x20 && Character < 0x100 && Character != Asc("~") && Character != Asc("`"))
+		{
+			SetInputText(Left(TypedStr, TypedStrPos) $ Chr(Character) $ Right(TypedStr, Len(TypedStr) - TypedStrPos));
+			SetCursorPos(TypedStrPos + 1);
+		}
+	};
+}
+
 /**
  * This state is used when the typing bar is open.
  */
@@ -370,8 +434,6 @@ state Typing
 	 */
 	function bool InputChar( int ControllerId, string Unicode )
 	{
-		local int	Character;
-
 		if ( IsUIMiniConsoleOpen() )
 		{
 			return false;
@@ -382,17 +444,7 @@ state Typing
 			return true;
 		}
 
-		while(Len(Unicode) > 0)
-		{
-			Character = Asc(Left(Unicode,1));
-			Unicode = Mid(Unicode,1);
-
-			if(Character >= 0x20 && Character < 0x100 && Character != Asc("~") && Character != Asc("`"))
-			{
-				SetInputText(Left(TypedStr, TypedStrPos) $ Chr(Character) $ Right(TypedStr, Len(TypedStr) - TypedStrPos));
-				SetCursorPos(TypedStrPos + 1);
-			}
-		};
+		AppendInputText(Unicode);
 
 		return true;
 	}
@@ -417,7 +469,11 @@ state Typing
 			bCaptureKeyInput = false;
 		}
 
-		if( Key == 'Escape' && Event == IE_Released )
+		if (ProcessControlKey(Key, Event))
+		{
+			return true;
+		}
+		else if( Key == 'Escape' && Event == IE_Released )
 		{
 			if( TypedStr!="" )
 			{
@@ -644,24 +700,12 @@ state Open
 {
 	function bool InputChar( int ControllerId, string Unicode )
 	{
-		local int	Character;
-
 		if ( bCaptureKeyInput )
 		{
 			return true;
 		}
 
-		while(Len(Unicode) > 0)
-		{
-			Character = Asc(Left(Unicode,1));
-			Unicode = Mid(Unicode,1);
-
-			if(Character >= 0x20 && Character < 0x100 && Character != Asc("~") && Character != Asc("`"))
-			{
-				SetInputText(Left(TypedStr, TypedStrPos) $ Chr(Character) $ Right(TypedStr, Len(TypedStr) - TypedStrPos));
-				SetCursorPos(TypedStrPos+1);
-			}
-		};
+		AppendInputText(Unicode);
 
 		return true;
 	}
@@ -686,17 +730,11 @@ state Open
 			bCaptureKeyInput=false;
 		}
 
-		if( Key == 'LeftControl' )
+		if (ProcessControlKey(Key, Event))
 		{
-			if (Event==IE_Released)
-				bCtrl=false;
-			else if (Event==IE_Pressed)
-				bCtrl=True;
-
 			return true;
 		}
-
-		if( Key == 'Escape' && Event == IE_Released )
+		else if( Key == 'Escape' && Event == IE_Released )
 		{
 			if( TypedStr!="" )
 			{

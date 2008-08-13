@@ -1,4 +1,8 @@
-﻿class UTVehicleSimHellbender extends UTVehicleSimCar;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTVehicleSimHellbender extends UTVehicleSimCar;
 
 defaultproperties
 {

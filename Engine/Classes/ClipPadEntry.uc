@@ -2,7 +2,7 @@
 * class ClipPadEntry
 *
 * A block of text that can be pasted into the level.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class ClipPadEntry extends Object
 	native

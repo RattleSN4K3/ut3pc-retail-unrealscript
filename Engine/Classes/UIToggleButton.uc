@@ -2,7 +2,7 @@
  * This button is identical to UIButton, with the exception that pressing this button toggles its pressed state, rather
  * than only remaining in the pressed state while the mouse/key is depressed.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIToggleButton extends UILabelButton
 	native(inherit);

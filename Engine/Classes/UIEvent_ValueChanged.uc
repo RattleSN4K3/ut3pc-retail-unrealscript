@@ -2,7 +2,7 @@
  * Base class for events which are activated when some widget that contains data changes the value of that data
  * (checkboxes, editboxes, lists, etc.)
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * @note: native because C++ code activates this event
  */

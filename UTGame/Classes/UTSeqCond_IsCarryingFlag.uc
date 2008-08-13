@@ -1,4 +1,8 @@
-﻿class UTSeqCond_IsCarryingFlag extends SequenceCondition;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTSeqCond_IsCarryingFlag extends SequenceCondition;
 
 var Actor Target;
 var() UTGameObjective FlagBase;

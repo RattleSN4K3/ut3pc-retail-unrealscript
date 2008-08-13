@@ -5,7 +5,7 @@
 /** 
  *	Base one of these on an Actor using PHYS_RigidBody and it will apply a force down the negative-X direction
  *	ie. point X in the direction you want the thrust in.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 

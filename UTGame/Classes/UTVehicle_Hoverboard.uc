@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTVehicle_Hoverboard extends UTHoverVehicle
@@ -230,10 +230,12 @@ var float LastDesiredSpeedTime;
 
 replication
 {
+	if(Role == ROLE_Authority)
+		bTrickJumping;
 	if (bNetDirty)
 		TowInfo, bGrab1, bGrab2;
 	if (!bNetOwner)
-		bDoHoverboardJump, bForceSpinWarmup, bTrickJumping;
+		bDoHoverboardJump, bForceSpinWarmup;
 }
 
 /** Used by PlayerController.FindGoodView() in RoundEnded State */
@@ -441,6 +443,15 @@ function bool DriverEnter(Pawn P)
 	Mesh.AddImpulse(P.Velocity,,, true);
 	// immediately set BodyInstance velocity properties so if we're already colliding with something RigidBodyCollision() has the correct values
 	BodyInstance = Mesh.GetRootBodyInstance();
+
+	// if we fail to spawn the bodyInstance, physics failed here, so just disallow the player to get on hoverboard
+	// zero out the pawn's velocity in case his velocity is what caused the physics object to fail
+	if (BodyInstance == None)
+	{
+		P.Velocity = vect(0, 0, 0);
+		return false;
+	}
+
 	BodyInstance.Velocity = P.Velocity;
 	BodyInstance.PreviousVelocity = P.Velocity;
 
@@ -458,7 +469,7 @@ function bool DriverEnter(Pawn P)
 	OldDrivenVehicle = P.DrivenVehicle;
 	P.DrivenVehicle = self;
 
-	if ( !super.DriverEnter(P) )
+	if ( BodyInstance == none || !super.DriverEnter(P) )
 	{
 		P.DrivenVehicle = OldDrivenVehicle;
 		return false;
@@ -530,9 +541,25 @@ simulated function AttachDriver( Pawn P )
 {
 	local UTPawn UTP;
 
+	UTP = UTPawn(P);
+	if (UTP != None)
+	{
+        //Disable foot placement controls
+		UTP.bEnableFootPlacement = FALSE;
+		if ( UTP.LeftLegControl != None )
+		{
+		UTP.LeftLegControl.SetSkelControlActive(false);
+		UTP.LeftLegControl.SetSkelControlStrength(0.0, 0.0);
+		}
+		if ( UTP.RightLegControl != None )
+		{
+		UTP.RightLegControl.SetSkelControlActive(false);
+		UTP.RightLegControl.SetSkelControlStrength(0.0, 0.0);
+	}
+	}
+
 	Super.AttachDriver(P);
 
-	UTP = UTPawn(P);
 	if (UTP != None && UTP.Mesh.SkeletalMesh != None)
 	{
 		HandleMesh.SetShadowParent(UTP.Mesh);
@@ -860,7 +887,11 @@ simulated function DetachDriver( Pawn P )
 	UTP = UTPawn(Driver);
 	if(UTP != None)
 	{
-		UTP.bIsHoverboardAnimPawn = FALSE;
+		UTP.bIsHoverboardAnimPawn = false;
+		//Enable foot placement controls
+        UTP.bEnableFootPlacement = true;
+		UTP.LeftLegControl.SetSkelControlActive(true);
+		UTP.RightLegControl.SetSkelControlActive(true);
 	}
 
 	Super.DetachDriver(P);
@@ -1606,7 +1637,7 @@ event bool ContinueOnFoot()
 		B = UTBot(Controller);
 		if (B != None)
 		{
-			B.LastTryHoverboardTime = WorldInfo.TimeSeconds + 2.0;
+			B.LastTryHoverboardTime = WorldInfo.TimeSeconds + 4.0;
 		}
 		return true;
 	}

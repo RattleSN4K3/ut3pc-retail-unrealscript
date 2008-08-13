@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTVoice extends UTLocalMessage
 	abstract;
@@ -666,7 +666,7 @@ static function SendVoiceMessage(Controller Sender, PlayerReplicationInfo Recipi
 
 	foreach Sender.WorldInfo.AllControllers(class'UTPlayerController', PC)
 	{
-		if ( (PC != Sender) && (!Sender.WorldInfo.Game.bTeamGame || Sender.WorldInfo.GRI.bMatchIsOver || ((Sender.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo != None) && (Sender.PlayerReplicationInfo.Team == PC.PlayerReplicationInfo.Team)))
+		if ( ((PC == Sender) || !Sender.WorldInfo.Game.bTeamGame || Sender.WorldInfo.GRI.bMatchIsOver || ((Sender.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo != None) && (Sender.PlayerReplicationInfo.Team == PC.PlayerReplicationInfo.Team)))
 			&& !PC.IsPlayerMuted(Sender.PlayerReplicationInfo.UniqueID) )
 		{
 				PC.ReceiveBotVoiceMessage(SenderPRI, MessageIndex, None);

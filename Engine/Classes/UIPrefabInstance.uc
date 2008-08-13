@@ -1,7 +1,7 @@
 ﻿/**
  * This widget class is a container for widgets which are instances of a UIPrefab.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIPrefabInstance extends UIObject
 	native(UIPrivate)
@@ -11,7 +11,7 @@ class UIPrefabInstance extends UIObject
 
 
 /** The prefab that this is an instance of. */
-var		const	archetype		UIPrefab				SourcePrefab;
+var		const	archetype		UIPrefab	SourcePrefab;
 
 /**
  * The version for this UIPrefabInstance.  When the value of PrefabInstanceVersion does not match the value of SourcePrefab's
@@ -20,21 +20,17 @@ var		const	archetype		UIPrefab				SourcePrefab;
 var		const		int						PrefabInstanceVersion;
 
 /**
- * Mapping from archetypes in the source prefab (TemplatePrefab) to instances of those archetypes in this PrefabInstance.
- * Should only ever contain UIScreenObject-derived objects;  Used by UpdatePrefabInstance to determine the archetypes which
- * were added to SourcePrefab since the last time this UIPrefabInstance was updated, as well as tracking which widgets have
- * been removed from this UIPrefabInstance by the user.
+ * Mapping from archetypes in the SourcePrefab to instances of those archetypes in this UIPrefabInstance.
+ * Used by UpdatePrefabInstance to determine the archetypes which were added to SourcePrefab since the last time this
+ * UIPrefabInstance was updated, as well as tracking which widgets have been removed from this UIPrefabInstance by the user.
  *
  * This map holds references to all objects in the UIPrefab and UIPrefabInstance, including any components and subobjects.
  * A NULL key indicates that the widget was removed from the UIPrefab; the instance associated with the NULL key will be removed
- * 	from the UIPrefabInstance's list of children the next time that UpdateUIPrefabInstance is called.
+ * from the UIPrefabInstance's list of children the next time that UpdateUIPrefabInstance is called.
  * A NULL value indicates that the user manually removed an instanced widget from the UIPrefabInstance.  When this UIPrefabInstance
- *	is updated, that widget archetype will not be re-instanced.
+ * is updated, that widget archetype will not be re-instanced.
  */
 var		const native Map{UObject*,UObject*}	ArchetypeToInstanceMap;
-
-///** Kismet sequence that was created for this PrefabInstance. */
-//var		const		Sequence				SequenceInstance;
 
 /** Contains the epic+licensee version that this PrefabInstance's package was saved with. */
 var	editoronly	const			int			PI_PackageVersion;

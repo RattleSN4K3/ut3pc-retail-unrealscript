@@ -2,7 +2,7 @@
  * This component when integrated into a widget allows for scrolling the contents of the widget, i.e. UIList.
  * UIScrollbar has built-in functionality to autoposition itself within the owner widget depending on its orientation
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIScrollbar extends UIObject
 	native(UIPrivate)

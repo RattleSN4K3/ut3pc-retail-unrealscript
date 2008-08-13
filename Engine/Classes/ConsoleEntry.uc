@@ -1,7 +1,7 @@
 ﻿/**
  * Temporary widget for representing the region that displays the text currently being typed into the console
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class ConsoleEntry extends UIObject
 	native(UIPrivate)

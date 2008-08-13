@@ -9,7 +9,7 @@
 // classes to send messages.  The BroadcastHandler function BroadcastLocalizedMessage()
 // is used to broadcast localized messages to all the players.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class LocalMessage extends Object
 	abstract;

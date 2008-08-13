@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTVWeap_TowCable extends UTVehicleWeapon
@@ -142,9 +142,9 @@ simulated function BeginFire(Byte FireModeNum)
 			CheckPossibleLink(PotentialTowTruck);
 		}
 	}
-	else
+	else if (Instigator != None && Instigator.IsLocallyControlled() && Instigator.IsHumanControlled())
 	{
-		PlaySound(FireFailSound);
+		Instigator.PlaySound(FireFailSound, true);
 	}
 }
 

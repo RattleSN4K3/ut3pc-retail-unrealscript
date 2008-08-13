@@ -1,5 +1,5 @@
 ﻿/**
- *	Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ *	Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  *	Utility class designed to allow you to connect a MaterialInterface to a Matinee action.
  */

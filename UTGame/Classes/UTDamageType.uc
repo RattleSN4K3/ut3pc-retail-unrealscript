@@ -4,7 +4,7 @@
  * NOTE:  we can not do:  HideDropDown on this class as we need to be able to use it in SeqEvent_TakeDamage for objects taking
  * damage from any UTDamageType!
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTDamageType extends DamageType
@@ -166,7 +166,7 @@ static function name GetStatsName(name StatType)
 			return 'KILLS_ENVIRONMENT';
 		}
 	case 'DEATHS':
-		if ( Default.KillStatsName != '' )
+		if ( Default.DeathStatsName != '' )
 		{
 			return Default.DeathStatsName;
 		}
@@ -176,7 +176,7 @@ static function name GetStatsName(name StatType)
 			return 'DEATHS_ENVIRONMENT';
 		}
 	case 'SUICIDES':
-		if ( Default.KillStatsName != '' )
+		if ( Default.SuicideStatsName != '' )
 		{
 			return Default.SuicideStatsName;
 		}

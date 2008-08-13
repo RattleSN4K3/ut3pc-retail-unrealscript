@@ -1,6 +1,6 @@
 ﻿/** dynamic static mesh actor intended to be used with Matinee
  *	replaces movers
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class InterpActor extends DynamicSMActor
 	native

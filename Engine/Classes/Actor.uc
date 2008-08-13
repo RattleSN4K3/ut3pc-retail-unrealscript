@@ -12,7 +12,7 @@
 // -	Actor iterator functions
 // -	Message broadcasting
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 class Actor extends Object
@@ -152,7 +152,7 @@ var					bool	bOnlyDirtyReplication;		// if true, only replicate actor if bNetDir
 														// bOnlyDirtyReplication only used with bAlwaysRelevant actors
 
 
-/** Demop recording variables */
+/** Demo recording variables */
 var transient				bool	bDemoRecording;	/** set when we are currently replicating this Actor into a demo */
 var					bool	bDemoOwner;					// Demo recording driver owns this actor.
 
@@ -2141,6 +2141,8 @@ simulated function OnToggleHidden(SeqAct_ToggleHidden Action)
 	}
 }
 
+native final function Actor GetUTFlag(bool bIsRed);
+
 /** Attach an actor to another one. Kismet action. */
 function OnAttachToActor(SeqAct_AttachToActor Action)
 {
@@ -2171,7 +2173,15 @@ function OnAttachToActor(SeqAct_AttachToActor Action)
 			{
 				// if we're a controller and have a pawn, then attach to pawn instead.
 				C = Controller(Self);
-				if( C != None && C.Pawn != None )
+				if (Action.ObjComment == "___RedFlag")
+				{
+					GetUTFlag(TRUE).DoKismetAttachment(Attachment, Action);
+				}
+				else if (Action.ObjComment == "___BlueFlag")
+				{
+					GetUTFlag(FALSE).DoKismetAttachment(Attachment, Action);
+				}
+				else if( C != None && C.Pawn != None )
 				{
 					C.Pawn.DoKismetAttachment(Attachment, Action);
 				}

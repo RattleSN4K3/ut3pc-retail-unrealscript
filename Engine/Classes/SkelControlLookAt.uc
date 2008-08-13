@@ -2,7 +2,7 @@
 	native(Anim);
 	
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  *	Controller that rotates a single bone to 'look at' a given target.
  */

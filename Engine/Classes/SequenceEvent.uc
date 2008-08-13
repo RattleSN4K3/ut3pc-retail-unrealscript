@@ -4,7 +4,7 @@
  * Sequence event is a representation of any event that
  * is used to instigate a sequence.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SequenceEvent extends SequenceOp
 	native(Sequence)

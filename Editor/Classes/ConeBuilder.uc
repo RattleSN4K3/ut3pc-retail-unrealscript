@@ -1,6 +1,6 @@
 ﻿//=============================================================================
 // ConeBuilder: Builds a 3D cone brush, compatible with cylinder of same size.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class ConeBuilder
 	extends BrushBuilder;

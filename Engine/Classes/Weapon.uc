@@ -1,6 +1,6 @@
 ﻿/**
  * Base Weapon implementation.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class Weapon extends Inventory
@@ -537,7 +537,7 @@ function float GetDamageRadius()
  */
 function GivenTo(Pawn ThisPawn, optional bool bDoNotActivate)
 {
-	super.GivenTo(ThisPawn, bDoNotActivate);
+	Super.GivenTo(ThisPawn, bDoNotActivate);
 
 	if( !bDoNotActivate && ThisPawn != None /*&& ThisPawn.Controller != None*/ )
 	{
@@ -1752,13 +1752,11 @@ simulated state WeaponFiring
 		return true;
 	}
 
-
 	/**
 	 * Timer event, call is set up in Weapon::TimeWeaponFiring().
 	 * The weapon is given a chance to evaluate if another shot should be fired.
 	 * This event defines the weapon's rate of fire.
 	 */
-
 	simulated function RefireCheckTimer()
 	{
 		// if switching to another weapon, abort firing and put down right away
@@ -1811,7 +1809,6 @@ simulated state WeaponFiring
  *
  * @return	true to fire again, false to stop firing and return to Active State.
  */
-
 simulated function bool ShouldRefire()
 {
 	// if doesn't have ammo to keep on firing, then stop

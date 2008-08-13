@@ -2,7 +2,7 @@
 // Projectile.
 //
 // A delayed-hit projectile that moves around for some time after it is created.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Projectile extends Actor
 	abstract

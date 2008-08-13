@@ -2,7 +2,7 @@
  * Container object for all sequence objects, also responsible
  * for execution of objects.  Can contain nested Sequence objects
  * as well.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class Sequence extends SequenceOp
 	native(Sequence);

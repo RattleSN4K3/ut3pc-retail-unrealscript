@@ -1,5 +1,5 @@
 ﻿/**
-* Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+* Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 *
 * Custom Scene for UT3, contains a description label and an automated way of providing descriptions for widgets.
 */

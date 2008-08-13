@@ -4,7 +4,7 @@
 // PickupFactory should be used to place items in the level.  This class is for dropped inventory, which should attach
 // itself to this pickup, and set the appropriate mesh
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class DroppedPickup extends Actor
 	notplaceable

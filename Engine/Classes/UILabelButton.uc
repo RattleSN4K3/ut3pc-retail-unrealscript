@@ -1,7 +1,7 @@
 ﻿/**
  * This UIButton displays a label on the button.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UILabelButton extends UIButton
 	native(inherit)

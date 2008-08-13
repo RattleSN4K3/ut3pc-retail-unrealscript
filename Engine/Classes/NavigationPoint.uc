@@ -4,7 +4,7 @@
 // NavigationPoints are organized into a network to provide AIControllers
 // the capability of determining paths to arbitrary destinations in a level
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class NavigationPoint extends Actor
 	hidecategories(Lighting,LightColor,Force)

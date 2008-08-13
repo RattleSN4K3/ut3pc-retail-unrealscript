@@ -3,7 +3,7 @@
  * it is meant to be used for single shot effects spawned during gameplay
  * to reduce object overhead that would otherwise be caused by spawning dozens of Emitters
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class EmitterPool extends Actor
 	native

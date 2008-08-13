@@ -2,7 +2,7 @@
  * Specialized version of RB_Handle for moving the walker feet
  * Does some secondary interpolation (goal location interpolates to a goal location) to make nice curves.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTWalkerStepHandle extends RB_Handle

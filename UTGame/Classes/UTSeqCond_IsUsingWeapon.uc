@@ -1,4 +1,8 @@
-﻿class UTSeqCond_IsUsingWeapon extends SequenceCondition;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTSeqCond_IsUsingWeapon extends SequenceCondition;
 
 /** player to look for inventory on */
 var Actor Target;

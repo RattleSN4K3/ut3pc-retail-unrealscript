@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTUIScene_MidGameMenu extends UTUIScene_Hud
@@ -17,6 +17,7 @@ var transient bool bNeedsProfileSave;
 var transient bool bOkToAutoClose;
 
 var transient UTUITabPage_InGame InGamePage;
+var transient UTUITabPage_VoteTab VotePage;
 
 var transient bool bLoading;
 var transient bool bWaitingForReady;
@@ -152,8 +153,10 @@ event PostInitialize( )
 	OnRawInputKey=HandleInputKey;
 	OnPreRenderCallBack = PreRenderCallBack;
 
-	InGamePage = UTUITabPage_InGame(FindChild('GameTab',true));
+	VotePage = UTUITabPage_VoteTab(FindChild('VoteTab', True));
 
+	// Disable the Vote tab until it is needed (note: the vote tab gets reordered when shown)
+	TabControl.RemoveTabByTag('VoteTab');
 }
 
 function PreRenderCallBack()
@@ -429,32 +432,51 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 
 event UpdateVote(UTGameReplicationInfo GRI)
 {
-	local string s;
+	local string s, LeadingMaps;
 	local UTVoteReplicationInfo VoteRI;
 	local UTPlayerController UTPC;
+	local int i;
 
 	UTPC = GetUTPlayerOwner();
 
-	if ( UTPC != none && UTPC.VoteRI != none )
+	if (UTPC != none && UTPC.VoteRI != none)
 	{
-
 		VoteRI = UTPC.VoteRI;
 
-	    S = "<Strings:UTGameUI.MidGameMenu.VoteTimePrefix>"@GRI.MapVoteTimeRemaining;
-	    S @= (GRI.MapVoteTimeRemaining > 1) ? "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>" : "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>";
-	    if( (VoteRI != none) && (VoteRI.LeadingMap != "") )
-	    {
-	    	S @= "("$InGamePage.GetMapFriendlyName(VoteRI.LeadingMap)$")";
-	    }
-
-	 	MapVoteClock.SetDataStoreBinding(S);
-
-		if ( MapVoteClock.IsHidden() )
+		// Disable the mapvote clock when voting is over
+		if (!VoteRI.bVotingOver)
 		{
-	        MapVoteClock.SetVisibility(true);
-	    }
+			S = "<Strings:UTGameUI.MidGameMenu.VoteTimePrefix>"@GRI.MapVoteTimeRemaining@
+				((GRI.MapVoteTimeRemaining > 1) ? "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>" : "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>");
+		}
+
+
+		// Generate the string of leading maps
+		if (VoteRI.LeadingMaps.Length > 0)
+		{
+			for (i=0; i<Min(3, VoteRI.LeadingMaps.Length); ++i)
+			{
+				if (i > 0)
+					LeadingMaps $= "/";
+
+				LeadingMaps $= VotePage.GetMapFriendlyName(VoteRI.LeadingMaps[i]);
+			}
+
+			// Have a maximum of 3 maps in the string; use an ellipsis if there are more
+			if (VoteRI.LeadingMaps.Length > 3)
+				LeadingMaps @= "/...";
+
+			S @= "("$LeadingMaps$")";
+		}
+
+
+
+		MapVoteClock.SetDataStoreBinding(S);
+
+		if (MapVoteClock.IsHidden())
+			MapVoteClock.SetVisibility(true);
 	}
-	else if (MapVoteClock.IsVisible() )
+	else if (MapVoteClock.IsVisible())
 	{
 		MapVoteClock.SetVisibility(False);
 	}
@@ -462,15 +484,22 @@ event UpdateVote(UTGameReplicationInfo GRI)
 
 function BeginVoting(UTVoteReplicationInfo NewVoteRI)
 {
-	local UTUITabPAge_InGame GameTab;
+	local UTUITabPage_VoteTab VoteTab;
+	local int Idx;
+
+	// If the vote tab is not yet being displayed, then add it now (next to the game tab)
+	Idx = TabControl.FindPageIndexByPageRef(UITabPage(FindChild('GameTab', True))) + 1;
+
+	if (TabControl.GetPageAtIndex(Idx) != VotePage)
+		TabControl.InsertPage(VotePage, 0, TabControl.FindPageIndexByPageRef(UITabPage(FindChild('GameTab', True)))+1, false);
 
 
-	GameTab = UTUITabPAge_InGame( FindChild('GameTab',true));
-//	`log("### BeginVoting"@GameTab);
-	if (GameTab != none )
-	{
-		GameTab.BeginVoting(NewVoteRI);
-	}
+	VoteTab = UTUITabPage_VoteTab(FindChild('VoteTab', True));
+
+	//`log("### BeginVoting"@VoteTab,, 'UTVotingDebug');
+
+	if (VoteTab != none)
+		VoteTab.BeginVoting(NewVoteRI);
 }
 
 /**

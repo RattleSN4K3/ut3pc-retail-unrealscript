@@ -3,7 +3,7 @@
 // Produces pickups when active and touched by valid toucher
 // Combines functionality of old Pickup and InventorySpot classes
 // Pickup class now just used for dropped/individual items
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class PickupFactory extends NavigationPoint
 	abstract

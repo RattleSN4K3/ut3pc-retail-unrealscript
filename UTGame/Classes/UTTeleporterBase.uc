@@ -1,4 +1,8 @@
-﻿class UTTeleporterBase extends Teleporter
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTTeleporterBase extends Teleporter
 	native
 	abstract
 	config(Game);

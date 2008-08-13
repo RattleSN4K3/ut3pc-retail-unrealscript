@@ -2,7 +2,7 @@
  *
  * @todo:  add ability to use the TempoOverride
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTMusicManager extends Info
 	config(Game);

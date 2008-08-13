@@ -1,7 +1,7 @@
 ﻿/**
  * UT specific data store base class for online game searches.
  *
- * Copyright 2006-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTDataStore_GameSearchBase extends UIDataStore_OnlineGameSearch
 	native(UI)

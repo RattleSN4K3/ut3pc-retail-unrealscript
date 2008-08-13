@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTCTFGame extends UTTeamGame
 	abstract;
@@ -196,7 +196,7 @@ function bool CheckEndGame(PlayerReplicationInfo Winner, string Reason)
 		EndGameFocus = BestFlag.HomeBase;
 	}
 
-	EndTime = WorldInfo.TimeSeconds + EndTimeDelay;
+	EndTime = WorldInfo.RealTimeSeconds + EndTimeDelay;
 	foreach WorldInfo.AllControllers(class'Controller', P)
 	{
 		P.GameHasEnded( EndGameFocus, (P.PlayerReplicationInfo != None) && (P.PlayerReplicationInfo.Team == GameReplicationInfo.Winner) );

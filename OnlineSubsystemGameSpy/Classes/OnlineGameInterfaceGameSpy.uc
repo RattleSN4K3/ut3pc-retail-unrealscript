@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 /**
@@ -77,6 +77,15 @@ var const string PackedServerInfo;
  * @return true if successful creating the session, false otherwsie
  */
 native function bool UpdateOnlineGame(OnlineGameSettings UpdatedGameSettings);
+
+/**
+ * Cleans up any platform specific allocated data contained in the search results
+ *
+ * @param Search the object to free search results for
+ *
+ * @return true if successful, false otherwise
+ */
+native function bool FreeSearchResults(OnlineGameSearch Search);
 
 /**
  * Sets the delegate used to notify the gameplay code when a game invite has been accepted

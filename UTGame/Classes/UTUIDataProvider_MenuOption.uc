@@ -1,7 +1,7 @@
 ﻿/**
  * Provides an option for a UI menu item.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_MenuOption extends UTUIResourceDataProvider
 	native(UI)

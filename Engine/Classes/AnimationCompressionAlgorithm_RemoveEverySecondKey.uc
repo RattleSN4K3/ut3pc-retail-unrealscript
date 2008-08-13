@@ -1,7 +1,7 @@
 ﻿/**
  * Keyframe reduction algorithm that simply removes every second key.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class AnimationCompressionAlgorithm_RemoveEverySecondKey extends AnimationCompressionAlgorithm

@@ -1,4 +1,7 @@
-﻿class UTCustomLinkSetup extends Object
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+class UTCustomLinkSetup extends Object
 	native(Onslaught)
 	dependson(UTOnslaughtMapInfo)
 	config(Map) // actually replaced with the current map name

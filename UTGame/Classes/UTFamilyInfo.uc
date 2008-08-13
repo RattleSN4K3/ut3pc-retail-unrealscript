@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  * Structure defining information about a particular 'family' (eg. Ironguard Male)
  */
 
@@ -153,6 +153,9 @@ var bool bIsFemale;
 var float DefaultMeshScale;
 var float BaseTranslationOffset;
 
+/** death camera blood effect */
+var class<UTEmitCameraEffect> DeathCameraEffect;
+
 /**
  * Returns the # of emotes in a given group
  */
@@ -261,4 +264,6 @@ defaultproperties
 	
 	DefaultMeshScale=1.075
 	BaseTranslationOffset=7.0
+
+	DeathCameraEffect=class'UTEmitCameraEffect_BloodSplatter'
 }

@@ -1,7 +1,7 @@
 ﻿/**
  * This game search data store handles generating and receiving results for internet queries of all gametypes.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTDataStore_GameSearchDM extends UTDataStore_GameSearchBase
 	config(UI);

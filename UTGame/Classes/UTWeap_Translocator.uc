@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTWeap_Translocator extends UTWeapon
 	HideDropDown
@@ -37,6 +37,9 @@ var MaterialInstanceConstant	GeneralSkin;
 var LinearColor				SkinColors[2];
 var class<UTDamageType> FailedTranslocationDamageClass;
 var ParticleSystemComponent DiskEffect;
+
+/** true only during translocation (for kill credit) */
+var bool bTranslocationInProgress;
 
 replication
 {
@@ -424,15 +427,18 @@ function bool AttemptTranslocation(vector dest)
 {
 	local vector OldLocation, HitLocation, HitNormal, DestFinalZ;
 
+	bTranslocationInProgress = true;
 	OldLocation = Instigator.Location;
 	if (!TranslocSucceeded(dest))
 	{
+		bTranslocationInProgress = false;
 		return false;
 	}
 
 	// try trace down to dest
 	if (Trace(HitLocation, HitNormal, Instigator.Location, dest, false,,, TRACEFLAG_Bullet) == None)
 	{
+		bTranslocationInProgress = false;
 		return true;
 	}
 	// try trace straight up, then sideways to final location
@@ -441,9 +447,11 @@ function bool AttemptTranslocation(vector dest)
 	if ( Trace(HitLocation, HitNormal, DestFinalZ, dest, false) == None &&
 		Trace(HitLocation, HitNormal, Instigator.Location, DestFinalZ, false,,, TRACEFLAG_Bullet) == None )
 	{
+		bTranslocationInProgress = false;
 		return true;
 	}
 
+	bTranslocationInProgress = false;
 	Instigator.SetLocation(OldLocation);
 	return false;
 }

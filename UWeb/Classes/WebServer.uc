@@ -124,7 +124,7 @@ event GainedChild( Actor C )
 {
 	Super.GainedChild(C);
 	ConnectionCount++;
-
+	
 	// if too many connections, close down listen.
 	if(MaxConnections > 0 && ConnectionCount > MaxConnections && LinkState == STATE_Listening)
 	{
@@ -137,7 +137,7 @@ event LostChild( Actor C )
 {
 	Super.LostChild(C);
 	ConnectionCount--;
-
+	
 	// if closed due to too many connections, start listening again.
 	if(ConnectionCount <= MaxConnections && LinkState != STATE_Listening)
 	{

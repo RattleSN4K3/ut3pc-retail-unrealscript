@@ -4,7 +4,7 @@
  * Place this actor in the level to capture it to a render target texture.
  * Uses a 2D scene capture component
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SceneCapture2DActor extends SceneCaptureActor
 	native

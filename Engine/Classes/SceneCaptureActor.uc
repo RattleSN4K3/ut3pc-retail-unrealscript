@@ -4,7 +4,7 @@
  * Base class for actors that want to capture the scene
  * using a scene capture component 
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SceneCaptureActor extends Actor
 	native

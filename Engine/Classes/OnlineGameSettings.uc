@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 /**
@@ -90,6 +90,25 @@ var databinding const int EngineVersion;
 
 /** The minimum network version that is compatibile with the server */
 var databinding const int MinNetVersion;
+
+struct native PlayerRecord
+{
+	/** The player name */
+	var string name;
+	/** The player's score */
+	var int score;
+	/** The ping of the player as known by the server */
+	var int ping;
+	/** the name of the team the player is on, or empty when there are no teams*/	
+	var string team;
+	/** number of times the player has died */
+	var int deaths;
+	/** the player id in the current game */
+	var int pid;
+};
+
+/** Players currently playing on the server */
+var array<PlayerRecord> Players;
 
 defaultproperties
 {

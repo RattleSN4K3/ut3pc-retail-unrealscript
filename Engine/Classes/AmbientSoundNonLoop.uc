@@ -1,6 +1,6 @@
 ﻿//=============================================================================
 // Version of AmbientSoundSimple that picks a random non-looping sound to play.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class AmbientSoundNonLoop extends AmbientSoundSimple
 	native(Sound);

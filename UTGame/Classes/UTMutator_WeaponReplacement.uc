@@ -1,4 +1,6 @@
-﻿/** replaces weapons with other weapons (including ammo) */
+﻿/** replaces weapons with other weapons (including ammo) 
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
 class UTMutator_WeaponReplacement extends UTMutator
 	config(Game);
 

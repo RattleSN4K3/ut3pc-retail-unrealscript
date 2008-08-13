@@ -4,7 +4,7 @@
  * Onslaught levels may have a UTOnslaughtFlagBase placed near each powercore that will spawn the orb (UTOnslaughtFlag)
  * They may also have additional flag bases placed near nodes that the orb will return to instead if it is closer
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTOnslaughtFlagBase extends UTOnslaughtNodeEnhancement

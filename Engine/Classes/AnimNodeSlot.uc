@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Slot for Matinee controlled Animation Trees.
  * Each slot will be able to blend a defined number of channels (AnimNodeSequence connections).

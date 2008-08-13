@@ -2,7 +2,7 @@
 	native(Interpolation);
 
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * 
  *	A track containing toggle actions that are triggered as its played back. 

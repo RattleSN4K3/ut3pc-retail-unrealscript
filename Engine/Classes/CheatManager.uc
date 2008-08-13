@@ -2,7 +2,7 @@
 // CheatManager
 // Object within playercontroller that manages "cheat" commands
 // only spawned in single player mode
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 class CheatManager extends Object within PlayerController
@@ -111,7 +111,7 @@ function BugItWorker( vector TheLocation, rotator TheRotation )
 }
 
 /**
- * This function is used to print out the BugIt location.  It prints out copy and past versions for both IMing someone to type in
+ * This function is used to print out the BugIt location.  It prints out copy and paste versions for both IMing someone to type in
  * and also a gameinfo ?options version so that you can append it to your launching url and be taken to the correct place.
  * Additionally, it will take a screen shot so reporting bugs is a one command action!
  *
@@ -128,7 +128,7 @@ exec function BugIt( optional string ScreenShotDescription )
 
 	ViewLocation = Pawn.Location;
 
-	`log( "BugIt " $ ViewLocation.X $ " " $ ViewLocation.Y $ " " $ ViewLocation.Z $ " " $ ViewRotation.Pitch $ " " $ ViewRotation.Yaw $ " " $ ViewRotation.Roll );
+	`log( "BugItGo " $ ViewLocation.X $ " " $ ViewLocation.Y $ " " $ ViewLocation.Z $ " " $ ViewRotation.Pitch $ " " $ ViewRotation.Yaw $ " " $ ViewRotation.Roll );
 	`log( "?BugLoc=(" $ "X=" $ ViewLocation.X $ ",Y=" $ ViewLocation.Y $ ",Z=" $ ViewLocation.Z $")" $ "?BugRot=(" $ "Pitch=" $ ViewRotation.Pitch $ ",Yaw=" $ ViewRotation.Yaw $ ",Roll=" $ ViewRotation.Roll $ ")" );
 
 }

@@ -4,7 +4,7 @@
  * A typical usage scenario would be to blend between 2 player idle animations.
  * This blend requires 2 AnimNodeSequence as childs, you cannot connect 2 blends nor any other node types.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class AnimNodeCrossfader extends AnimNodeBlend

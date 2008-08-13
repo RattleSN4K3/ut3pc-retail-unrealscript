@@ -1,7 +1,7 @@
 ﻿/**
  * Handles information about a collection of list elements are sorted.  Responsible for invoking the
  * UISortableItem on each element to allow the element to perform the comparison.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIComp_ListElementSorter extends UIComp_ListComponentBase
 	native(inherit)

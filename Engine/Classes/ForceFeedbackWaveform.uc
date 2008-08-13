@@ -2,7 +2,7 @@
  * This class manages the waveform data for a forcefeedback device,
  * specifically for the xbox gamepads.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class ForceFeedbackWaveform extends Object

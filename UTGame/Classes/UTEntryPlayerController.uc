@@ -1,7 +1,7 @@
 ﻿/**
  * UTEntryPlayerController
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTEntryPlayerController extends UTPlayerController
@@ -277,7 +277,16 @@ function QuitToMainMenu()
 
 	if(GetURLMap()=="UTFrontEnd")
 	{
-		OnlineSub.GameInterface.DestroyOnlineGame();
+		//Is an online session in progress?
+		if (OnlineSub != None && OnlineSub.GameInterface != None && OnlineSub.GameInterface.GetOnlineGameState() != OGS_NoSession)
+		{
+			// Set the destroy delegate so we can know when that is complete
+			OnlineSub.GameInterface.AddDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+
+			// Now we can destroy the game, kill the pending connection
+			`Log("UTEntryPlayerController::QuitToMainMenu() - Destroying Online Game, ControllerId: " $ LocalPlayer(Player).ControllerId);
+			OnlineSub.GameInterface.DestroyOnlineGame();
+		}
 
 		SceneClient = class'UIRoot'.static.GetSceneClient();
 		if ( SceneClient != None && SceneClient.IsUIActive(0x00000020) )
@@ -298,6 +307,23 @@ function QuitToMainMenu()
 	{
 		Super.QuitToMainMenu();
 	}
+}
+
+/**
+* Called when the destroy online game has completed. At this point it is safe
+* to travel back to the menus
+*
+* @param bWasSuccessful whether it worked ok or not
+*/
+function OnDestroyOnlineGameComplete(bool bWasSuccessful)
+{
+	`log("UTEntryPlayerController::OnDestroyOnlineGameComplete() - Finishing Quit to Main Menu, ControllerId: " $ LocalPlayer(Player).ControllerId);
+
+	OnlineSub.GameInterface.ClearDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+
+	// Clear out the gamesettings cache
+	if (WorldInfo.Game != None)
+		WorldInfo.Game.GameSettings = None;
 }
 
 function LoadCharacterFromProfile(UTProfileSettings Profile);	// Do nothing

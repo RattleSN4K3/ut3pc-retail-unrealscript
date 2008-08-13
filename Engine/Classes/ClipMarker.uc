@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Clip markers for brush clipping mode.  2 or 3 of these are placed in a level to define a clipping plane.
  * These should NOT be manually added to the level -- the editor automatically adds and deletes them as necessary.

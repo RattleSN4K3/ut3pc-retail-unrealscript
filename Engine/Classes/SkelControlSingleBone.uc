@@ -1,7 +1,7 @@
 ﻿/**
  *	Simple controller that replaces or adds to the translation/rotation of a single bone.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SkelControlSingleBone extends SkelControlBase
 	native(Anim);

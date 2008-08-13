@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Launch game scene for UT3, contains functionality common to instant action and host game flows.
  */
@@ -120,7 +120,6 @@ function OnGameModeSelected(string InGameMode, string InDefaultMap, string GameS
 
 	// Setup the map list on the map tab.
 	MapTab.OnGameModeChanged();
-	class'UTUIFrontEnd_Mutators'.static.ApplyGameModeFilter();
 
 	if(bSelectionSubmitted)
 	{

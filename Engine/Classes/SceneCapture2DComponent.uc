@@ -3,7 +3,7 @@
  *
  * Allows a scene capture to a 2D texture render target
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SceneCapture2DComponent extends SceneCaptureComponent
 	native;

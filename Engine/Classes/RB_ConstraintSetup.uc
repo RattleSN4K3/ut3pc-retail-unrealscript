@@ -4,7 +4,7 @@
 // Defaults here will give you a ball and socket joint.
 // Positions are in Physics scale.
 // When adding stuff here, make sure to update URB_ConstraintSetup::CopyConstraintParamsFrom
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 

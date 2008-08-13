@@ -3,7 +3,7 @@
  * use in multiple files where the enum can't be mapped to a specific file.
  * Also to make these type available to the native land without forcing objects to be native.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTTypes extends Object
 	native;

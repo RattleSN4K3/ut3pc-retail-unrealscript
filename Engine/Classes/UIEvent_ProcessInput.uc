@@ -4,7 +4,7 @@
  *
  * Widgets must contain a UIEvent_ProcessInput in their list of implemented events in order to process input events.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIEvent_ProcessInput extends UIEvent
 	native(inherit)

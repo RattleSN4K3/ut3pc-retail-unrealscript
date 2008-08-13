@@ -1,5 +1,5 @@
 ﻿// Actor used by matinee (SeqAct_Interp) objects to replicate activation, playback, and other relevant flags to net clients
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 class MatineeActor extends Actor
 	native
 	nativereplication;

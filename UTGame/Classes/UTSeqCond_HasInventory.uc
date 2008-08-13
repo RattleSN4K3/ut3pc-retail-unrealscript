@@ -1,4 +1,8 @@
-﻿/** activates output depending on whether the given Pawn has the specified inventory item */
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+/** activates output depending on whether the given Pawn has the specified inventory item */
 class UTSeqCond_HasInventory extends SequenceCondition;
 
 /** player to look for inventory on */

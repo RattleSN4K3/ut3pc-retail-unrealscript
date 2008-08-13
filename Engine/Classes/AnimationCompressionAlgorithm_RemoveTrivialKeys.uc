@@ -3,7 +3,7 @@
  * over the entire animation -- from the raw animation data.  If both position and rotation
  * go down to a single frame, the time is stripped out as well.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class AnimationCompressionAlgorithm_RemoveTrivialKeys extends AnimationCompressionAlgorithm

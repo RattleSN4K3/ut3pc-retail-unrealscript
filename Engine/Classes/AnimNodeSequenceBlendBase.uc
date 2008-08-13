@@ -1,6 +1,6 @@
 ﻿
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * This class encapsulates a common interface to extract multiple animation data and blend it.
  */

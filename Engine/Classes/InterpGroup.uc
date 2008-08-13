@@ -5,7 +5,7 @@
 	hidecategories(Object);
 
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * A group, associated with a particular Actor or set of Actors, which contains a set of InterpTracks for interpolating 
  * properties of the Actor over time.

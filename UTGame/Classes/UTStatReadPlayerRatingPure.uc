@@ -1,5 +1,5 @@
 ﻿/**
-* Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+* Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 */
 
 /** Stat read setup to retrieve just the player's current ELO rating in Pure */

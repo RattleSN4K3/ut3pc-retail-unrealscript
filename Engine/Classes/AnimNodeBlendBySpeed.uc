@@ -3,7 +3,7 @@
  *
  * Blends between child nodes based on the owners speed and the defined constraints.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class AnimNodeBlendBySpeed extends AnimNodeBlendList
 		native(Anim);

@@ -1,6 +1,6 @@
 ﻿
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 /** The class that writes the DM stats */
@@ -15,6 +15,45 @@ class UTLeaderboardWriteWeaponsDM extends UTLeaderboardWriteBase;
 function CopyAllStats(UTPlayerReplicationInfo PRI)
 {
 	local IntStat tempIntStat;
+	local int Stat1Idx, Stat2Idx;
+
+	//Add any headshots to sniper kills
+	Stat1Idx = PRI.KillStats.Find('StatName', 'KILLS_HEADSHOT');
+	if (Stat1Idx != INDEX_NONE)
+	{
+		Stat2Idx = PRI.KillStats.Find('StatName', 'KILLS_SNIPERRIFLE');
+		if (Stat2Idx != INDEX_NONE)
+		{
+			//Sum the headshot/sniper kills
+			PRI.KillStats[Stat2Idx].StatValue += PRI.KillStats[Stat1Idx].StatValue;
+		}
+		else
+		{
+			//No sniper kills alone existed, copy headshots over
+			tempIntStat.StatName = 'KILLS_SNIPERRIFLE';
+			tempIntStat.StatValue = PRI.KillStats[Stat1Idx].StatValue;
+			PRI.KillStats[PRI.KillStats.length] = tempIntStat;
+		}
+	}
+
+	//Add any headshots to sniper deaths
+	Stat1Idx = PRI.DeathStats.Find('StatName', 'DEATHS_HEADSHOT');
+	if (Stat1Idx != INDEX_NONE)
+	{
+		Stat2Idx = PRI.DeathStats.Find('StatName', 'DEATHS_SNIPERRIFLE');
+		if (Stat2Idx != INDEX_NONE)
+		{
+			//Sum the headshot/sniper deaths
+			PRI.DeathStats[Stat2Idx].StatValue += PRI.DeathStats[Stat1Idx].StatValue;
+		}
+		else
+		{
+			//No sniper kills alone existed, copy headshots over
+			tempIntStat.StatName = 'DEATHS_SNIPERRIFLE';
+			tempIntStat.StatValue = PRI.DeathStats[Stat1Idx].StatValue;
+			PRI.DeathStats[PRI.DeathStats.length] = tempIntStat;
+		}
+	}
 
 	//Kill stats
 	foreach PRI.KillStats(tempIntStat)

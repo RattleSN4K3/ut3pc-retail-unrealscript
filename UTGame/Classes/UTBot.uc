@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTBot extends AIController
@@ -67,6 +67,7 @@ var		bool							bEnemyAcquired;
 var		bool		bScriptedFrozen;
 var		bool		bSendFlagMessage;
 var		bool		bForceNoDetours;
+var		bool		bShortCamp;
 
 var		int								AcquisitionYawRate;
 
@@ -949,7 +950,7 @@ function bool CanAttack(Actor Other)
 	local UTMapInfo WorldMapInfo;
 
 	WorldMapInfo = UTMapInfo(WorldInfo.GetMapInfo());
-	if ( (WorldMapInfo != None) && (WorldMapInfo.VisibilityModifier < 1.0) 
+	if ( (WorldMapInfo != None) && (WorldMapInfo.VisibilityModifier < 1.0)
 		&& (WorldMapInfo.VisibilityModifier * Pawn.SightRadius < VSize(Other.Location - Pawn.Location)) )
 	{
 		return false;
@@ -2202,6 +2203,7 @@ protected event ExecuteWhatToDoNext()
 		}
 
 		GoalString @= "- Wander or Camp at" @ WorldInfo.TimeSeconds;
+		bShortCamp = PlayerReplicationInfo.bHasFlag;
 		WanderOrCamp();
 	}
 }
@@ -4410,7 +4412,7 @@ state Defending
 			if ( ActorReachable(RouteGoal) )
 				NextMovetarget = RouteGoal;
 			else
-				NextMoveTarget = FindPathToward(RouteGoal);
+				NextMoveTarget = FindPathToward(RouteGoal, true);
 			if ( NextMoveTarget == None )
 			{
 				if ( (DefensePoint != None) && (UTHoldSpot(DefensePoint) == None) )
@@ -4424,7 +4426,7 @@ state Defending
 				{
 					RouteGoal = DefensivePosition;
 				}
-				NextMoveTarget = FindPathToward(RouteGoal);
+				NextMoveTarget = FindPathToward(RouteGoal, true);
 			}
 		}
 		if ( NextMoveTarget == None )
@@ -4467,7 +4469,8 @@ state Defending
 
 Begin:
 	WaitForLanding();
-	CampTime = 3;
+	CampTime = bShortCamp ? 0.3 : 3.0;
+	bShortCamp = false;
 	if ( Pawn.bStationary )
 	{
 		Goto('Pausing');
@@ -6465,7 +6468,7 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyPhysicsVolume
 		`log(self$" WanderOrCamp while RoundEnded");
 	}
 
-	function Timer()
+	function CelebrateVictory()
 	{
 		if ( UTGame(WorldInfo.Game) != None )
 		{
@@ -6481,7 +6484,9 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyPhysicsVolume
 		Super.BeginState(PreviousStateName);
 
 		if ( (UTGame(WorldInfo.Game) != None) && (UTGame(WorldInfo.Game).EndGameFocus == Pawn) && (Pawn != None) )
-			SetTimer(3.0, false);
+		{
+			SetTimer(3.0, false, 'CelebrateVictory');
+		}
 	}
 }
 

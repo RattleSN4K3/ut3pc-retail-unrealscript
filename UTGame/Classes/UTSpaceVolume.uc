@@ -1,4 +1,8 @@
-﻿class UTSpaceVolume extends UTWaterVolume;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTSpaceVolume extends UTWaterVolume;
 
 simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
 {

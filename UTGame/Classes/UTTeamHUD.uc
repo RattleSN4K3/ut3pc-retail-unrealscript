@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTTeamHUD extends UTHUD;
 
@@ -60,15 +60,6 @@ function DisplayTeamScore()
 	Canvas.DrawColorizedTile(IconHudTexture, W * DestScale, H * DestScale, 0, 491, 214, 87, TeamLC);
 
 	NewScore = GetTeamScore(TeamIndex);
-
-
-	if (bScoreDebug)
-	{
-		Canvas.SetPos(0,100);
-		Canvas.DrawText("ScoreDebug: RED NewScore="@NewScore@UTGRI@UTGRI.Teams[0]);
-	}
-
-
 	if ( NewScore != OldLeftScore )
 	{
 		LeftTeamPulseTime = WorldInfo.TimeSeconds;
@@ -97,14 +88,6 @@ function DisplayTeamScore()
 	POSX = Canvas.ClipX * 0.51;
 
 	NewScore = GetTeamScore(TeamIndex);
-
-	if (bScoreDebug)
-	{
-		Canvas.SetPos(0,120);
-		Canvas.DrawText("ScoreDebug: Blue NewScore="@NewScore@UTGRI@UTGRI.Teams[1]);
-	}
-
-
 	if ( NewScore != OldRightScore )
 	{
 		RightTeamPulseTime = WorldInfo.TimeSeconds;

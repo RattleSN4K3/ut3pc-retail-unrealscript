@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  * This object is used as a store for all custom character part and profile information.
  */
 class UTCustomChar_Data extends Object

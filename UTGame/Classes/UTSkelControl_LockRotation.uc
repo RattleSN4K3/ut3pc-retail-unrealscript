@@ -1,7 +1,7 @@
 ﻿/**
  * skeletal controller that locks one or more components of the bone's rotation to a specified value
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTSkelControl_LockRotation extends SkelControlBase

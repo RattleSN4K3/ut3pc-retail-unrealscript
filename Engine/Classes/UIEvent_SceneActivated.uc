@@ -1,7 +1,7 @@
 ﻿/**
  * This event is activated when a scene is opened.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIEvent_SceneActivated extends UIEvent_Scene;
 

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTProj_RedeemerBase extends UTProjectile
 	abstract;
@@ -276,6 +276,7 @@ defaultproperties
 	bProjTarget=true
 	bCollideComplex=false
 	bNetTemporary=false
+	bSuppressExplosionFX=true
 
 	Begin Object Name=CollisionCylinder
 		CollisionRadius=20

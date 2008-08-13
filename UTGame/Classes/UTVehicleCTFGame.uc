@@ -1,4 +1,8 @@
-﻿class UTVehicleCTFGame extends UTCTFGame
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTVehicleCTFGame extends UTCTFGame
 	abstract;
 
 // Returns whether a mutator should be allowed with this gametype

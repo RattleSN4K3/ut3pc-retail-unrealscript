@@ -3,7 +3,7 @@
  * and can be NOT activated by the gameplay code if, for instance, you are loading
  * a savegame in the middle of the level and don't want beginning of map actions
  * to happen.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_LevelBeginning extends SequenceEvent
 	native(Sequence);

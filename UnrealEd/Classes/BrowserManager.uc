@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * This class handles the registration, creation, and destruction of browser
  * panes. All of the browser panes are registered in an INI file so that they

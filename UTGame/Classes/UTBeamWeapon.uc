@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  *
  * BeamWeapons have at least 1 firing state set to WeaponBeamFiring.  This class contains all of the basics

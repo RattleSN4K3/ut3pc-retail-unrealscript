@@ -2,7 +2,7 @@
 // BlockingVolume:  a bounding volume
 // used to block certain classes of actors
 // primary use is to provide collision for non-zero extent traces around static meshes 
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 
 class BlockingVolume extends Volume

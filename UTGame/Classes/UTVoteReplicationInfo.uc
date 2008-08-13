@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTVoteReplicationInfo extends ReplicationInfo
@@ -27,6 +27,15 @@ var int dummy;
 var int MyCurrnetVoteID;
 
 var string LeadingMap;
+var array<string> LeadingMaps;
+
+
+// Function replication limitation
+var float RecordVoteTimestamp;
+var int RecordVoteCounter;
+
+var byte PendingBeginVoting;
+var bool bVotingOver;
 
 replication
 {
@@ -47,7 +56,6 @@ simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
 	Dummy=3;
-
 }
 
 
@@ -102,6 +110,20 @@ function Initialize(UTVoteCollector NewCollector)
 
 simulated reliable client function ClientTimesUp()
 {
+	local UTGameReplicationInfo GRI;
+
+	bVotingOver = True;
+	LeadingMaps.Length = 0;
+
+
+	// Force a final update for the vote timer
+	GRI = UTGameReplicationInfo(WorldInfo.GRI);
+
+	if (GRI != none && GRI.CurrentMidGameMenu != none)
+	{
+		//`log("Final vote timer update",, 'UTVotingDebug');
+		GRI.CurrentMidGameMenu.UpdateVote(GRI);
+	}
 }
 
 reliable server function ServerClientIsReady()
@@ -152,8 +174,8 @@ simulated reliable client function ClientRecvMapInfo(MapVoteInfo VInfo)
 
 simulated reliable client function ClientRecvMapUpdate(int MapId, byte VoteCntUpdate)
 {
-	local int Idx;
-	local int LeadingMapIndex, LeadingVoteCount;
+	local int Idx, LeadingVoteCount;
+	local array<int> LeadingMapIndicies;
 
 //	`log("### ClientRecMapUpdate"@MapID@VoteCntUpdate);
 
@@ -167,19 +189,30 @@ simulated reliable client function ClientRecvMapUpdate(int MapId, byte VoteCntUp
 		`log("Received a map update for a none existant MapID ("$MapID$")");
 	}
 
-	LeadingMapIndex = -1;
-	for (Idx=0;IDx<Maps.Length;Idx++)
-	{
-		if (LeadingMapIndex == -1 || Maps[Idx].NoVotes > LeadingVoteCount)
-		{
-			LeadingMapIndex = Idx;
-			LeadingVoteCount = Maps[Idx].NoVotes;
-		}
-	}
 
-	if (LeadingMapIndex >= 0)
+	// Generate the list of leading maps
+	if (!bVotingOver)
 	{
-		LeadingMap = Maps[LeadingMapIndex].Map;
+		for (Idx=0; Idx<Maps.Length; ++Idx)
+		{
+			if (LeadingMapIndicies.Length == 0 || Maps[Idx].NoVotes > LeadingVoteCount)
+			{
+				LeadingMapIndicies.Length = 1;
+
+				LeadingMapIndicies[0] = Idx;
+				LeadingVoteCount = Maps[Idx].NoVotes;
+			}
+			else if (Maps[Idx].NoVotes == LeadingVoteCount)
+			{
+				LeadingMapIndicies.AddItem(Idx);
+			}
+		}
+
+
+		LeadingMaps.Length = 0;
+
+		for (Idx=0; Idx<LeadingMapIndicies.Length; ++Idx)
+			LeadingMaps.AddItem(Maps[LeadingMapIndicies[Idx]].Map);
 	}
 }
 
@@ -188,25 +221,48 @@ simulated reliable client function ClientBeginVoting()
 	local UTGameReplicationInfo GRI;
 
 	GRI = UTGameReplicationInfo(WorldInfo.GRI);
-//	`log("### Client beginning to vote"@GRI@GRI.CurrentMidGameMenu);
-	if ( GRI != none && GRI.CurrentMidGameMenu != none && DemoRecSpectator(Owner) == none )
-	{
-		GRI.CurrentMidGameMenu.BeginVoting(self);
-	}
+	//`log("### Client beginning to vote"@GRI@GRI.CurrentMidGameMenu,, 'UTVotingDebug');
 
+	if (GRI != none && DemoRecSpectator(Owner) == none)
+	{
+		if (GRI.CurrentMidGameMenu != none)
+			GRI.CurrentMidGameMenu.BeginVoting(self);
+	}
+}
+
+// Old (pre midgame-vote) clients wont receive this function call; I use this fact to ensure old clients only get 'ClientBeginVoting' at endgame
+simulated reliable client function ClientBeginVotingNew()
+{
+	ClientBeginVoting();
 }
 
 reliable server function ServerRecordVoteFor(int MapIdToVoteFor)
 {
-//	`log("### Client wants to vote for"@MapIdToVoteFor);
-
-	if ( MyCurrnetVoteID > INDEX_None )
+	// Limit calls to a maximum of 4 every two seconds
+	if (WorldInfo.RealTimeSeconds - RecordVoteTimestamp < 2.0)
 	{
-		Collector.RemoveVoteFor(MyCurrnetVoteID);
+		if (RecordVoteCounter < 4)
+			++RecordVoteCounter;
+		else
+			return;
+	}
+	else
+	{
+		RecordVoteCounter = 1;
+		RecordVoteTimestamp = WorldInfo.RealTimeSeconds;
 	}
 
-    MyCurrnetVoteID = Collector.AddVoteFor(MapIdToVoteFor);
+	// Stop if the client is revoting the same map
+	if (MapIdToVoteFor == MyCurrnetVoteID)
+		return;
 
+	//`log("### Client"@(Controller(Owner).PlayerReplicationInfo.GetPlayerAlias())@"wants to vote for"@MapIdToVoteFor,, 'UTVotingDebug');
+
+
+	if (MyCurrnetVoteID > INDEX_None)
+		Collector.RemoveVoteFor(MyCurrnetVoteID);
+
+	MyCurrnetVoteID = Collector.AddVoteFor(MapIdToVoteFor);
 }
 
 
@@ -225,8 +281,13 @@ state ReplicatingToClient
 
 	reliable server function ServerAckTransfer()
 	{
-		SendIndex++;
-		if ( SendIndex == Collector.Votes.Length )
+		++SendIndex;
+
+		// Replication is done asynchronously during tick
+		Enable('Tick');
+
+
+		if (SendIndex == Collector.Votes.Length)
 		{
 			GotoState('Voting');
 		}
@@ -235,9 +296,6 @@ state ReplicatingToClient
 
 	}
 
-	/**
-	 * TODO - Probably better to use a timer here
-	 */
 	function Tick(float DeltaTime)
 	{
 		if (SendIndex != LastSendIndex && SendIndex < Collector.Votes.Length)
@@ -247,17 +305,24 @@ state ReplicatingToClient
 			ClientRecvMapInfo(Collector.Votes[SendIndex]);
 			LastSendIndex = SendIndex;
 		}
+
+		// Optimise by enabling/disabling tick as needed
+		Disable('Tick');
 	}
 }
 
 
 state Voting
 {
-
 	function BeginState(name PrevStateName)
 	{
 //		`log("### Server tells client to begin voting");
-		ClientBeginVoting();
+
+		// Old clients can receive 'ClientBeginVoting' calls, but not 'ClientBeginVotingNew'; only call on clients when a mapvote is in progress
+		if (Collector.MapVoteInProgress())
+			ClientBeginVoting();
+		else
+			ClientBeginVotingNew();
 	}
 }
 
@@ -271,5 +336,4 @@ defaultproperties
     NetUpdateFrequency=1
 
     MyCurrnetVoteID=-1
-
 }

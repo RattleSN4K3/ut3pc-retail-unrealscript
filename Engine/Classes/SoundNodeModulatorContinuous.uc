@@ -5,7 +5,7 @@
  *
  * In short using a SoundNodeModulatorContinuous for looping sounds is not advised.
  * 
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  **/
 class SoundNodeModulatorContinuous extends SoundNode
 	native(Sound)

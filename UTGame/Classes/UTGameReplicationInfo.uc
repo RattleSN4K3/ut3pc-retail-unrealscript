@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTGameReplicationInfo extends GameReplicationInfo
 	config(Game)
@@ -157,7 +157,6 @@ simulated function PostBeginPlay()
 	}
 
 	// Look for a mid game menu and if it's there fix it up
-
 	SC = UTGameUISceneClient(class'UIRoot'.static.GetSceneClient());
 	if (SC != none )
 	{
@@ -1339,6 +1338,10 @@ function ToggleViewingMap(bool bIsViewing)
 	}
 }
 
+/** wrapper for opening UI scenes
+ * @param InstigatorPC - player to open it for
+ * @param Template - the scene to open
+ */
 simulated function UIScene OpenUIScene(UTPlayerController InstigatorPC, UIScene Template)
 {
 	local UIInteraction UIController;
@@ -1420,4 +1423,5 @@ defaultproperties
 	SinglePlayerBotNames(3)="Jester"
 	bShowMenuOnDeath=false
 
+	MapVoteTimeRemaining=-1
 }

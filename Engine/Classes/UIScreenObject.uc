@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for all UI entities which can appear onscreen
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIScreenObject extends UIRoot
 	native(UIPrivate)

@@ -1,6 +1,6 @@
 ﻿
 /**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Animation Node used to synch childs.
  * Would be typically used to synch several walk/run/crouch cycles together.

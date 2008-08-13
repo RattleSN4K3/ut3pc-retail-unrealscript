@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class FontImportOptions extends Object
 	hidecategories( Object )

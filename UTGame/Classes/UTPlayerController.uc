@@ -1,7 +1,7 @@
 ﻿/**
  * UTPlayerController
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTPlayerController extends GamePlayerController
@@ -377,6 +377,54 @@ function SaveServerToHistory()
 			if ( HistoryDataStore != None )
 			{
 				HistoryDataStore.AddServer(LP.ControllerId, CurrentGameSettings.OwningPlayerId, CurrentGameSettings.OwningPlayerName);
+			}
+		}
+		else
+		{
+            //Last ditch attempt to get data needed to save to history
+			ServerGetGameHostNameAndId();
+		}
+	}
+}
+
+/* HACK - 
+ * last resort attempt to grab the minimum amount of information to save this gaming session to the history datastore 
+ * Gets the game settings and give the owning player id and server name to the client
+ */
+server reliable function ServerGetGameHostNameAndId()
+{
+	local OnlineGameSettings CurrentGameSettings;
+	local string OwningPlayerIdString;
+
+	if ( OnlineSub != None && OnlineSub.GameInterface != None )
+	{
+		CurrentGameSettings = OnlineSub.GameInterface.GetGameSettings();
+		if (CurrentGameSettings != None)
+		{
+			OwningPlayerIdString = class'Engine.OnlineSubsystem'.static.UniqueNetIdToString(CurrentGameSettings.OwningPlayerId);
+			ClientSetGameHostNameAndId(OwningPlayerIdString, CurrentGameSettings.OwningPlayerName);
+		}
+	}
+}
+
+/** Called by the server to tell the client what its OwningPlayerId and PlayerName is */
+client reliable function ClientSetGameHostNameAndId(string OwningPlayerIdString, string OwningPlayerName)
+{
+	local LocalPlayer LP;
+	local UniqueNetId OwningPlayerId;
+	local UTDataStore_GameSearchHistory HistoryDataStore;
+
+	LP = LocalPlayer(Player);
+
+	// we've successfully joined an online match - add this server's unique PlayerId to the list of recently joined matches
+	if ( WorldInfo.NetMode == NM_Client && LP != None && OnlineSub != None && OnlineSub.GameInterface != None && OnlineSub.PlayerInterface != None )
+	{
+		HistoryDataStore = UTDataStore_GameSearchHistory(class'UTUIScene'.static.FindDataStore('UTGameHistory', LP));
+		if ( HistoryDataStore != None )
+		{
+			if (class'Engine.OnlineSubsystem'.static.StringToUniqueNetId(OwningPlayerIdString, OwningPlayerId))
+			{  
+				HistoryDataStore.AddServer(LP.ControllerId, OwningPlayerId, OwningPlayerName);
 			}
 		}
 	}
@@ -1100,8 +1148,16 @@ function CancelPendingConnection(UTUIScene_MessageBox MessageBox, int SelectedOp
 {
 	if ( OnlineSub != None && OnlineSub.GameInterface != None )
 	{
+		// Set the destroy delegate so we can know when that is complete
+		OnlineSub.GameInterface.AddDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+		
+		// Now we can destroy the game
+		`Log("UTPlayerController::CancelPendingConnection() - Destroying Online Game, ControllerId: " $ LocalPlayer(Player).ControllerId);
 		// kill the pending connection
-		OnlineSub.GameInterface.DestroyOnlineGame();
+		if ( !OnlineSub.GameInterface.DestroyOnlineGame() )
+		{
+			OnDestroyOnlineGameComplete(true);
+		}
 	}
 }
 
@@ -1226,6 +1282,12 @@ function OnDestroyOnlineGameComplete(bool bWasSuccessful)
 {
 	`Log("UTPlayerController::OnDestroyOnlineGameComplete() - Finishing Quit to Main Menu, ControllerId: " $ LocalPlayer(Player).ControllerId);
 	OnlineSub.GameInterface.ClearDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+	//Clear out the gamesettings cache
+	if (WorldInfo.Game != None)
+	{
+		WorldInfo.Game.GameSettings = None;
+	}
+
 	FinishQuitToMainMenu();
 }
 
@@ -1296,6 +1358,7 @@ exec function ToggleSpeaking(bool bNowOn)
 			if (bNowOn)
 			{
 				VoiceInterface.StartNetworkedVoice(LP.ControllerId);
+				bIsTyping = true;
 				if ( WorldInfo.NetMode != NM_Client )
 				{
 					VoiceInterface.StartSpeechRecognition(LP.ControllerId);
@@ -1304,6 +1367,7 @@ exec function ToggleSpeaking(bool bNowOn)
 			else
 			{
 				VoiceInterface.StopNetworkedVoice(LP.ControllerId);
+				bIsTyping = false;
 				if ( WorldInfo.NetMode != NM_Client )
 				{
 					VoiceInterface.StopSpeechRecognition(LP.ControllerId);
@@ -2219,7 +2283,7 @@ function NotifyTakeHit(Controller InstigatedBy, vector HitLocation, int Damage, 
 	Super.NotifyTakeHit(InstigatedBy,HitLocation,Damage,DamageType,Momentum);
 
 	iDam = Clamp(Damage,0,250);
-	if (iDam > 0 || bGodMode)
+	if ( (iDam > 0 || bGodMode) && (Pawn != None) )
 	{
 		ClientPlayTakeHit(hitLocation - Pawn.Location, iDam, damageType);
 	}
@@ -3011,10 +3075,21 @@ reliable client function ClientPlayAnnouncement(class<UTLocalMessage> InMessageC
 function PlayAnnouncement(class<UTLocalMessage> InMessageClass, int MessageIndex, optional PlayerReplicationInfo PRI, optional Object OptionalObject)
 {
 	// Wait for player to be up to date with replication when joining a server, before stacking up messages
-	if ( WorldInfo.GRI == None || Announcer == None ||
-		(UTGameReplicationInfo(WorldInfo.GRI) != None && UTGameReplicationInfo(WorldInfo.GRI).bAnnouncementsDisabled) )
+	if ( WorldInfo.GRI == None || Announcer == None )
 	{
 		return;
+	}
+	
+	if ( UTGameReplicationInfo(WorldInfo.GRI) != None && UTGameReplicationInfo(WorldInfo.GRI).bAnnouncementsDisabled )
+	{
+		if ( !bCinematicMode && (string(WorldInfo.GetPackageName()) ~= "WAR-MarketDistrict") )
+		{
+			UTGameReplicationInfo(WorldInfo.GRI).bAnnouncementsDisabled = false;
+		}
+		else
+		{
+			return;
+		}
 	}
 	Announcer.PlayAnnouncement(InMessageClass, MessageIndex, PRI, OptionalObject);
 }
@@ -4748,7 +4823,7 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 		}
 
 		// NetworkConnection
-		if(Profile.GetProfileSettingValueIdByName('NetworkConnection', OutIntValue))
+		if( Profile.GetProfileSettingValueIdByName('NetworkConnection', OutIntValue) )
 		{
 			// @todo: Find reasonable values for these.
 			switch(OutIntValue)

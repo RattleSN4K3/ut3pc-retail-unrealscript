@@ -1,7 +1,7 @@
 ﻿/**
  * Example of how to setup a complex widget which contains child widgets in unrealscript.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class ScriptConsoleEntry extends UIPanel;
 

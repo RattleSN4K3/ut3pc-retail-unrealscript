@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTTeamGame extends UTDeathmatch;
 
@@ -450,7 +450,7 @@ function bool CheckEndGame(PlayerReplicationInfo Winner, string Reason)
 		}
 	}
 
-	EndTime = WorldInfo.TimeSeconds + EndTimeDelay;
+	EndTime = WorldInfo.RealTimeSeconds + EndTimeDelay;
 
 	SetEndGameFocus(Winner);
 	return true;

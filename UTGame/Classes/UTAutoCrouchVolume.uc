@@ -1,4 +1,7 @@
-﻿/** this volume automatically crouches console players as there's no manual crouch on the console controls */
+﻿/** this volume automatically crouches console players as there's no manual crouch on the console controls  
+ *
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
 class UTAutoCrouchVolume extends Volume
 	placeable;
 

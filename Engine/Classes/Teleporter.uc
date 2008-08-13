@@ -1,7 +1,7 @@
 ﻿///=============================================================================
 // Teleports actors either between different teleporters within a level
 // or to matching teleporters on other levels, or to general Internet URLs.
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class Teleporter extends NavigationPoint
 	placeable

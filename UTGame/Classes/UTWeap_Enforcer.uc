@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTWeap_Enforcer extends UTWeapon
 	HideDropDown;
@@ -133,6 +133,7 @@ simulated function CreateOverlayMesh()
 		{
 			OverlayLeftMesh.SetScale(1.00);
 			OverlayLeftMesh.SetOwnerNoSee(LeftMesh.bOwnerNoSee);
+			OverlayLeftMesh.SetOnlyOwnerSee(true);
 			OverlayLeftMesh.SetDepthPriorityGroup(SDPG_Foreground);
 			OverlayLeftMesh.SetSkeletalMesh(LeftMesh.SkeletalMesh);
 			OverlayLeftMesh.AnimSets = LeftMesh.AnimSets;
@@ -1330,7 +1331,7 @@ simulated state Active
 	{
 		Super.OnAnimEnd(SeqNode, PlayedTime, ExcessTime);
 
-		if (WorldInfo.NetMode != NM_DedicatedServer && DualMode == EDM_Dual)
+		if (WorldInfo.NetMode != NM_DedicatedServer && DualMode != EDM_SingleWeapon)
 		{
 			PlayWeaponAnimation(LeftIdleAnim, 0.0, true, LeftMesh);
 			PlayArmAnimation(LeftIdleAnim, 0.0, true, true, LeftMesh);

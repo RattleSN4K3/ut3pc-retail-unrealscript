@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * A compound material expression representing several material expressions collapsed
  * into one node.  An editor-only concept; this node does not generate shader code.

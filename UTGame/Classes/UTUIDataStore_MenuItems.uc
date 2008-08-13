@@ -1,7 +1,7 @@
 ﻿/**
  * Inherited version of the game resource datastore that has UT specific dataproviders.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataStore_MenuItems extends UIDataStore_GameResource
 	native(UI)

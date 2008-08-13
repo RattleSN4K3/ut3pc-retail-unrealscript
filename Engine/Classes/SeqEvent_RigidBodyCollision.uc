@@ -2,7 +2,7 @@
  * Activated when an receives the OnRigidBodyCollision notification from the physics system.
  * Originator: the actor that was just sitting there
  * Instigator: the actor that did the colliding
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqEvent_RigidBodyCollision extends SequenceEvent
 	native(Sequence);

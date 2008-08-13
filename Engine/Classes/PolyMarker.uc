@@ -6,7 +6,7 @@
 // These should NOT be manually added to the level.  The editor adds and
 // deletes them on it's own.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class PolyMarker extends Keypoint
 	placeable

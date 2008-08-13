@@ -8,7 +8,7 @@
  *	Able to execute multiple actions when the event is called.
  *	Able to operate on multiple widgets simultaneously.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIEvent extends SequenceEvent
 	native(UISequence)

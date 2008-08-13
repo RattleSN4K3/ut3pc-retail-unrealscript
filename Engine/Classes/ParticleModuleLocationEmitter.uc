@@ -4,7 +4,7 @@
 // A location module that uses particles from another emitters particles as
 // spawn points for its particles.
 //
-// Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
 //=============================================================================
 class ParticleModuleLocationEmitter extends ParticleModuleLocationBase
 	native(Particle)

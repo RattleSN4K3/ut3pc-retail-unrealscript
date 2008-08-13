@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  * Actor placed in level and used to preview different custom character combinations.
  * Does not use skeletal mesh merging, so changing parts is quick.
  */

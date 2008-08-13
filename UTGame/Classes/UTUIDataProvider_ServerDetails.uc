@@ -1,7 +1,7 @@
 ﻿/**
  * Dataprovider that gives a key/value list of details for a server given its search result row.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_ServerDetails extends UTUIDataProvider_SimpleElementProvider
 	native(UI);

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UTMissionPlayerController extends UTEntryPlayerController
@@ -222,6 +222,17 @@ exec function HideQuickPick();
 function QuitToMainMenu()
 {
 	Super(UTPlayerController).QuitToMainMenu();
+}
+
+/**
+* Called when the destroy online game has completed. At this point it is safe
+* to travel back to the menus
+*
+* @param bWasSuccessful whether it worked ok or not
+*/
+function OnDestroyOnlineGameComplete(bool bWasSuccessful)
+{
+	Super(UTPlayerController).OnDestroyOnlineGameComplete(bWasSuccessful);
 }
 
 client reliable function ClientUnlockChapter(int ChapterIndex)

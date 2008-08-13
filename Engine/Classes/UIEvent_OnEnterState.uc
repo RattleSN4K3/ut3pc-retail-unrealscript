@@ -1,7 +1,7 @@
 ﻿/**
  * This event is activated when a widget enters a new state.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIEvent_OnEnterState extends UIEvent_State
 	native(inherit);

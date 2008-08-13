@@ -15,7 +15,7 @@
  * Empty:  This will remove all objects in the List(s)
  *
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * @todo - this should be a conditional
  */

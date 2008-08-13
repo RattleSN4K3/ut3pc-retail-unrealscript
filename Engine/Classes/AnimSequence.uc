@@ -2,7 +2,7 @@
  * One animation sequence of keyframes. Contains a number of tracks of data.
  * The Outer of AnimSequence is expected to be its AnimSet.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class AnimSequence extends Object

@@ -2,7 +2,7 @@
  * This specialized online game search data store provides the UI access to the search query and results for the player's
  * most recently visited servers.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTDataStore_GameSearchHistory extends UTDataStore_GameSearchPersonal;
 

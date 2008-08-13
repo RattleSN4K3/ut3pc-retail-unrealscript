@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTWeap_Stinger extends UTWeapon;
 
@@ -498,8 +498,8 @@ defaultproperties
 	IconHeight=50
 
 	EquipTime=+0.6
-	AimingHelpRadius[0]=9.0
-	AimingHelpRadius[1]=12.0
+	AimingHelpRadius[0]=8.0
+	AimingHelpRadius[1]=11.0
 
 	MuzzleFlashLightClass=class'UTStingerMuzzleFlashLight'
 	CrossHairCoordinates=(U=448,V=0,UL=64,VL=64)

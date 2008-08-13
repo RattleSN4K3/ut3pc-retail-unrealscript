@@ -1,7 +1,7 @@
 ﻿/**
  * Provides options for a simple menu in UT3.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTUIDataProvider_SimpleMenu extends UTUIResourceDataProvider
 	native(UI)

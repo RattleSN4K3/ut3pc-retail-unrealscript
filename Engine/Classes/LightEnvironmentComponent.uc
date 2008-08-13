@@ -2,7 +2,7 @@
  * This is used by the scene management to isolate lights and primitives.  For lighting and actor or component
  * use a DynamicLightEnvironmentComponent.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class LightEnvironmentComponent extends ActorComponent
 	native;

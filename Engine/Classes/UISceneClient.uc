@@ -2,7 +2,7 @@
  * Serves as the interface between a UIScene and scene owners.  Provides scenes with all
  * data necessary for operation and routes rendering to the scenes.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UISceneClient extends UIRoot
 	native(UserInterface)

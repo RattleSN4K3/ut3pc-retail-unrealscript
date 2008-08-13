@@ -2,7 +2,7 @@
  *	ParticleModuleTypeDataTrail2
  *	Provides the base data for trail emitters.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class ParticleModuleTypeDataTrail2 extends ParticleModuleTypeDataBase
 	native(Particle)

@@ -8,7 +8,7 @@
  * For a tree-type list, the listdata component might add whether the element being drawn is currently open, has
  * children, etc.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIComp_ListPresenter extends UIComp_ListComponentBase
 	native(inherit)

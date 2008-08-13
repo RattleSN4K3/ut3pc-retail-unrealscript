@@ -1,6 +1,6 @@
 ﻿/**
  * Provides a list of events that a widget can process.  The outer for a UIComp_Event MUST be a UIScreenObject.
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIComp_Event extends UIComponent
 	native(inherit);
