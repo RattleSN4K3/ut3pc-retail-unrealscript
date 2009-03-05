@@ -139,6 +139,8 @@ var const array<NetViewer> ReplicationViewers;
 
 var						string					NextURL;
 var						float					NextSwitchCountdown;
+var						string					LastTravelErrorURL;
+var						string					LastTravelErrorCode;
 
 /** Maximum size of textures for packed light and shadow maps */
 var()					int						PackedLightAndShadowMapTextureSize;
@@ -284,6 +286,9 @@ enum EConsoleType
 	CONSOLE_PS3,
 };
 
+/** Set during demo playback (WARNING: May not be reliable at the very start of demos, e.g. demo actors PostBeginPlay etc.) */
+var bool bWithinDemoPlayback;
+
 
 
 //-----------------------------------------------------------------------------
@@ -392,6 +397,22 @@ event ServerTravel(string URL, optional bool bAbsolute)
 			NextSwitchCountdown = 0;
 		}
 	}
+}
+
+/**
+ * Called when the game fails to travel to a particular URL (NOTE: May not be called under all circumstances)
+ *
+ * @param TravelURL:	The URL which could not be travelled to
+ * @param Error:	The error message for the failed travel
+ * @param ErrorCode:	A 'code' for easily identifying specific travel errors in script
+ */
+event TravelFailed(string TravelURL, string Error, optional string ErrorCode)
+{
+	LastTravelErrorURL = TravelURL;
+	LastTravelErrorCode = ErrorCode;
+
+	if (Game != none)
+		Game.TravelFailed(TravelURL, Error, ErrorCode);
 }
 
 //
@@ -566,6 +587,11 @@ native final function SetMapInfo(MapInfo NewMapInfo);
  */
 
 native final function string GetMapName(optional bool bIncludePrefix);
+
+/** @return Returns true if the specified map file exists
+ *	NOTE: Treats the input string as a URL, so it's safe to input "WAR-Torlan?LinkSetup=blah" etc.
+ */
+native static final function bool MapExists(string MapName);
 
 /** @return the current detail mode */
 native final function EDetailMode GetDetailMode();

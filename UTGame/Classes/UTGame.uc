@@ -8,6 +8,8 @@ class UTGame extends GameInfo
 	abstract
 	native;
 
+`include(UTOnlineConstants.uci);
+
 /** if set, when this class is compiled, a menu entry for it will be automatically added/updated in its package.ini file
  * (abstract classes are skipped even if this flag is set)
  */
@@ -57,10 +59,13 @@ var bool	bDemoMode;				// turn off HUD, etc.
 /** whether not yet driven vehicles can take damage */
 var bool bUndrivenVehicleDamage;
 
+/** If true, look for nearby weaponlocker weapons (for game types which implement this functionality) */
+var bool bStartWithLockerWeaps;
+
 var byte StartupStage;              // what startup message to display
 var int DesiredPlayerCount;			// bots will fill in to reach this value as needed
 
-var float		SpawnProtectionTime;
+var config float		SpawnProtectionTime;
 var int			DefaultMaxLives;
 var config int			LateEntryLives;	// defines how many lives in a player can still join
 
@@ -145,9 +150,11 @@ struct native GameMapCycle
 	var name GameClassName;
 	var array<string> Maps;
 };
-var globalconfig array<GameMapCycle> GameSpecificMapCycles;
+var deprecated globalconfig array<GameMapCycle> GameSpecificMapCycles;
+
 /** index of current map in the cycle */
-var globalconfig int MapCycleIndex;
+var deprecated globalconfig int MapCycleIndex;
+
 
 /** Array of active bot names. */
 struct native ActiveBotInfo
@@ -165,25 +172,25 @@ var NavigationPoint ScriptedStartSpot;
 /**** Map Voting ************/
 
 /** If true, users can vote in order to pick the next map */
-var globalconfig bool bAllowMapVoting;
+var deprecated globalconfig bool bAllowMapVoting;
 
 /** If false, users will only be presented with a map list at the end of the round */
-var globalconfig bool bMidGameMapVoting;
+var deprecated globalconfig bool bMidGameMapVoting;
 
-/** How long the voting will take MAX (applies only to endgame voting) */
-var globalconfig int VoteDuration;
+/** How long the voting will take */
+var deprecated globalconfig int VoteDuration;
 
-/** The percentage of votes needed to secure an immediate map switch */
-var globalconfig int MapVotePercentage;
+/** The percentage of votes required to initiate a map switch */
+var deprecated globalconfig int MapVotePercentage;
 
 /** The minimum number of votes required to initiate a map switch midgame */
-var globalconfig int MinMapVotes;
+var deprecated globalconfig int MinMapVotes;
 
-/** The amount of time that must pass before voting is initialized (only applies to midgame voting)*/
-var globalconfig int InitialVoteDelay;
+/** The amount of time that must pass before voting is initialized (only applies to midgame voting) */
+var deprecated globalconfig int InitialVoteDelay;
 
 
-/** Name of the object that manages voting */
+/** Classname of the object that manages voting */
 Var globalconfig string VoteCollectorClassName;
 
 /** The actual object that manages voting */
@@ -254,14 +261,56 @@ enum EVoiceChannel
 /** for single player when "Tactical Diversion" card is used - skip adding this many Kismet spawned bots */
 var int NumDivertedOpponents;
 
+struct native MapContextMapping
+{
+	var string MapName;
+	var int MapContextId;
+	var bool bIsValidAchievementMap;
+	var bool bIsUT3GoldMap;
+};
+
+var array<MapContextMapping> MapContexts;
+
+var int NextPickupIndex;
+
 /** set when admin modified options via UTPlayerController::ServerAdminChangeOption() */
 var bool bAdminModifiedOptions;
+
+var bool bBlockTeamChangeMessages;
 
 /** Name of the class that supplies the webserver */
 var globalconfig string WebServerClassName;
 var Actor WebServerObject;
 
 
+/** Name of the class that manages maplists and map cycles */
+var globalconfig string MapListManagerClassName;
+var UTMapListManager MapListManager;
+
+/** Whether should postrender enemy pawns */
+var bool bShouldPostRenderEnemyPawns;
+
+var float      DMBeaconMaxDist;
+
+
+
+function bool IsValidMutatorsForLikeTheBackOfMyHand();
+
+function int GetNextPickupIndex()
+{
+	local int Index;
+
+	//Make sure we haven't manipulated the game in any way (or are playing custom maps CONTEXT_MAPNAME_CUSTOM = 0)
+	if (!IsValidMutatorsForLikeTheBackOfMyHand() || ConvertMapNameToContext(WorldInfo.GetMapName(true)) == 0)
+	{
+		return -1;
+	}
+
+	Index = NextPickupIndex;
+	NextPickupIndex++;
+	
+	return Index;
+}
 
 function PostBeginPlay()
 {
@@ -281,10 +330,14 @@ function PostBeginPlay()
 	}
 
 	if ( bPlayersVsBots )
+	{
 		UTGameReplicationInfo(GameReplicationInfo).BotDifficulty = GameDifficulty;
+	}
 }
 
 final static native function bool IsLowGoreVersion();
+
+function ShotTeammate(UTBetrayalPRI InstigatorPRI, UTBetrayalPRI HitPRI, Pawn ShotInstigator, Pawn HitPawn);
 
 /**
   * returns whether this game should be considered "pure"
@@ -317,6 +370,10 @@ static function bool AllowMutator( string MutatorClassName )
 	if (MutatorClassName ~= "UTGame.UTMutator_NoOrbs")
 	{
 		// No Orbs mutator only for Warfare
+		return false;
+	}
+	if ( !Default.bAllowHoverboard && (MutatorClassName ~= "UTGame.UTMutator_NoHoverboard") )
+	{
 		return false;
 	}
 	return Super.AllowMutator(MutatorClassName);
@@ -396,6 +453,25 @@ static event class<GameInfo> SetGameType(string MapName, string Options)
     return class'DemoGame';
 }
 
+/** UT3G - Convert the map name to the XboxLive context */
+static function int ConvertMapNameToContext(string MapName)
+{
+	local int i;
+
+	//Search the list of maps
+	for (i=0; i<default.MapContexts.length; i++)
+	{
+		if (default.MapContexts[i].MapName ~= MapName)
+		{
+			return default.MapContexts[i].MapContextId;
+		}
+	}
+
+	//`log("Unable to find Map "$MapName$" in MapContexts array, using default value");
+	//Custom fallback
+	return CONTEXT_MAPNAME_CUSTOM;
+}
+
 //
 // Return beacon text for serverbeacon.
 //
@@ -452,12 +528,19 @@ function DriverLeftVehicle(Vehicle V, Pawn P)
 
 function bool BecomeSpectator(PlayerController P)
 {
-	if ( (P.PlayerReplicationInfo == None) || !GameReplicationInfo.bMatchHasBegun
-	     || (NumSpectators >= MaxSpectators) || P.IsInState('RoundEnded') )
+	if (P.PlayerReplicationInfo == None || !GameReplicationInfo.bMatchHasBegun || NumSpectators >= MaxSpectators
+		|| P.IsInState('RoundEnded') || (BaseMutator != none && !BaseMutator.AllowBecomeSpectator(P)))
 	{
 		P.ReceiveLocalizedMessage(GameMessageClass, 12);
 		return false;
 	}
+
+	if (BaseMutator != none)
+		BaseMutator.NotifyBecomeSpectator(P);
+
+	if (VoteCollector != none && UTPlayerController(P) != none)
+		VoteCollector.NotifyBecomeSpectator(UTPlayerController(P));
+
 
 	P.PlayerReplicationInfo.bOnlySpectator = true;
 	NumSpectators++;
@@ -468,8 +551,9 @@ function bool BecomeSpectator(PlayerController P)
 
 function bool AllowBecomeActivePlayer(PlayerController P)
 {
-	if ( (P.PlayerReplicationInfo == None) || !GameReplicationInfo.bMatchHasBegun || bMustJoinBeforeStart
-	     || (NumPlayers >= MaxPlayers) || (MaxLives > 0) || P.IsInState('RoundEnded') )
+	if (P.PlayerReplicationInfo == None || !GameReplicationInfo.bMatchHasBegun || bMustJoinBeforeStart ||
+		NumPlayers >= MaxPlayers || MaxLives > 0 || P.IsInState('RoundEnded') ||
+		(BaseMutator != none && !BaseMutator.AllowBecomeActivePlayer(P)))
 	{
 		P.ReceiveLocalizedMessage(GameMessageClass, 13);
 		return false;
@@ -569,18 +653,16 @@ function BroadcastDeathMessage(Controller Killer, Controller Other, class<Damage
 	else
 	{
 		BroadcastLocalized(self,DeathMessageClass, 0, Killer.PlayerReplicationInfo, Other.PlayerReplicationInfo, damageType);
-		if ( PlayerController(Other) != None )
+
+		// maybe taunt him
+		if ( ((UTPlayerController(Killer) != None) ? UTPlayerController(Killer).bAutoTaunt : (UTPlayerController(Other) != None))
+			&& (Other.PlayerReplicationInfo != None)
+			&& (UTPlayerReplicationInfo(Killer.PlayerReplicationInfo) != None)
+			&& (UTPlayerReplicationInfo(Killer.PlayerReplicationInfo).VoiceClass != None) )
 		{
-			// maybe taunt him
-			if ( ((UTPlayerController(Killer) == None) || UTPlayerController(Killer).bAutoTaunt)
-				&& (Other.PlayerReplicationInfo != None)
-				&& (UTPlayerReplicationInfo(Killer.PlayerReplicationInfo) != None)
-				&& (UTPlayerReplicationInfo(Killer.PlayerReplicationInfo).VoiceClass != None) )
-			{
-					Killer.SendMessage(Other.PlayerReplicationInfo, 'TAUNT', 10, DamageType);
-			}
+				Killer.SendMessage(Other.PlayerReplicationInfo, 'TAUNT', 10, DamageType);
 		}
-		else if ( bTeamGame && (NumBots > 0) )
+		if ( (PlayerController(Other) == None) && bTeamGame && (NumBots > 0) )
 		{
 			if ( UTPlayerController(Killer) != None )
 			{
@@ -608,7 +690,7 @@ function BroadcastDeathMessage(Controller Killer, Controller Other, class<Damage
 				{
 					// was bot killed by a sniper?
 					if ( (class<UTDamageType>(DamageType) != None) && (class<UTDamageType>(DamageType).default.DamageWeaponClass == class'UTWeap_SniperRifle')
-						&& (Killer.Pawn != None) && (UTWeap_SniperRifle(Killer.Pawn.Weapon) != None) && (VSizeSq(Killer.Pawn.Velocity) < 100.0) )
+						&& (Killer.Pawn != None) && (UTWeap_SniperRifle(Killer.Pawn.Weapon) != None) && (VSizeSq(Killer.Pawn.Velocity) < 200.0) )
 					{
 						Sniper = Killer.Pawn;
 						B.SendMessage(None, 'SNIPER', 0, DamageType);
@@ -688,6 +770,10 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 	local bool		bEnemyKill;
 	local UTPlayerReplicationInfo KillerPRI, KilledPRI;
 	local UTVehicle V;
+	local UTPlayerController PC;
+	local class<UTDamageType> UTDamageType;
+
+	UTDamageType = class<UTDamageType>(DamageType);
 
 	if ( UTBot(KilledPlayer) != None )
 		UTBot(KilledPlayer).WasKilledBy(Killer);
@@ -697,7 +783,39 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 	if ( KilledPlayer != None )
 		KilledPRI = UTPlayerReplicationInfo(KilledPlayer.PlayerReplicationInfo);
 
-	bEnemyKill = ( ((KillerPRI != None) && (KillerPRI != KilledPRI) && (KilledPRI != None)) && (!bTeamGame || (KillerPRI.Team != KilledPRI.Team)) );
+	bEnemyKill = ( (KillerPRI != None) && (KillerPRI != KilledPRI) && (KilledPRI != None) && (!bTeamGame || (KillerPRI.Team != KilledPRI.Team)) );
+
+	V = (Killer != None) ? UTVehicle(Killer.Pawn) : None;
+
+	if ( bEnemyKill && V != None )
+	{
+		// UT3G Hack to set appropriate vehicle indices for Nemesis and Paladin,
+		// because we cannot modify UTGameContent classes
+		if ( class<UTDamageType>(damageType).default.KillStatsName == 'KILLS_NEMESISTURRET' )
+		{
+			V.VehicleIndex = 14;
+		}
+		else if ( class<UTDamageType>(damageType).default.KillStatsName == 'KILLS_PALADINGUN' || 
+				  class<UTDamageType>(damageType).default.KillStatsName == 'KILLS_PALADINEXPLOSION' )
+		{
+			V.VehicleIndex = 15;
+		}
+
+		if ( V.VehicleIndex >= 0 )
+		{
+			PC = UTPlayerController(Killer);
+			if (PC != None && IsMPOrHardBotsGame())
+			{
+				//`log("Killed an enemy with "$Killer.Pawn$" with VehicleIndex:"@V.VehicleIndex);
+				PC.ClientUpdateAchievement(EUTA_VEHICLE_JackOfAllTrades, 1<<V.VehicleIndex);
+			}
+		}
+	}
+
+	if ( bEnemyKill && UTPlayerController(Killer) != None && WorldInfo.NetMode != NM_Standalone)
+	{
+		UTPlayerController(Killer).ClientUpdateGetALife();
+	}
 
 	if ( (KillerPRI != None) && UTVehicle(KilledPawn) != None )
 	{
@@ -720,7 +838,7 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 			}
 			else
 			{
-				KillerPRI.IncrementKillStat('KILLS_ENVIRONMENT');
+					KillerPRI.IncrementKillStat('KILLS_ENVIRONMENT');
 				KilledPRI.IncrementDeathStat('DEATHS_ENVIRONMENT');
 			}
 		}
@@ -734,17 +852,27 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 		}
 		if ( KillerPRI != None )
 		{
-			KillerPRI.LogMultiKills(bEnemyKill);
+			KillerPRI.IncrementKills(bEnemyKill, UTDamageType);
 
-			if ( !bFirstBlood && bEnemyKill )
+			if ( bEnemyKill )
 			{
-				bFirstBlood = True;
-				BroadcastLocalizedMessage( class'UTFirstBloodMessage', 0, KillerPRI );
-				KillerPRI.IncrementEventStat('EVENT_FIRSTBLOOD');
-			}
-			if ( KillerPRI != KilledPRI && (!bTeamGame || (KilledPRI.Team != KillerPRI.Team)) )
-			{
-				KillerPRI.IncrementSpree();
+				V = UTVehicle(KilledPawn);
+				if ( KilledPRI.IsHero() )
+				{
+					KillerPRI.IncrementHeroMeter(6.0, UTDamageType);
+				}
+				if ( (V != None) && (V.HeroBonus > 0) )
+				{
+					KillerPRI.IncrementHeroMeter(V.HeroBonus, UTDamageType);
+				}
+
+				if ( !bFirstBlood )
+				{
+					bFirstBlood = True;
+					KillerPRI.IncrementHeroMeter(1.0, UTDamageType);
+					BroadcastLocalizedMessage( class'UTFirstBloodMessage', 0, KillerPRI );
+					KillerPRI.IncrementEventStat('EVENT_FIRSTBLOOD');
+				}
 			}
 		}
 	}
@@ -759,6 +887,36 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 	}
 }
 
+
+/**
+* Give bonus hero points when a hero is spawned to anyone who has never been a hero
+*/
+function ProvideHeroBonus()
+{
+	local UTPlayerReplicationInfo PRI;
+	local int i;
+
+	for( i=0; i<GameReplicationInfo.PRIArray.Length; i++ )
+	{
+		PRI = UTPlayerReplicationInfo(GameReplicationInfo.PRIArray[i]);
+		if ( (PRI != None) && !PRI.bHasBeenHero )
+		{
+			PRI.IncrementHeroMeter( 0.2 * (PRI.HeroThreshold - PRI.GetHeroMeter()) );
+		}
+	}
+}
+
+function bool AllowBecomeHero(UTPlayerReplicationInfo PendingHeroPRI)
+{
+	if ( PendingHeroPRI.bHasFlag && (UTBot(PendingHeroPRI.Owner) != None) )
+	{
+		// don't let bots become heroes if carrying flag
+		return false;
+	}
+
+	return UTGameReplicationInfo(GameReplicationInfo).bHeroesAllowed;
+}
+
 /** ForceRespawn()
 returns true if dead players should respawn immediately
 */
@@ -767,21 +925,24 @@ function bool ForceRespawn()
 	return ( bForceRespawn || bTempForceRespawn || (MaxLives > 0) || (DefaultMaxLives > 0) );
 }
 
+native function int CurrentPlayerCount();
+
 // Parse options for this game...
 event InitGame( string Options, out string ErrorMessage )
 {
 	local string InOpt;
 	local int i;
-	local name GameClassName;
-	local bool bVoteOverride;
 	local class<Actor> WebServerClass;
 
+	// Old maplist code
+	/*
 	// reset map cycle if we're just starting up
 	if (WorldInfo.TimeSeconds == 0.0)
 	{
 		MapCycleIndex = INDEX_NONE;
 		SaveConfig();
 	}
+	*/
 
 	// make sure no bots got saved in the .ini as in use
 	for (i = 0; i < ActiveBots.length; i++)
@@ -953,61 +1114,12 @@ event InitGame( string Options, out string ErrorMessage )
 
 	DemoPrefix = ParseOption(Options,"demo");
 
-	// Verify there are maps for map voting
 
-	InOpt = ParseOption(Options,"Vote");
-	if ( InOpt != "" && SinglePlayerMissionID == INDEX_None)
-	{
-		bAllowMapVoting = bool(InOpt);
-	}
+	// Initialize the maplist manager and vote collector
+	InOpt = ParseOption(Options, "MapListManager");
+	InitializeMapListManager(InOpt);
+	InitializeVoteCollector();
 
-	InOpt = ParseOption(Options,"VoteDuration");
-	if (InOpt != "")
-	{
-		VoteDuration = int(InOpt);
-	}
-
-	// No Map Vote in Instant Action
-	if ( WorldInfo.NetMode == NM_StandAlone )
-	{
-		bAllowMapVoting = false;
-	}
-
-	if ( bAllowMapVoting )
-	{
-		// Default to false, and turn back to true if we have maps.
-		bVoteOverride = true;
-		GameClassName = class.name;
-		for (i=0; i<default.GameSpecificMapCycles.Length; i++)
-		{
-			if (default.GameSpecificMapCycles[i].GameClassName == GameClassName)
-			{
-				if (default.GameSpecificMapCycles[i].Maps.Length > 1)
-				{
-					bVoteOverride = false;
-					break;
-				}
-			}
-		}
-
-		if (bVoteOverride)
-		{
-			`log("-- MAPVOTE has been disabled due to lack of maps!",, 'UTVoting');
-			bAllowMapVoting = false;
-		}
-		else
-		{
-			`log("-- MAPVOTE is ENABLED!!!!!",, 'UTVoting');
-
-			if (bMidGameMapVoting)
-			{
-				if (InitialVoteDelay <= 0)
-					InitializeVoteCollector();
-				else
-					SetTimer(InitialVoteDelay * WorldInfo.TimeDilation, false, 'InitializeVoteCollector');
-			}
-		}
-	}
 
 	if (WebServerClassName != "")
 	{
@@ -1018,6 +1130,31 @@ event InitGame( string Options, out string ErrorMessage )
 		}
 	}
 }
+
+function InitializeMapListManager(optional string MLMOverrideClass)
+{
+	local class<UTMapListManager> MapListManagerClass;
+
+	if (MLMOverrideClass == "")
+		MLMOverrideClass = MapListManagerClassName;
+
+	if (MLMOverrideClass != "")
+		MapListManagerClass = Class<UTMapListManager>(DynamicLoadObject(MLMOverrideClass, Class'Class'));
+
+	if (MapListManagerClass == none)
+		MapListManagerClass = Class'UTMapListManager';
+
+	MapListManager = Spawn(MapListManagerClass);
+
+	if (MapListManager == none && MapListManagerClass != Class'UTMapListManager')
+	{
+		`log("Unable to spawn maplist manager of class '"$MLMOverrideClass$"', loading the default maplist manager");
+		MapListManager = Spawn(Class'UTMapListManager');
+	}
+
+	MapListManager.Initialize();
+}
+
 
 /**
  * Only allow local players to pause
@@ -1052,6 +1189,33 @@ function int LevelRecommendedPlayers()
 	return (MapInfo != None) ? Min(12, (MapInfo.RecommendedPlayersMax + MapInfo.RecommendedPlayersMin) / 2) : 1;
 }
 
+//
+// Accept or reject a player on the server.
+// Fails login if you set the Error to a non-empty string.
+//
+event PreLogin(string Options, string Address, out string ErrorMessage)
+{
+	local bool bSpectator;
+	local int CurrentGameMode;
+
+	bSpectator = ParseOption( Options, "SpectatorOnly" ) ~= "1";
+
+	//Remove spectating during campaigns
+	if (bSpectator && GameSettings != None)
+	{
+		if (GameSettings.GetStringSettingValue(CONTEXT_GAME_MODE, CurrentGameMode))
+		{
+			if (CurrentGameMode == CONTEXT_GAME_MODE_CAMPAIGN)
+			{
+				ErrorMessage = Localize("ButtonCallouts","SpectateIP", "UTGameUI") $ ":" @ Localize("Errors","ConnectionFailed","Engine"); 
+				return;
+			}
+		}
+	}
+
+	Super.PreLogin(Options, Address, ErrorMessage);
+}
+
 event PlayerController Login(string Portal, string Options, out string ErrorMessage)
 {
 	local PlayerController NewPlayer;
@@ -1075,7 +1239,9 @@ event PlayerController Login(string Portal, string Options, out string ErrorMess
 	if ( UTPlayerController(NewPlayer) != None )
 	{
 		if ( bMustJoinBeforeStart && GameReplicationInfo.bMatchHasBegun )
+		{
 			UTPlayerController(NewPlayer).bLatecomer = true;
+		}
 	}
 
 	return NewPlayer;
@@ -1089,6 +1255,11 @@ function bool ShouldRespawn(PickupFactory Other)
 function bool WantFastSpawnFor(AIController B)
 {
 	return ( NumBots < 4 );
+}
+
+function bool SpaceAvailable(UTBot InBot)
+{
+	return true;
 }
 
 function float SpawnWait(AIController B)
@@ -1131,10 +1302,8 @@ function bool TooManyBots(Controller botToRemove)
 
 function RestartGame()
 {
-	if (bAllowMapVoting && VoteCollector != none && !VoteCollector.bVoteDecided)
-	{
-		VoteCollector.TimesUp();
-	}
+	if (VoteCollector != none)
+		VoteCollector.NotifyRestartGame();
 
 	if ( bGameRestarted )
 		return;
@@ -1267,6 +1436,7 @@ function bool AtCapacity(bool bSpectator)
 			break;
 		}
 	}
+
 	if ( !bForcedSpectator )
 		return Super.AtCapacity(bSpectator);
 
@@ -1456,8 +1626,12 @@ function CampaignSkillAdjust(UTBot aBot)
 	aBot.Skill = AdjustedDifficulty;
 }
 
+/**
+  * Give player locker weapons for locker associated with base
+  */
 function AddDefaultInventory( pawn PlayerPawn )
 {
+	local UTWeaponLocker BestLocker;
 	local int i;
 
 	for (i=0; i<DefaultInventory.Length; i++)
@@ -1470,7 +1644,28 @@ function AddDefaultInventory( pawn PlayerPawn )
 		}
 	}
 
+	if ( bStartWithLockerWeaps && PlayerPawn.bCanPickupInventory && (PlayerPawn.PlayerReplicationInfo != None) && (PlayerPawn.PlayerReplicationInfo.Team != None) )
+	{
+		if ( UTTeamPlayerStart(LastStartSpot) != None )
+		{
+			BestLocker = UTTeamPlayerStart(LastStartSpot).GetBestLocker();
+		}
+		else
+		{
+			BestLocker = GetBestLocker(PlayerPawn);
+		}
+		if ( BestLocker != None )
+		{
+			BestLocker.GiveLockerWeapons(PlayerPawn, false);
+		}
+	}
+
 	PlayerPawn.AddDefaultInventory();
+}
+
+function UTWeaponLocker GetBestLocker(Pawn PlayerPawn)
+{
+	return None;
 }
 
 function bool CanSpectate( PlayerController Viewer, PlayerReplicationInfo ViewTarget )
@@ -1622,6 +1817,7 @@ exec function KillBots()
 {
 	local UTBot B;
 
+	class'Engine'.static.CheatWasEnabled();
 	DesiredPlayerCount = NumPlayers;
 	bPlayersVsBots = false;
 
@@ -1636,6 +1832,7 @@ exec function KillOthers()
 	local UTBot B, ViewedBot;
 	local PlayerController PC;
 
+	class'Engine'.static.CheatWasEnabled();
 	DesiredPlayerCount = NumPlayers;
 	bPlayersVsBots = false;
 
@@ -1644,7 +1841,7 @@ exec function KillOthers()
 		if ( Pawn(PC.ViewTarget) != None )
 		{
 			ViewedBot = UTBot(Pawn(PC.ViewTarget).Controller);
-DesiredPlayerCount = NumPlayers + 1;
+			DesiredPlayerCount = NumPlayers + 1;
 			break;
 		}
 	}
@@ -1661,6 +1858,7 @@ exec function KillThis()
 	local PlayerController PC;
 	local UTBot ViewedBot;
 
+	class'Engine'.static.CheatWasEnabled();
 	foreach LocalPlayerControllers(class'PlayerController', PC)
 	{
 		if ( Pawn(PC.ViewTarget) != None )
@@ -1682,7 +1880,9 @@ function KillBot(UTBot B)
 	else if (B.Pawn != None)
 		B.Pawn.KilledBy( B.Pawn );
 	if (B != None)
+	{
 		B.Destroy();
+	}
 }
 
 function bool NeedPlayers()
@@ -1840,6 +2040,10 @@ function InitGameReplicationInfo()
 	local UTGameReplicationInfo GRI;
 	local UTMutator M;
 	local UTGameUISceneClient SC;
+	local array<UTUIResourceDataProvider> GameProviders;
+	local string GameClass;
+	local UTUIDataProvider_GameModeInfo CurProvider;
+	local int i;
 
 	Super.InitGameReplicationInfo();
 
@@ -1884,6 +2088,30 @@ function InitGameReplicationInfo()
 	GRI.AddGameRule(GetMapTypeRule());
 	GRI.AddGameRule(GetEndGameConditionRule());
 	GRI.AddGameRule(" ");
+
+	// Set the MOTD on the UTGameReplicationInfo (the UI modifies UTGameReplicationInfo.default directly so subclasses won't have it)
+	GRI.MessageOfTheDay = class'UTGameReplicationInfo'.default.MessageOfTheDay;
+
+
+	// If the current gametype's data provider specifies a custom setting scene, then replicate that to all clients
+	Class'UTUIDataStore_MenuItems'.static.GetAllResourceDataProviders(Class'UTUIDataProvider_GameModeInfo', GameProviders);
+	GameClass = PathName(Class);
+
+	for (i=0; i<GameProviders.Length; ++i)
+	{
+		CurProvider = UTUIDataProvider_GameModeInfo(GameProviders[i]);
+
+		if (CurProvider.GameMode ~= GameClass)
+		{
+			GRI.ModClientSettingsScene = CurProvider.ModClientSettingsScene;
+			break;
+		}
+	}
+	
+	if ( bPlayersVsBots )
+	{
+		GRI.IsPlayersVsBots = 1;
+	}
 }
 
 function string GetMapTypeRule()
@@ -2651,13 +2879,19 @@ function DoMapVote();
 
 function InitializeVoteCollector()
 {
+	local bool bForceVoting, bMapVote, bGameVote, bMutVote, bKickVote;
+	local string CurOpt;
 	local class<UTVoteCollector> VCClass;
-	local name GameClassName;
-	local int i;
-	local PlayerController PC;
+	local array<string> DudArray;
 
-	if (VoteCollector != none)
+	// Allows force-spawning of the vote collector, even if all voting options are disabled
+	bForceVoting = bool(ParseOption(ServerOptions, "ForceVoting"));
+
+	if (VoteCollector != none || (WorldInfo.NetMode == NM_Standalone && !bForceVoting) || SinglePlayerMissionID != INDEX_None)
 		return;
+
+	// Prevent a compiler warning
+	DudArray.Length = 0;
 
 
 	if (VoteCollectorClassName != "")
@@ -2667,52 +2901,63 @@ function InitializeVoteCollector()
 		VCClass = Class'UTVoteCollector';
 
 
+	// Parse commandline options
+	CurOpt = ParseOption(ServerOptions, "Vote");
+
+	if (CurOpt == "")
+		CurOpt = ParseOption(ServerOptions, "MapVote");
+
+	bMapVote = ((CurOpt != "") ? bool(CurOpt) : VCClass.default.bAllowMapVoting);
+
+	CurOpt = ParseOption(ServerOptions, "GameVote");
+	bGameVote = ((CurOpt != "") ? bool(CurOpt) : VCClass.default.bAllowGameVoting);
+
+	CurOpt = ParseOption(ServerOptions, "MutVote");
+	bMutVote = ((CurOpt != "") ? bool(CurOpt) : VCClass.default.bAllowMutatorVoting);
+
+	CurOpt = ParseOption(ServerOptions, "KickVote");
+	bKickVote = ((CurOpt != "") ? bool(CurOpt) : VCClass.default.bAllowKickVoting);
+
+
+	// Apply the options
+	VCClass.default.bAllowGameVoting = bGameVote;
+	VCClass.default.bAllowMapVoting = bMapVote;
+	VCClass.default.bAllowMutatorVoting = bMutVote;
+	VCClass.default.bAllowKickVoting = bKickVote;
+	VCClass.StaticSaveConfig();
+
+
+	// Return if voting is disabled
+	if (!bForceVoting && (!VCClass.default.bMidGameVoting || (!bMapVote && !bGameVote)) && !bMutVote && !bKickVote)
+		return;
+
+
+	if (bGameVote)
+		`log("Game voting is enabled",, 'UTVoting');
+
+	if (bMapVote)
+		`log("Map voting is enabled",, 'UTVoting');
+
+	if (bMutVote)
+		`log("Mutator voting is enabled",, 'UTVoting');
+
+	if (bKickVote)
+		`log("Kick voting is enabled",, 'UTVoting');
+
+
 	VoteCollector = Spawn(VCClass);
 	VoteCollector.GameInfoRef = Self;
+	VoteCollector.MapListManager = MapListManager;
 
 	if (VoteCollector != none)
-	{
-		GameClassName = Class.Name;
-
-		// TODO: Implement gametype voting, and move maplist input to a different UTVoteCollector function
-		for (i=0; i<default.GameSpecificMapCycles.Length; ++i)
-		{
-			if (default.GameSpecificMapCycles[i].GameClassName == GameClassName)
-			{
-				VoteCollector.Initialize(default.GameSpecificMapCycles[i].Maps);
-				break;
-			}
-		}
-
-		// Message all clients that voting has been enabled
-		if (InitialVoteDelay > 0 || !bMidGameMapVoting)
-		{
-			foreach WorldInfo.AllControllers(Class'PlayerController', PC)
-			{
-				PC.ReceiveLocalizedMessage(GameMessageClass, 17);
-			}
-		}
-	}
+		VoteCollector.Initialize(DudArray);
 	else
-	{
 		`log("Could not create the vote collector",, 'UTVoting');
-	}
 }
 
 function DoEndGameMapVote()
 {
-	if (VoteCollector == none)
-		InitializeVoteCollector();
-
 	VoteCollector.NotifyEndGameVote();
-
-	if (RestartWait < VoteDuration)
-		RestartWait = VoteDuration;
-
-
-	// If 'MapVoteTimeRemaining' is not -1, there is already a countdown in progress
-	if (UTGameReplicationInfo(GameReplicationInfo).MapVoteTimeRemaining == -1)
-		UTGameReplicationInfo(GameReplicationInfo).MapVoteTimeRemaining = RestartWait;
 }
 
 state MatchInProgress
@@ -2840,7 +3085,8 @@ State MatchOver
 
 		Global.Timer();
 
-		if ( !bGameRestarted && (WorldInfo.RealTimeSeconds > EndTime + RestartWait) )
+		if ( !bGameRestarted && (WorldInfo.RealTimeSeconds > EndTime + RestartWait) &&
+			(VoteCollector == none || !VoteCollector.IsTimerActive('EndVoteCountdown')))
 		{
 			RestartGame();
 		}
@@ -2893,6 +3139,142 @@ State MatchOver
 		return false;
 	}
 
+	/** Update weapon awards at end of match */
+	function UpdateWeaponAwards()
+	{
+		local int i,j, SniperCount;
+		local int BestKillCount[10]; // KILLS_IMPACTHAMMER, KILLS_ENFORCER, KILLS_BIORIFLE, KILLS_SHOCKRIFLE, KILLS_LINKGUN, KILLS_FLAKCANNON, KILLS_STINGER, KILLS_ROCKETLAUNCHER, KILLS_HEADSHOT+KILLS_SNIPERRIFLE, KILLS_REDEEMER
+		local UTPlayerReplicationInfo PRI, BestPlayer[10];
+		local UTWeaponAwardReplicationInfo WAI;
+
+		for( i=0; i<GameReplicationInfo.PRIArray.Length; i++ )
+		{
+			PRI = UTPlayerReplicationInfo( GameReplicationInfo.PRIArray[i] );
+			if( PRI != none )
+			{
+				PRI.WeaponAwardIndex = -1;
+				PRI.WeaponAwardKills = 0;
+				SniperCount = 0;
+
+				// insert player as leader for appropriate weapons
+				for ( j=0; j< PRI.KillStats.Length; j++ )
+				{
+					if ( PRI.KillStats[j].StatName == 'KILLS_IMPACTHAMMER' )
+					{
+						if ( PRI.KillStats[j].StatValue > BestKillCount[0] )
+						{
+							BestKillCount[0] = PRI.KillStats[j].StatValue;
+							BestPlayer[0] = PRI;
+						}
+					}
+					else if ( PRI.KillStats[j].StatName == 'KILLS_ENFORCER' )
+					{
+						if ( PRI.KillStats[j].StatValue > BestKillCount[1] )
+						{
+							BestKillCount[1] = PRI.KillStats[j].StatValue;
+							BestPlayer[1] = PRI;
+						}
+					} 
+					else if ( PRI.KillStats[j].StatName == 'KILLS_BIORIFLE' )
+					{
+						if ( PRI.KillStats[j].StatValue > BestKillCount[2] )
+						{
+							BestKillCount[2] = PRI.KillStats[j].StatValue;
+							BestPlayer[2] = PRI;
+						}
+					} 
+					else if ( PRI.KillStats[j].StatName == 'KILLS_SHOCKRIFLE' )
+					{
+						if ( PRI.KillStats[j].StatValue > BestKillCount[3] )
+						{
+							BestKillCount[3] = PRI.KillStats[j].StatValue;
+							BestPlayer[3] = PRI;
+						}
+					} 
+					else if ( PRI.KillStats[j].StatName == 'KILLS_LINKGUN' )
+					{
+						if ( PRI.KillStats[j].StatValue > BestKillCount[4] )
+						{
+							BestKillCount[4] = PRI.KillStats[j].StatValue;
+							BestPlayer[4] = PRI;
+						}
+					} 
+					else if ( PRI.KillStats[j].StatName == 'KILLS_FLAKCANNON' )
+					{
+						if ( PRI.KillStats[j].StatValue > BestKillCount[5] )
+						{
+							BestKillCount[5] = PRI.KillStats[j].StatValue;
+							BestPlayer[5] = PRI;
+						}
+					} 
+					else if ( PRI.KillStats[j].StatName == 'KILLS_STINGER' )
+					{
+						if ( PRI.KillStats[j].StatValue > BestKillCount[6] )
+						{
+							BestKillCount[6] = PRI.KillStats[j].StatValue;
+							BestPlayer[6] = PRI;
+						}
+					} 
+					else if ( PRI.KillStats[j].StatName == 'KILLS_ROCKETLAUNCHER' )
+					{
+						if ( PRI.KillStats[j].StatValue > BestKillCount[7] )
+						{
+							BestKillCount[7] = PRI.KillStats[j].StatValue;
+							BestPlayer[7] = PRI;
+						}
+					} 
+					else if ( PRI.KillStats[j].StatName == 'KILLS_REDEEMER' )
+					{
+						if ( PRI.KillStats[j].StatValue > BestKillCount[9] )
+						{
+							BestKillCount[9] = PRI.KillStats[j].StatValue;
+							BestPlayer[9] = PRI;
+						}
+					} 
+					else if ( (PRI.KillStats[j].StatName == 'KILLS_HEADSHOT') || (PRI.KillStats[j].StatName == 'KILLS_SNIPERRIFLE') )
+					{
+						SniperCount += PRI.KillStats[j].StatValue;
+					}						
+				}
+				if ( SniperCount > BestKillCount[8] )
+				{
+					BestKillCount[8] = SniperCount;
+					BestPlayer[8] = PRI;
+				}
+			}
+		}
+		
+		// Weapon award for top player for each weapon (give award only for weapon player did best with)
+		for ( i=0; i<10; i++ )
+		{
+			if ( BestPlayer[i] != None )
+			{
+				if ( BestKillCount[i] > BestPlayer[i].WeaponAwardKills )
+				{
+					if ( BestPlayer[i].WeaponAwardIndex >= 0 )
+					{
+						BestPlayer[BestPlayer[i].WeaponAwardIndex] = None;
+					}
+					BestPlayer[i].WeaponAwardKills = BestKillCount[i];
+					BestPlayer[i].WeaponAwardIndex = i;
+				}
+				else
+				{
+					BestPlayer[i] = None;
+				}
+			}
+		}
+
+		if ( WorldInfo.NetMode != NM_Standalone )
+		{
+			WAI = spawn(class'UTWeaponAwardReplicationInfo');
+			for ( i=0; i<10; i++ )
+			{	
+				WAI.WeaponAwards[i] = BestPlayer[i];
+			}
+		}
+	}
+
 	function BeginState(Name PreviousStateName)
 	{
 		local Pawn P;
@@ -2906,10 +3288,10 @@ State MatchOver
 			P.TurnOff();
 		}
 
-		if ( SinglePlayerMissionID == INDEX_NONE && bAllowMapVoting )
-		{
+		if (SinglePlayerMissionID == INDEX_NONE && VoteCollector != none)
 			DoEndGameMapVote();
-		}
+
+		UpdateWeaponAwards();
 	}
 
 	function ResetLevel()
@@ -3134,6 +3516,11 @@ function bool CheckMaxLives(PlayerReplicationInfo Scorer)
 			return true;
 		}
 	}
+	return false;
+}
+
+function bool CheckTeamSize()
+{
 	return false;
 }
 
@@ -3511,6 +3898,39 @@ function ProcessSpeechRecognition(UTPlayerController Speaker, const out array<Sp
 	}
 }
 
+function int GetBotSkillLevel()
+{
+	local UTBot BC;
+	local int totalSkill;
+	local int num;
+
+	totalSkill=0;
+	num=0;
+
+	foreach WorldInfo.AllControllers(class'UTBot',BC)
+	{
+		totalSkill += BC.Skill;
+		num++;
+	}
+
+	if (num!=0)
+		return totalSkill / num;	// the average bot skill
+	else
+		return 0;
+
+}
+
+function bool IsMPOrHardBotsGame()
+{
+// removed per Epic request
+//	if (WorldInfo.NetMode != NM_Standalone)
+//		return true;
+//	if (GetBotSkillLevel() >= 4)
+//		return true;
+
+	return true;
+}
+
 /**
  * Write player scores used in skill calculations
  */
@@ -3523,6 +3943,13 @@ function WriteOnlinePlayerScores()
 	local array<OnlinePlayerScore> PlayerScores;
 	local float TimeInGame;
 	local UniqueNetId ZeroUniqueId;
+
+	// PBD:SR - HACK - remove me later, find the correct place to do this
+	foreach WorldInfo.AllControllers(class'UTPlayerController',PC)
+	{
+		if (PC.bPendingDelete==false)
+			PC.SaveProfile();
+	}
 
 	if ((SinglePlayerMissionID > INDEX_None) || (WorldInfo.NetMode == NM_Standalone))
 	{
@@ -3604,11 +4031,9 @@ function int GetCurrentMapCycleIndex(const out array<string> MapList)
 function string GetNextMap()
 {
 	local bool SPResult;
-	local int GameIndex;
-	local string MapName;
-	local array<string> MapList;
+	local string MapName, Options;
 
-	if ( SinglePlayerMissionID > INDEX_NONE)
+	if (SinglePlayerMissionID > INDEX_NONE)
 	{
 		// TODO Add code to determine a win or loss
 
@@ -3617,46 +4042,47 @@ function string GetNextMap()
 	}
 	else
 	{
-		if (VoteCollector != none && VoteCollector.bVoteDecided )
+		// Let the vote-collector/maplist-manager set the map name and default options
+		if (VoteCollector != none)
 		{
+			Options = VoteCollector.AddDefaultOptions(ServerOptions);
 			MapName = VoteCollector.GetWinningMap();
-			if (MapName != "")
-			{
-				return MapName;
-			}
 		}
 
-		GameIndex = GameSpecificMapCycles.Find('GameClassName', Class.Name);
-		if (GameIndex != INDEX_NONE)
+		if (MapListManager != none)
 		{
-			if (MapCycleIndex == INDEX_NONE)
-			{
-				//@FIXME: use temporary because compiler's "can't pass array elements by reference" restriction
-				//	doesn't understand that 'const out' is safe
-				MapList = GameSpecificMapCycles[GameIndex].Maps;
-				MapCycleIndex = GetCurrentMapCycleIndex(MapList);
-				if (MapCycleIndex == INDEX_NONE)
-				{
-					// assume current map is actually zero
-					MapCycleIndex = 0;
-				}
-			}
-			MapCycleIndex = (MapCycleIndex + 1 < GameSpecificMapCycles[GameIndex].Maps.length) ? (MapCycleIndex + 1) : 0;
-			// don't save if admin made changes as this object doesn't get those changes
-			// (to avoid the current game getting disrupted)
-			// and thus saving here would clobber the changes that were made
-			if (!bAdminModifiedOptions)
-			{
-				SaveConfig();
-			}
+			if (MapName == "" || MapListManager.bOverrideNextMap)
+				MapName = MapListManager.GetNextMap();
 
-			return GameSpecificMapCycles[GameIndex].Maps[MapCycleIndex];
+			// If the vote collector has not already set default options, then pass in ServerOptions instead
+			if (Options == "")
+				Options = MapListManager.AddDefaultOptions(ServerOptions);
+			else
+				Options = MapListManager.AddDefaultOptions(Options);
 		}
-		else
-		{
-			return "";
-		}
+
+		// Now let the same classes modify the new default options, e.g. to remove excluded mutators etc.
+		if (VoteCollector != none)
+			VoteCollector.ModifyOptions(Options);
+
+		if (MapListManager != none)
+			MapListManager.ModifyOptions(Options);
 	}
+
+
+	if (!bAdminModifiedOptions)
+		SaveConfig();
+
+
+	// Notify the maplist manager of the map change, so it can update the map playcount info etc.
+	if (MapListManager != none)
+		MapListManager.NotifyMapChange(MapName);
+
+
+	if (MapName != "")
+		return MapName$Options;
+
+	return "";
 }
 
 function ProcessServerTravel(string URL, optional bool bAbsolute)
@@ -3682,6 +4108,16 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 		SetTimer(7.0, false, 'ContinueSeamlessTravel');
 	}
 }
+
+/**
+ * Called from the WorldInfo when travelling fails
+ */
+function TravelFailed(string TravelURL, string Error, optional string ErrorCode)
+{
+	if (MapListManager != none)
+		MapListManager.NotifyTravelFailed(TravelURL, Error, ErrorCode);
+}
+
 
 function ContinueSeamlessTravel()
 {
@@ -3743,7 +4179,7 @@ function bool GetLocationFor(Pawn StatusPawn, out Actor LocationObject, out int 
 	B = UTBot(StatusPawn.Controller);
 	if ( B != None )
 	{
-		O = (B.Squad != None) ? B.Squad.SquadObjective : B.SquadRouteGoal;
+		O = (B.Squad != None) ? B.Squad.SquadObjective : UTGameObjective(B.SquadRouteGoal);
 		if ( O == None )
 		{
 			O = UTGameObjective(B.RouteGoal);
@@ -3844,22 +4280,37 @@ static function RemoveOption( out string Options, string InKey )
 
 	InKey = caps(InKey);
 	CapOptions= caps(Options);
-	Start = InStr(CapOptions, InKey);
-	if ( Start > 0 )
+	Start = InStr(CapOptions, "?"$InKey$"=");
+
+	// Some options are in the format '?Key' instead of '?Key=Value' (e.g. ?listen)
+	if (Start == INDEX_None)
 	{
-		LeftString = Left(Options,Start-1);
-		RightString = Right(Options, Len(Options)- Start - Len(InKey) - 1);
-		Start = InStr(RightString, "?");
-		if ( Start > 0 )
+		Start = InStr(CapOptions, "?"$InKey$"?");
+
+		if (Start == INDEX_None)
 		{
-			RightString = Right(RightString, Len(RightString) - Start);
+			if (Right(CapOptions, Len(InKey)) ~= InKey)
+				Options = Left(Options, Len(Options) - (Len(InKey) + 1));
 		}
 		else
 		{
-			RightString = "";
+			Options = Left(Options, Start)$Mid(Options, Start+Len(InKey)+1);
 		}
+	}
+	else
+	{
+		LeftString = Left(Options, Start);
+		RightString = Mid(Options, Start + Len(InKey) + 2);
+		Start = InStr(RightString, "?");
+
+		if (Start != INDEX_None)
+			RightString = Mid(RightString, Start);
+		else
+			RightString = "";
+
 		Options = LeftString$RightString;
 	}
+
 	`log("Cut down URL "$Options);
 }
 
@@ -3911,6 +4362,7 @@ function RegisterServer()
 	super.RegisterServer();
 }
 
+
 defaultproperties
 {
 	HUDType=class'UTGame.UTHUD'
@@ -3958,7 +4410,8 @@ defaultproperties
 
  	MidGameMenuTemplate=UTUIScene_MidGameMenu'UI_InGameHud.Menus.MidGameMenu'
 
-	SpawnProtectionTime=+2.0
+	bShouldPostRenderEnemyPawns=true
+	DMBeaconMaxDist=2000.0
 
 	SpeechRecognitionData=SpeechRecognition'SpeechRecognition.Alphabet'
 	LastEncouragementTime=-20
@@ -3966,5 +4419,69 @@ defaultproperties
 	bMidGameHasMap=false
 
 	MaxPlayersAllowed=64
-}
 
+	MapContexts.Add((MapName="CTF-Coret",MapContextId=CONTEXT_MAPNAME_CORET,bIsValidAchievementMap=true,bIsUT3GoldMap=false))               
+	MapContexts.Add((MapName="CTF-Hydrosis",MapContextId=CONTEXT_MAPNAME_HYDROSIS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="CTF-OmicronDawn",MapContextId=CONTEXT_MAPNAME_OMICRON_DAWN,bIsValidAchievementMap=true,bIsUT3GoldMap=false))        
+	MapContexts.Add((MapName="CTF-Reflection",MapContextId=CONTEXT_MAPNAME_REFLECTION,bIsValidAchievementMap=true,bIsUT3GoldMap=false))         
+	MapContexts.Add((MapName="CTF-Strident",MapContextId=CONTEXT_MAPNAME_STRIDENT,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="CTF-Vertebrae",MapContextId=CONTEXT_MAPNAME_VERTEBRAE,bIsValidAchievementMap=true,bIsUT3GoldMap=false))           
+	MapContexts.Add((MapName="DM-Arsenal",MapContextId=CONTEXT_MAPNAME_ARSENAL,bIsValidAchievementMap=true,bIsUT3GoldMap=false))             
+	MapContexts.Add((MapName="DM-Biohazard",MapContextId=CONTEXT_MAPNAME_BIOHAZARD,bIsValidAchievementMap=true,bIsUT3GoldMap=false))           
+	MapContexts.Add((MapName="DM-Carbonfire",MapContextId=CONTEXT_MAPNAME_CARBON_FIRE,bIsValidAchievementMap=true,bIsUT3GoldMap=false))         
+	MapContexts.Add((MapName="DM-Deck",MapContextId=CONTEXT_MAPNAME_DECK,bIsValidAchievementMap=true,bIsUT3GoldMap=false))                
+	MapContexts.Add((MapName="DM-Defiance",MapContextId=CONTEXT_MAPNAME_DEFIANCE,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="DM-Deimos",MapContextId=CONTEXT_MAPNAME_DEIMOS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))              
+	MapContexts.Add((MapName="DM-Diesel",MapContextId=CONTEXT_MAPNAME_DIESEL,bIsValidAchievementMap=true,bIsUT3GoldMap=false))              
+	MapContexts.Add((MapName="DM-Fearless",MapContextId=CONTEXT_MAPNAME_FEARLESS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="DM-Gateway",MapContextId=CONTEXT_MAPNAME_GATEWAY,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="DM-Heatray",MapContextId=CONTEXT_MAPNAME_HEAT_RAY,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="DM-RisingSun",MapContextId=CONTEXT_MAPNAME_RISING_SUN,bIsValidAchievementMap=true,bIsUT3GoldMap=false))         
+	MapContexts.Add((MapName="DM-Sanctuary",MapContextId=CONTEXT_MAPNAME_SANCTUARY,bIsValidAchievementMap=true,bIsUT3GoldMap=false))           
+	MapContexts.Add((MapName="DM-Sentinel",MapContextId=CONTEXT_MAPNAME_SENTINEL,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="DM-Shangrila",MapContextId=CONTEXT_MAPNAME_SHANGRILA,bIsValidAchievementMap=true,bIsUT3GoldMap=false))           
+	MapContexts.Add((MapName="VCTF-Containment",MapContextId=CONTEXT_MAPNAME_CONTAINMENT,bIsValidAchievementMap=true,bIsUT3GoldMap=false))         
+	MapContexts.Add((MapName="VCTF-Containment_SP",MapContextId=CONTEXT_MAPNAME_CONTAINMENTSP,bIsValidAchievementMap=false,bIsUT3GoldMap=false))      
+	MapContexts.Add((MapName="VCTF-Corruption",MapContextId=CONTEXT_MAPNAME_CORRUPTION,bIsValidAchievementMap=true,bIsUT3GoldMap=false))          
+	MapContexts.Add((MapName="VCTF-Kargo",MapContextId=CONTEXT_MAPNAME_KARGO,bIsValidAchievementMap=true,bIsUT3GoldMap=false))               
+	MapContexts.Add((MapName="VCTF-Necropolis",MapContextId=CONTEXT_MAPNAME_NECROPOLIS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))         
+	MapContexts.Add((MapName="VCTF-Sandstorm",MapContextId=CONTEXT_MAPNAME_SANDSTORM,bIsValidAchievementMap=true,bIsUT3GoldMap=false))           
+	MapContexts.Add((MapName="VCTF-Suspense",MapContextId=CONTEXT_MAPNAME_SUSPENSE,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="WAR-Avalanche",MapContextId=CONTEXT_MAPNAME_AVALANCHE,bIsValidAchievementMap=true,bIsUT3GoldMap=false))          
+	MapContexts.Add((MapName="WAR-Downtown",MapContextId=CONTEXT_MAPNAME_DOWNTOWN,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="WAR-Dusk",MapContextId=CONTEXT_MAPNAME_DUSK,bIsValidAchievementMap=true,bIsUT3GoldMap=false))                
+	MapContexts.Add((MapName="WAR-Floodgate",MapContextId=CONTEXT_MAPNAME_FLOODGATE,bIsValidAchievementMap=true,bIsUT3GoldMap=false))           
+	MapContexts.Add((MapName="WAR-Islander",MapContextId=CONTEXT_MAPNAME_ISLANDER,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="WAR-Islander_Necris",MapContextId=CONTEXT_MAPNAME_ISLANDERNECRIS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))      
+	MapContexts.Add((MapName="WAR-MarketDistrict",MapContextId=CONTEXT_MAPNAME_MARKET_DISTRICT,bIsValidAchievementMap=true,bIsUT3GoldMap=false))     
+	MapContexts.Add((MapName="WAR-OnyxCoast",MapContextId=CONTEXT_MAPNAME_ONYX_COAST,bIsValidAchievementMap=true,bIsUT3GoldMap=false))         
+	MapContexts.Add((MapName="WAR-PowerSurge",MapContextId=CONTEXT_MAPNAME_POWER_SURGE,bIsValidAchievementMap=true,bIsUT3GoldMap=false))         
+	MapContexts.Add((MapName="WAR-Serenity",MapContextId=CONTEXT_MAPNAME_SERENITY,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="WAR-Serenity_Necris",MapContextId=CONTEXT_MAPNAME_SERENITYNECRIS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))      
+	MapContexts.Add((MapName="WAR-Sinkhole",MapContextId=CONTEXT_MAPNAME_SINKHOLE,bIsValidAchievementMap=true,bIsUT3GoldMap=false))            
+	MapContexts.Add((MapName="WAR-TankCrossing",MapContextId=CONTEXT_MAPNAME_TANK_CROSSING,bIsValidAchievementMap=true,bIsUT3GoldMap=false))       
+	MapContexts.Add((MapName="WAR-Torlan",MapContextId=CONTEXT_MAPNAME_TORLAN,bIsValidAchievementMap=true,bIsUT3GoldMap=false))              
+	MapContexts.Add((MapName="WAR-Torlan_Leviathan",MapContextId=CONTEXT_MAPNAME_TORLANLEVIATHAN,bIsValidAchievementMap=false,bIsUT3GoldMap=false))     
+	MapContexts.Add((MapName="WAR-Torlan_Necris",MapContextId=CONTEXT_MAPNAME_TORLANNECRIS,bIsValidAchievementMap=true,bIsUT3GoldMap=false)) 
+	MapContexts.Add((MapName="UTM-MissionSelection",MapContextId=CONTEXT_MAPNAME_MISSION_SELECTION,bIsValidAchievementMap=false,bIsUT3GoldMap=false))
+	MapContexts.Add((MapName="DM-KBarge",MapContextId=CONTEXT_MAPNAME_KBARGE,bIsValidAchievementMap=true,bIsUT3GoldMap=false))
+	MapContexts.Add((MapName="DM-Morbias",MapContextId=CONTEXT_MAPNAME_MORBIAS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))
+	MapContexts.Add((MapName="CTF-FacingWorlds",MapContextId=CONTEXT_MAPNAME_FACINGWORLDS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))
+	MapContexts.Add((MapName="CTF-Searchlight",MapContextId=CONTEXT_MAPNAME_SEARCHLIGHT,bIsValidAchievementMap=true,bIsUT3GoldMap=false))
+	MapContexts.Add((MapName="VCTF-Rails",MapContextId=CONTEXT_MAPNAME_RAILS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))
+	MapContexts.Add((MapName="VCTF-Suspense_Necris",MapContextId=CONTEXT_MAPNAME_SUSPENSE_NECRIS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))
+	MapContexts.Add((MapName="WAR-ColdHarbor",MapContextId=CONTEXT_MAPNAME_COLDHARBOR,bIsValidAchievementMap=true,bIsUT3GoldMap=false))
+	MapContexts.Add((MapName="WAR-Downtown_Necris",MapContextId=CONTEXT_MAPNAME_DOWNTOWNNECRIS,bIsValidAchievementMap=true,bIsUT3GoldMap=false))
+
+	MapContexts.Add((MapName="CTF-LostCause",MapContextId=CONTEXT_MAPNAME_LOSTCAUSE,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="CTF-Morbid",MapContextId=CONTEXT_MAPNAME_MORBID,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="CTF-Nanoblack",MapContextId=CONTEXT_MAPNAME_NANOBLACK,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="CTF-Shaft",MapContextId=CONTEXT_MAPNAME_SHAFT,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="DM-DarkMatch",MapContextId=CONTEXT_MAPNAME_DARKMATCH,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="DM-OceanRelic",MapContextId=CONTEXT_MAPNAME_OCEANRELIC,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="DM-EdenInc",MapContextId=CONTEXT_MAPNAME_EDENINC,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="DM-Turbine",MapContextId=CONTEXT_MAPNAME_TURBINE,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="vCTF-Stranded",MapContextId=CONTEXT_MAPNAME_STRANDED,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="WAR-Confrontation",MapContextId=CONTEXT_MAPNAME_CONFRONTATION,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+	MapContexts.Add((MapName="WAR-Hostile",MapContextId=CONTEXT_MAPNAME_HOSTILE,bIsValidAchievementMap=true,bIsUT3GoldMap=true))
+}

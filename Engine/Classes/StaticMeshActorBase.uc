@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for static actors which contain StaticMeshComponents.
  *
- * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class StaticMeshActorBase extends Actor
 	native

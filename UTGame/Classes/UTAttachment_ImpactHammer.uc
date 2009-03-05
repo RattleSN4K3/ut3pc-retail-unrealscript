@@ -33,6 +33,16 @@ simulated function ThirdPersonFireEffects(vector HitLocation)
 	Play3pAnimation(IdleAnim, 1.0f, true);
 }
 
+/** 
+*   Optimized equivalent of calling ThirdPersonFireEffects while in splitscreen
+*/
+simulated function SplitScreenEffects(vector HitLocation)
+{
+	Super.SplitScreenEffects(HitLocation);
+	FireModeUpdated(2, false); // force the impact hammer into a neutral state
+	Play3pAnimation(IdleAnim, 1.0f, true);
+}
+
 simulated function FirstPersonFireEffects(Weapon PawnWeapon, vector HitLocation)
 {
 	Super.FirstPersonFireEffects(PawnWeapon, HitLocation);

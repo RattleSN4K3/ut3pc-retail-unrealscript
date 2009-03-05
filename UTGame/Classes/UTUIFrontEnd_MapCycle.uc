@@ -3,7 +3,8 @@
  *
  * UI scene that allows the user to setup a map cycle.
  */
-class UTUIFrontEnd_MapCycle extends UTUIFrontEnd;
+class UTUIFrontEnd_MapCycle extends UTUIFrontEnd
+	dependson(UTGame, UTMapListManager);
 
 /** List of available maps. */
 var transient UIList AvailableList;
@@ -23,6 +24,10 @@ var transient UIImage ShiftLeftImage;
 
 /** Reference to the menu datastore */
 var transient UTUIDataStore_MenuItems MenuDataStore;
+
+/** If the mapcycle has been loaded from a named maplist, reference it here */
+var transient UTMapList LoadedMapList;
+
 
 /** Post initialization event - Setup widget delegates.*/
 event PostInitialize()
@@ -47,6 +52,7 @@ event PostInitialize()
 	ShiftRightImage = UIImage(FindChild('imgArrowLeft', true));
 	ShiftLeftImage = UIImage(FindChild('imgArrowRight', true));
 
+
 	// Get reference to the menu datastore
 	MenuDataStore = UTUIDataStore_MenuItems(GetCurrentUIController().DataStoreManager.FindDataStore('UTMenuItems'));
 
@@ -56,37 +62,103 @@ event PostInitialize()
 function name GetCurrentGameMode()
 {
 	local string GameMode;
+	local int i;
 
 	GetDataStoreStringValue("<Registry:SelectedGameMode>", GameMode);
 
-	// strip out package so we just have class name
-	return name(Right(GameMode, Len(GameMode) - InStr(GameMode, ".") - 1));
+	// Strip out package so we just have class name
+	i = InStr(GameMode, ".");
+
+	if (i != INDEX_None)
+		GameMode = Mid(GameMode, i+1);
+
+	return name(GameMode);
+}
+
+function name GetCurrentGameModeFull()
+{
+	local string GameMode;
+
+	GetDataStoreStringValue("<Registry:SelectedGameMode>", GameMode);
+	return name(GameMode);
+}
+
+function string StripOptions(coerce string InURL)
+{
+	local int i;
+
+	i = InStr(InURL, "?");
+
+	if (i == -1)
+		return InUrl;
+
+
+	return Left(InURL, i);
+}
+
+function string GrabOptions(string InURL)
+{
+	local int i;
+
+	i = InStr(InURL, "?");
+
+	if (i == -1)
+		return "";
+
+	return Mid(InURL, i);
 }
 
 /** Loads the map cycle for the current game mode and sets up the datastore's lists. */
 function LoadMapCycle()
 {
-	local int MapIdx;
-	local int LocateIdx;
-	local int CycleIdx;
-	local name GameMode;
+	local int MapIdx, LocateIdx, CycleIdx;
+	local name GameMode, MapListName;
+	local string FullGameMode, Options;
+	local GameProfile NewGameProfile;
 
-	GameMode = GetCurrentGameMode();
 	MenuDataStore.MapCycle.length = 0;
+	GameMode = GetCurrentGameMode();
 
-	CycleIdx = class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', GameMode);
-	if (CycleIdx != INDEX_NONE)
+	if (GameMode == 'None')
+		return;
+
+
+	// Load the maplist
+	FullGameMode = string(GetCurrentGameModeFull());
+	Options = GrabOptions(FullGameMode);
+
+	if (Options != "")
 	{
-		for(MapIdx=0; MapIdx<class'UTGame'.default.GameSpecificMapCycles[CycleIdx].Maps.length; MapIdx++)
-		{
-			LocateIdx = MenuDataStore.FindValueInProviderSet('Maps', 'MapName', class'UTGame'.default.GameSpecificMapCycles[CycleIdx].Maps[MapIdx]);
-
-			if(LocateIdx != INDEX_NONE)
-			{
-				MenuDataStore.MapCycle.AddItem(LocateIdx);
-			}
-		}
+		GameMode = name(StripOptions(GameMode));
+		FullGameMode = StripOptions(FullGameMode);
 	}
+
+	CycleIdx = Class'UTMapListManager'.static.StaticGetCurrentGameProfileIndex();
+
+	if (CycleIdx == INDEX_None || !(Class'UTMapListManager'.default.GameProfiles[CycleIdx].GameClass ~= FullGameMode))
+		CycleIdx = Class'UTMapListManager'.static.StaticFindGameProfileIndex(FullGameMode);
+
+	// Create a new vote profile if necessary
+	if (CycleIdx == INDEX_None)
+	{
+		NewGameProfile = Class'UTMapListManager'.static.CreateNewGameProfile(FullGameMode,, GameMode, Options);
+		CycleIdx = Class'UTMapListManager'.default.GameProfiles.AddItem(NewGameProfile);
+		Class'UTMapListManager'.static.StaticSaveConfig();
+	}
+
+	// Load the profiles maplist (creating it if it doesn't yet exist)
+	MapListName = Class'UTMapListManager'.default.GameProfiles[CycleIdx].MapListName;
+	LoadedMapList = Class'UTMapListManager'.static.StaticGetMapListByName(MapListName, True);
+
+	// Now transfer the maplist data to the data store
+	for (MapIdx=0; MapIdx<LoadedMapList.Maps.Length; ++MapIdx)
+	{
+		LocateIdx = MenuDataStore.FindValueInProviderSet('Maps', 'MapName', LoadedMapList.GetMap(MapIdx));
+
+		if (LocateIdx != INDEX_None)
+			MenuDataStore.MapCycle.AddItem(LocateIdx);
+	}
+
 
 	OnMapListChanged();
 }
@@ -108,27 +180,33 @@ function GenerateMapCycleList(out GameMapCycle Cycle)
 	}
 }
 
+/** Added for maplist objects. */
+function GenerateMapCycleListNew(out UTMapList MLObj)
+{
+	local int MapIdx, i;
+	local string MapName;
+
+	MLObj.Maps.Length = 0;
+
+	for (MapIdx=0; MapIdx<MenuDataStore.MapCycle.length; ++MapIdx)
+	{
+		if(MenuDataStore.GetValueFromProviderSet('Maps', 'MapName', MenuDataStore.MapCycle[MapIdx], MapName))
+		{
+			i = MLObj.Maps.Length;
+			MLObj.Maps.Length = i + 1;
+			MLObj.SetMap(i, MapName);
+		}
+	}
+}
+
 /** Transfers the current map cycle in the menu datastore to our array of config saved map cycles for each gamemode. */
 function SaveMapCycle()
 {
-	local int CycleIdx;
-	local name GameMode;
-	local GameMapCycle MapCycle;
+	GenerateMapCycleListNew(LoadedMapList);
 
-	GameMode = GetCurrentGameMode();
-
-	MapCycle.GameClassName = GameMode;
-	GenerateMapCycleList(MapCycle);
-
-	CycleIdx = class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', GameMode);
-	if (CycleIdx == INDEX_NONE)
-	{
-		CycleIdx = class'UTGame'.default.GameSpecificMapCycles.length;
-	}
-	class'UTGame'.default.GameSpecificMapCycles[CycleIdx] = MapCycle;
-
-	// Save the config for this class.
-	class'UTGame'.static.StaticSaveConfig();
+	// Reset the maplists last active map, and save
+	LoadedMapList.SetLastActiveIndex(INDEX_None);
+	LoadedMapList.SaveConfig();
 }
 
 /** Sets up the button bar for the parent scene. */
@@ -147,6 +225,7 @@ function SetupButtonBar()
 				ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.RemoveMap>", OnButtonBar_MoveMap);
 				ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ShiftUp>", OnButtonBar_ShiftUp);
 				ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ShiftDown>", OnButtonBar_ShiftDown);
+				ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ClearAll>", OnButtonBar_ClearMaps);
 			}
 		}
 		else

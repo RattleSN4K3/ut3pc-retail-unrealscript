@@ -27,6 +27,17 @@ var ParticleSystem HighPowerBeamEndpointTemplate;
 /** emitter playing the endpoint effect */
 var UTEmitter BeamEndpointEffect;
 
+/** decal for explosion */
+var MaterialInterface BeamDecal;
+var float DecalWidth, DecalHeight;
+/** How long the decal should last before fading out **/
+var float DurationOfDecal;
+/** MaterialInstance param name for dissolving the decal **/
+var name DecalDissolveParamName;
+/** Number of ticks between decals */
+var() int TicksBetweenDecals;
+/** Number of ticks since last decal */
+var int TicksSinceLastDecal;
 
 /** templates for muzzle flash */
 var ParticleSystem TeamMuzzleFlashTemplates[3];
@@ -97,6 +108,7 @@ simulated function SetSkin(Material NewMaterial)
 simulated function SetImpactedActor(Actor HitActor, vector HitLocation, vector HitNormal)
 {
 	local SoundCue DesiredLinkHitSound;
+	local MaterialInstanceTimeVarying MITV_Decal;
 
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
@@ -149,6 +161,27 @@ simulated function SetImpactedActor(Actor HitActor, vector HitLocation, vector H
 			{
 				HitWallEffect.SetRotation(rotator(HitNormal));
 				HitWallEffect.SetLocation(HitLocation);
+			}
+
+			// Apply beam decal
+			if ( (PlayerController(PawnOwner.Controller) != None) && (TicksBetweenDecals <= TicksSinceLastDecal) )
+			{
+				if( MaterialInstanceTimeVarying(BeamDecal) != none )
+				{
+					MITV_Decal = new(self) class'MaterialInstanceTimeVarying';
+					MITV_Decal.SetParent( BeamDecal );
+					WorldInfo.MyDecalManager.SpawnDecal(MITV_Decal, HitLocation, rotator(-HitNormal), DecalWidth, DecalHeight, 10.0, FALSE );
+					MITV_Decal.SetScalarStartTime( DecalDissolveParamName, DurationOfDecal );
+				}
+				else
+				{
+					WorldInfo.MyDecalManager.SpawnDecal( BeamDecal, HitLocation, rotator(-HitNormal), DecalWidth, DecalHeight, 10.0, true );
+				}
+				TicksSinceLastDecal = 0;
+			}
+			else
+			{
+				++TicksSinceLastDecal;
 			}
 		}
 		else
@@ -208,6 +241,9 @@ simulated function UpdateBeam(byte FireModeNum)
 		//@todo: this will have issues with splitscreen
 		foreach LocalPlayerControllers(class'PlayerController', PC)
 		{
+			//Make sure we aren't the ones "getting in the way"
+			if (PC.Pawn != PawnOwner)
+			{
 			PC.GetPlayerViewPoint(CameraLocation, CameraRotation);
 
 			CameraDir = vector(CameraRotation);
@@ -218,6 +254,7 @@ simulated function UpdateBeam(byte FireModeNum)
 				EndPoint = BeamStart + BeamDir * (VSize(CameraLocation - BeamStart) - 20.0f);
 				break;
 			}
+		}
 		}
 
 		BeamEmitter[RealFireModeNum].SetVectorParameter(EndPointParamName, EndPoint);
@@ -493,4 +530,11 @@ defaultproperties
 	WallHitTemplate=ParticleSystem'WP_LinkGun.Effects.P_WP_Linkgun_Beam_Impact_HIT'
 
 	ConnectionEffectTemplate=ParticleSystem'WP_LinkGun.Effects.P_WP_Linkgun_Connection_Beam'
+
+	BeamDecal=MaterialInstanceTimeVarying'WP_FlakCannon.Decals.MITV_WP_FlakCannon_Impact_Decal01' 
+	DecalWidth=32.0
+	DecalHeight=32.0
+	DecalDissolveParamName="DissolveAmount"
+	DurationOfDecal=10.0f
+	TicksBetweenDecals=0
 }

@@ -2,6 +2,7 @@
  * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTProj_TransDisc extends UTProjectile
+	native
 	abstract;
 
 /** How much "Integrity" does it have */
@@ -31,6 +32,7 @@ var SoundCue BounceSound;
 var ParticleSystemComponent	LandEffects;
 
 var UTWeap_Translocator MyTranslocator;
+
 enum ETLState
 {
 	TLS_None,
@@ -38,8 +40,9 @@ enum ETLState
 	TLS_OnGround,
 	TLS_Disrupted
 };
-
 var repnotify ETLState TLState;
+
+
 
 replication
 {
@@ -166,22 +169,36 @@ simulated event HitWall(vector HitNormal, Actor Wall, PrimitiveComponent WallCom
 	Velocity = 0.3*(( Velocity dot HitNormal ) * HitNormal * (-2.0) + Velocity);   // Reflect off Wall w/damping
 	Speed = VSize(Velocity);
 
-	if ( (Speed < 20) && (HitNormal.Z >= 0.7) && (Wall.bWorldGeometry || (InterpActor(Wall) != None)) )
+	if ( (Speed < 20) && (HitNormal.Z >= 0.7) )
 	{
-		bBounce = false;
-		bWaitForEffects = false;
-		SetBase(Wall);
-		SetPhysics(PHYS_None);
-		SetRotation(rotator(HitNormal) + rot(16384,0,0));
+		if ( Wall.bWorldGeometry || (InterpActor(Wall) != None) )
+		{
+			bBounce = false;
+			bWaitForEffects = false;
+			SetBase(Wall);
+			SetPhysics(PHYS_None);
+			SetRotation(rotator(HitNormal) + rot(16384,0,0));
 
-		TLState = TLS_OnGround;
-		if (ProjEffects!=None)
-		{
-			ProjEffects.DeactivateSystem();
+			TLState = TLS_OnGround;
+			if (ProjEffects!=None)
+			{
+				ProjEffects.DeactivateSystem();
+			}
+			if(LandEffects != none && !LandEffects.bIsActive)
+			{
+				LandEffects.ActivateSystem();
+			}
 		}
-		if(LandEffects != none && !LandEffects.bIsActive)
+		else
 		{
-			LandEffects.ActivateSystem();
+			if ( Speed == 0.0 )
+			{
+				Destroy();
+			}
+			else
+			{
+				Velocity *= 3.0; 
+			}
 		}
 	}
 	SpawnBounceEffect(HitNormal);
@@ -226,12 +243,13 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 					TakeDamage(Integrity, P.Controller, HitLocation, vect(0,0,0), Hammer.InstantHitDamageTypes[0],, Hammer);
 					Hammer.ClientEndFire(0);
 					Hammer.EndFire(0);
+					Hammer.DemoEndFire(0);
 				}
 			}
 		}
 
 
-		if (Pawn(Other) != None && Vehicle(Other) == None && (VSize2D(Velocity) < 200 || Pawn(Other).Health <= 0))
+		if ( Pawn(Other) != None && Vehicle(Other) == None && (Pawn(Other).Health <= 0) )
 		{
 			return;
 		}
@@ -351,7 +369,7 @@ State MonitoringThrow
 			return;
 		}
 
-		if ( Physics == PHYS_None )
+		if ( bDeleteMe || (Physics == PHYS_None) )
 		{
 			B = UTBot(Instigator.Controller);
 			if ( (B != None) && B.bPreparingMove )
@@ -491,6 +509,7 @@ simulated function SpawnTrail()
 {
 	ProjEffects = new(Outer) class'UTParticleSystemComponent';
 	ProjEffects.SetTemplate(ProjFlightTemplate);
+	SetRotation(rotator(Velocity));
 	AttachComponent(ProjEffects);
 }
 

@@ -1,7 +1,7 @@
 ﻿/**
  * This action is used to retrieve the value from widgets that support string data.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_GetTextValue extends UIAction_GetValue;
 

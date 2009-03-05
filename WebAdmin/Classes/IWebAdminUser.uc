@@ -10,16 +10,34 @@ interface IWebAdminUser;
 struct MessageEntry
 {
 	var int counter;
+	/**
+	 * Can be none
+	 */
 	var PlayerReplicationInfo sender;
 	var string senderName;
 	var string message;
+	/**
+	 * Say, TeamSay, None
+	 */
 	var name type;
+	var string teamName;
+	var color teamColor;
+	/**
+	 * INDEX_NONE if not a member of a team
+	 */
+	var int teamId;
 };
 
 /**
- * Return the name of the user
+ * Return the name of the user. This is the name used for displaying. It can be
+ * the same as the result of getUserid();
  */
 function string getUsername();
+
+/**
+ * Return the user id, this was the name used to log in on the webadmin.
+ */
+function string getUserid();
 
 /**
  * Used to check for permissions to perform given actions.
@@ -43,3 +61,8 @@ function PlayerController getPC();
  * Get the message history.
  */
 function messageHistory(out array<MessageEntry> history, optional int startingFrom);
+
+/**
+ * Called when this user is logged out.
+ */
+function logout();

@@ -1,7 +1,7 @@
 ﻿/**
  * This class allows the designer to play a sound cue using a UISoundCue alias name.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_PlayUISoundCue extends UIAction
 	native(inherit);

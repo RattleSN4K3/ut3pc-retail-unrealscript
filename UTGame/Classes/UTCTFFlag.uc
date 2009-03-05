@@ -24,6 +24,9 @@ var	vector	HoverboardingClothVelClamp;
 
 var ParticleSystemComponent SuccessfulCaptureSystem;
 
+/** Hide flag if closer than this, to avoid camera clipping */
+var float FlagMinViewDist;
+
 /** The Flags's light environment */
 var DynamicLightEnvironmentComponent LightEnvironment;
 
@@ -63,11 +66,22 @@ simulated event ReplicatedEvent(name VarName)
 simulated function PostBeginPlay()
 {
 	local int i;
+	local UTPlayerController UTPC;
+
 	super.PostBeginPlay();
 	for(i=0;i<SkelMesh.Materials.Length;++i)
 	{
 		MICArray.Insert(i,1);
 		MICArray[i] = SkelMesh.CreateAndSetMaterialInstanceConstant(i);
+	}
+
+	//Make sure every local player with a hud has an update on the visibility of this flag
+	ForEach LocalPlayerControllers(class'UTPlayerController', UTPC)
+	{
+		if (UTHUD(UTPC.myHUD) != None)
+		{
+			UTHUD(UTPC.myHUD).UpdateCTFFlagVisibility(self);
+		}
 	}
 }
 
@@ -433,6 +447,8 @@ defaultproperties
 	NetPriority=+00003.000000
 	bCollideActors=true
 	bUseTeamColorForIcon=true
+
+	FlagMinViewDist=50.0f
 
 	Begin Object Name=CollisionCylinder
 		CollisionRadius=+0048.000000

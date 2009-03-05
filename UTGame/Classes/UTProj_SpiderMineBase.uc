@@ -155,7 +155,7 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 	}
 	else if (Pawn(Other) != None)
 	{
-		if ( Other != Instigator && !WorldInfo.GRI.OnSameTeam(Instigator, Other) )
+		if ( Other != Instigator && !OnSameTeam(Other) )
 		{
 			Explode(Location, HitNormal);
 		}
@@ -197,7 +197,7 @@ function AcquireTarget()
 
 	foreach VisibleCollidingActors(class'Pawn', A, DetectionRange)
 	{
-		if ( A != Instigator && A.Health > 0 && !WorldInfo.GRI.OnSameTeam(A, self) && !A.IsA('UTVehicle_DarkWalker')
+		if ( A != Instigator && A.Health > 0 && !OnSameTeam(A) && !A.IsA('UTVehicle_DarkWalker')
 		 && (UTVehicle(A) == None || UTVehicle(A).Driver != None || UTVehicle(A).bTeamLocked) )
 		{
 			Dist = VSize(A.Location - Location);
@@ -208,6 +208,11 @@ function AcquireTarget()
 			}
 		}
 	}
+
+	if ( UTPawn(TargetPawn) != None )
+	{
+		UTPawn(TargetPawn).AddSpiderChaser(self);
+	}
 }
 
 function WarnTarget()
@@ -216,7 +221,7 @@ function WarnTarget()
 	{
 		TargetPawn.Controller.ReceiveProjectileWarning(self);
 
-		if (AIController(TargetPawn.Controller) != None && AIController(TargetPawn.Controller).Skill >= 5.0 && !TargetPawn.IsFiring())
+		if (AIController(TargetPawn.Controller) != None && AIController(TargetPawn.Controller).Skill >= 3.0 + 2*FRand() && !TargetPawn.IsFiring())
 		{
 			TargetPawn.Controller.Focus = self;
 			TargetPawn.Controller.FireWeaponAt(self);
@@ -226,7 +231,7 @@ function WarnTarget()
 
 event TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
-	if (DamageAmount > 0 && !WorldInfo.GRI.OnSameTeam(EventInstigator, self))
+	if (DamageAmount > 0 && !OnSameTeam(EventInstigator))
 	{
 		Explode(Location, Normal(Momentum));
 	}
@@ -279,7 +284,7 @@ auto state Flying
 	{
 		if ( Instigator != None && Pawn(Wall) != None )
 		{
-			if (!WorldInfo.GRI.OnSameTeam(Instigator, Wall))
+			if (!OnSameTeam(Wall))
 			{
 				ImpactedActor = Wall;
 				Explode(Location, HitNormal);
@@ -501,8 +506,8 @@ function bool SetScurryTarget(vector NewTargetLoc, Pawn NewInstigator)
 
 	if (TargetPawn == None)
 	{
-		bCanControl = WorldInfo.Game.bTeamGame ? WorldInfo.GRI.OnSameTeam(NewInstigator, self) : (InstigatorController == NewInstigator.Controller);
-		if ( bCanControl && FastTrace(NewTargetLoc, Location + vect(0,0,32)) )
+		bCanControl = WorldInfo.Game.bTeamGame ? OnSameTeam(NewInstigator) : (InstigatorController == NewInstigator.Controller);
+		if ( bCanControl && (FastTrace(NewTargetLoc, Location + vect(0,0,32)) || FastTrace(NewTargetLoc + vect(0,0,32), Location + vect(0,0,32))) )
 		{
 			// give this player control of the mine
 			Instigator = NewInstigator;
@@ -578,9 +583,21 @@ simulated state ScurryToTargetLoc extends Scurrying
 	}
 }
 
+simulated function bool OnSameTeam(Actor Other)
+{
+	if ( (Instigator == Other) && !WorldInfo.GRI.GameClass.default.bTeamGame )
+	{
+		return true;
+	}
+	else
+	{
+		return WorldInfo.GRI.OnSameTeam(self, Other);
+	}
+}
+
 simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponent WallComp)
 {
-	if ( Instigator != None && Pawn(Wall) != None && !WorldInfo.GRI.OnSameTeam(Instigator, Wall) )
+	if ( (Pawn(Wall) != None) && !OnSameTeam(Wall) )
 	{
 		ImpactedActor = Wall;
 		Explode(Location, HitNormal);

@@ -18,6 +18,11 @@ event PostInitialize()
 
 	// Set the button tab caption.
 	SetDataStoreBinding("<Strings:UTGameUI.JoinGame.History>");
+
+	//Make sure the server details are bound to the right data store
+	DetailsList.SetDataStoreBinding("<" $ SearchDSName $ ":CurrentServerDetails>");
+	MutatorList.SetDataStoreBinding("<" $ SearchDSName $ ":CurrentServerMutators>");
+	PlayerList.SetDataStoreBinding("<" $ SearchDSName $ ":CurrentServerPlayers>");
 }
 
 /**

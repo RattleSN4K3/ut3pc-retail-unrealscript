@@ -5,6 +5,20 @@ class UTGameReplicationInfo extends GameReplicationInfo
 	config(Game)
 	native;
 
+/** If set, players are all on one team vs bots - made an int for replication compatibility */
+var int IsPlayersVsBots;
+/** The settings scene that the client should load when clicking on the 'Mod Settings' button in the mid game settings menu */
+/** NOTE: This is replicated, instead of being retrieved clientside, so that clients can't change the loaded scene through .ini editing */
+var string ModClientSettingsScene;
+// New vote timer variables for round based voting, which are used because 'MapVoteTimeRemaining' can only be reliably set once.
+//	MapVoteTimeRemaining's value is counted down clientside, taking it out of sync with the server; so if the server sets it to 15
+//	seconds for the first round and sets it to 15 seconds again for the second round, then it wont replicate the second time due to
+//	'MapVoteTimeRemaining' already being at 15 on the server
+var repnotify int VoteRoundTimeRemaining;
+var repnotify int VoteRoundTimeModified;
+
+
+
 var float WeaponBerserk;
 var int MinNetPlayers;
 var int BotDifficulty;		// for bPlayersVsBots
@@ -12,6 +26,8 @@ var int BotDifficulty;		// for bPlayersVsBots
 var bool		bWarmupRound;	// Amount of Warmup Time Remaining
 /** forces other players to be viewed on this machine with the default character */
 var globalconfig bool bForceDefaultCharacter;
+/** forces custom characters to always load, even after the match has started */
+var globalconfig bool bAlwaysLoadCustomCharacters;
 /** whether we have processed all the custom characters for players that were initially in the game (clientside flag) */
 var bool bProcessedInitialCharacters;
 
@@ -67,14 +83,22 @@ var bool bAllowKeyboardAndMouse;
 /** set by level Kismet to disable announcements during tutorials/cinematics/etc */
 var bool bAnnouncementsDisabled;
 
+/** Whether or not heroes are allowed in the game */
+var bool bHeroesAllowed;
+
 var repnotify bool bShowMOTD;
 
 var databinding string MutatorList;
 var databinding string RulesString;
 
-//********** Map Voting **********8/
+
+/** ********** Map Voting ********** */
 
 var int MapVoteTimeRemaining;
+
+// Clientside only
+var int VoteRoundTimeCounter;
+
 
 /** weapon overlays that are available in this map - figured out in PostBeginPlay() from UTPowerupPickupFactories in the level
  * each entry in the array represents a bit in UTPawn's WeaponOverlayFlags property
@@ -108,13 +132,15 @@ var bool bShowMenuOnDeath;
 
 var bool bRequireReady;
 
+
+
 replication
 {
 	if (bNetInitial)
-		WeaponBerserk, MinNetPlayers, BotDifficulty, bStoryMode, bConsoleServer, bShowMOTD, MutatorList, RulesString, bRequireReady;
+		WeaponBerserk, MinNetPlayers, BotDifficulty, bStoryMode, IsPlayersVsBots, bConsoleServer, bShowMOTD, MutatorList, RulesString, bRequireReady, ModClientSettingsScene;
 
 	if (bNetDirty)
-		bWarmupRound, FlagState, MapVoteTimeRemaining, bAnnouncementsDisabled, bAllowKeyboardAndMouse;
+		bWarmupRound, FlagState, MapVoteTimeRemaining, bAnnouncementsDisabled, bAllowKeyboardAndMouse, VoteRoundTimeRemaining, VoteRoundTimeModified;
 }
 
 simulated function PostBeginPlay()
@@ -209,6 +235,26 @@ simulated function ReplicatedEvent(name VarName)
 	{
 		DisplayMOTD();
 	}
+	else if (VarName == 'VoteRoundTimeRemaining' || VarName == 'VoteRoundTimeModified')
+	{
+		VoteRoundTimeCounter = VoteRoundTimeRemaining;
+	}
+	else
+	{
+		Super.ReplicatedEvent(VarName);
+	}
+}
+
+function SetVoteRoundTimeRemaining(int NewValue)
+{
+	// 'VoteRoundTimeRemaining' wont replicate if it's set to its current value, so use 'VoteRoundTimeModified' to trigger a reset clientside
+	if (VoteRoundTimeRemaining == NewValue)
+		++VoteRoundTimeModified;
+	else
+		VoteRoundTimeRemaining = NewValue;
+
+	if (WorldInfo.NetMode != NM_DedicatedServer)
+		VoteRoundTimeCounter = VoteRoundTimeRemaining;
 }
 
 function SetFlagHome(int TeamIndex)
@@ -270,10 +316,14 @@ simulated function Timer()
 			RemainingTime--;
 	}
 
-    if (WorldInfo.NetMode != NM_DedicatedServer && MapVoteTimeRemaining > 0)
-    {
-    	MapVoteTimeRemaining--;
-    }
+	if (WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		if (MapVoteTimeRemaining > 0)
+			MapVoteTimeRemaining--;
+
+		if (VoteRoundTimeCounter > 0)
+			VoteRoundTimeCounter--;
+	}
 
 	// check if we should broadcast a time countdown message
 	if (WorldInfo.NetMode != NM_DedicatedServer && (bMatchHasBegun || bWarmupRound) && !bStopCountDown && !bMatchIsOver && Winner == None)
@@ -433,7 +483,13 @@ simulated function ResetCharMerge(int StatusIndex)
 	CharStatus[StatusIndex].AssetStore = None;
 	CharStatus[StatusIndex].ArmAssetStore = None;
 
-	CharStatus[StatusIndex].bNeedsArms = FALSE;
+	CharStatus[StatusIndex].bOtherTeamSkin = false;
+	CharStatus[StatusIndex].bNeedsArms = false;
+
+	CharStatus[StatusIndex].PRI.BlueHeadMIC = none;
+	CharStatus[StatusIndex].PRI.BlueBodyMIC = none;
+	CharStatus[StatusIndex].PRI.RedHeadMIC = none;
+	CharStatus[StatusIndex].PRI.RedBodyMIC = none;
 }
 
 /** Attempt to finish merging - returns SkeletalMesh when done. */
@@ -484,7 +540,7 @@ simulated function UTPlayerReplicationInfo FindExistingMeshForFamily(string Fami
  */
 simulated singular function ProcessCharacterData(UTPlayerReplicationInfo PRI, optional bool bTeamChange)
 {
-	local int i;
+	local int i, MaxCharCount;
 	local bool bPRIAlreadyPresent, bDefaultCharParts, bLocalTeamChange;
 	local CreateCharStatus NewCharStatus;
 	local UTProcessedCharacterCache CharacterCache, OldestCharacterCache;
@@ -535,7 +591,7 @@ simulated singular function ProcessCharacterData(UTPlayerReplicationInfo PRI, op
 
 	// We don't allow non-local characters to be created once gameplay has begun.
 	// also skip nonlocal spectators (spectators can join later, so build local mesh anyway so at least player sees his/her own custom mesh)
-	if (((bProcessedInitialCharacters && !WorldInfo.IsInSeamlessTravel()) || PRI.bOnlySpectator || bForceDefaultCharacter) && !PRI.IsLocalPlayerPRI())
+	if (!bAlwaysLoadCustomCharacters && ((bProcessedInitialCharacters && !WorldInfo.IsInSeamlessTravel()) || PRI.bOnlySpectator || bForceDefaultCharacter) && !PRI.IsLocalPlayerPRI())
 	{
 		ReplacementUTPRI = FindExistingMeshForFamily(PRI.CharacterData.FamilyID, PRI.GetTeamNum(), PRI);
 		if(ReplacementUTPRI != None)
@@ -551,16 +607,33 @@ simulated singular function ProcessCharacterData(UTPlayerReplicationInfo PRI, op
 		return;
 	}
 
+
+	//If we are using the new "Always load characters", up the character count to 24 (or higher if set in .ini by user)
+	MaxCharCount = bAlwaysLoadCustomCharacters ? Max(20, class'UTGame'.default.MaxCustomChars) : class'UTGame'.default.MaxCustomChars;
+	
 	// Decrement count if this is a local player.
 	if(PRI.IsLocalPlayerPRI())
 	{
 		LocalPCsLeftToProcess.RemoveItem(PlayerController(PRI.Owner));
 	}
 	// If this isn't a local player, don't process it if we haven't got space.
-	else if((TotalPlayersSetToProcess + LocalPCsLeftToProcess.length) >= class'UTGame'.default.MaxCustomChars)
+	else if((TotalPlayersSetToProcess + LocalPCsLeftToProcess.length) >= MaxCharCount)
 	{
-		PRI.SetCharacterMesh(None);
-		return;
+		//If the character is already set to be processed let them through
+		if (CharStatus.Find('PRI', PRI) == INDEX_NONE)
+		{
+			ReplacementUTPRI = FindExistingMeshForFamily(PRI.CharacterData.FamilyID, PRI.GetTeamNum(), PRI);
+			if(ReplacementUTPRI != None)
+			{
+				PRI.SetCharacterMesh(ReplacementUTPRI.CharacterMesh, true);
+				PRI.CharPortrait = ReplacementUTPRI.CharPortrait;
+			}
+			else
+			{
+				PRI.SetCharacterMesh(None);
+			}
+			return;
+		}
 	}
 
 	if (!bProcessedInitialCharacters)
@@ -587,7 +660,7 @@ simulated singular function ProcessCharacterData(UTPlayerReplicationInfo PRI, op
 		// It is there - reset and abandon any merge work so far.
 		if(CharStatus[i].PRI == PRI)
 		{
-			//`log("PRI in use - resetting:"@PRI);
+			//`log("PRI in use - resetting:"@PRI@PRI.PlayerName);
 			ResetCharMerge(i);
 			// only do arms if we've already done initial characters
 			CharStatus[i].bNeedsArms = (bProcessedInitialCharacters && !WorldInfo.IsInSeamlessTravel() && PRI.IsLocalPlayerPRI()) || bDefaultCharParts;
@@ -687,7 +760,16 @@ simulated function TickCharacterMeshCreation()
 			if(!CharStatus[i].MergeState.bMergeInProgress)
 			{
 				// Merge is done
-				`log("CUSTOMCHAR Complete:"@CharStatus[i].PRI@"  (Tex stream:"@(WorldInfo.RealTimeSeconds - CharStatus[i].StartMergeTime)@"Secs)");
+				`log("CUSTOMCHAR Complete:"@CharStatus[i].PRI@CharStatus[i].PRI.PlayerName@"  (Tex stream:"@(WorldInfo.RealTimeSeconds - CharStatus[i].StartMergeTime)@"Secs)");
+
+				if (CharStatus[i].PRI.Team != None && CharStatus[i].MergeState.TeamString == "V01")
+				{
+					`log("CUSTOMCHAR Throwing away:"@CharStatus[i].PRI.PlayerName@"should be on"@CharStatus[i].PRI.GetTeamNum() == 1 ? "BLUE" : "RED");
+
+					//Non-team character created when it should have made red/blue
+					//Throw away and fall through and to give you the default guy
+					NewMesh = None;
+				}
 
 				if(NewMesh != None)
 				{
@@ -716,7 +798,6 @@ simulated function TickCharacterMeshCreation()
 				}
 
 				// If this is a local player, we have some extra steps - make skin for other team, and store a pointer to the first-person arm mesh.
-
 				if(CharStatus[i].PRI.IsLocalPlayerPRI())
 				{
 					if( WorldInfo.GetGameClass().default.bTeamGame && // Only need other team skin for team games
@@ -726,18 +807,18 @@ simulated function TickCharacterMeshCreation()
 					{
 						TeamString = CharStatus[i].PRI.GetCustomCharOtherTeamString();
 
-						`log("PRI Other Merge Start:" @ CharStatus[i].PRI @ CharStatus[i].PRI.PlayerName @ TeamString);
+						`log("PRI Other Merge Start:" @ CharStatus[i].PRI @ CharStatus[i].PRI.PlayerName @ "Other TeamSkin:" @ TeamString);
 
 						// Choose texture res based on whether you are the local player
 						TexRes = (CharStatus[i].PRI.IsLocalPlayerPRI()) ? CCTR_Self : CCTR_Normal;
 						CharStatus[i].MergeState = class'UTCustomChar_Data'.static.StartCustomCharMerge(CharStatus[i].PRI.CharacterData, TeamString, None, TexRes);
 						CharStatus[i].StartMergeTime = WorldInfo.RealTimeSeconds;
-						CharStatus[i].bOtherTeamSkin = TRUE;
+						CharStatus[i].bOtherTeamSkin = true;
 						bMergePending = true;
 					}
 					else
 					{
-						CharStatus[i].bNeedsArms = TRUE;
+						CharStatus[i].bNeedsArms = true;
 						CharStatus[i].AssetStore = None;
 						bMergePending = false;
 					}
@@ -802,12 +883,13 @@ simulated function TickCharacterMeshCreation()
 				{
 					TeamString = CharStatus[i].PRI.GetCustomCharTeamString();
 
-					`log("CUSTOMCHAR Start:" @ CharStatus[i].PRI @ CharStatus[i].PRI.PlayerName @ TeamString);
+					`log("CUSTOMCHAR Start:" @ CharStatus[i].PRI @ CharStatus[i].PRI.PlayerName @ "TeamSkin:" @ TeamString);
 
 					// Choose texture res based on whether you are the local player
 					TexRes = (CharStatus[i].PRI.IsLocalPlayerPRI()) ? CCTR_Self : CCTR_Normal;
 					CharStatus[i].MergeState = class'UTCustomChar_Data'.static.StartCustomCharMerge(CharStatus[i].PRI.CharacterData, TeamString, None, TexRes);
 					CharStatus[i].StartMergeTime = WorldInfo.RealTimeSeconds;
+					CharStatus[i].bOtherTeamSkin = false;
 					bMergePending = true;
 				}
 			}
@@ -920,7 +1002,7 @@ simulated function TickCharacterMeshCreation()
 				if(NextCharIndex != INDEX_NONE)
 				{
 					LoadFamily = CharStatus[NextCharIndex].PRI.CharacterData.FamilyID;
-					`log("CustomChar - Load Assets:"@LoadFamily);
+					`log(CharStatus[NextCharIndex].PRI.PlayerName@"CustomChar - Load Assets:"@LoadFamily);
 
 					// During initial character creation, block on loading character packages
 					if(!bProcessedInitialCharacters)
@@ -935,8 +1017,13 @@ simulated function TickCharacterMeshCreation()
 						// Look for others using the same family, and assign same asset
 						for(i=0; i<CharStatus.length; i++)
 						{
-							if((i != NextCharIndex) && CharStatus[i].PRI.CharacterData.FamilyID == LoadFamily)
+							if((i != NextCharIndex) && CharStatus[i].PRI.CharacterData.FamilyID == LoadFamily && CharStatus[i].AssetStore == None)
 							{
+								if (CharStatus[i].PRI.IsLocalPlayerPRI() && CharStatus[i].bNeedsArms)
+								{
+									//we've already been processed
+									continue;
+								}
 								CharStatus[i].AssetStore = CharStatus[NextCharIndex].AssetStore;
 							}
 						}
@@ -962,7 +1049,7 @@ simulated function TickCharacterMeshCreation()
 					// Invariant : The only thing left in CharStatus now is PRIs in need of arms.
 
 					LoadFamily = CharStatus[0].PRI.CharacterData.FamilyID;
-					`log("CustomChar - Load Arms:"@LoadFamily);
+					`log(CharStatus[0].PRI.PlayerName@"CustomChar - Load Arms:"@LoadFamily);
 
 					if(!bProcessedInitialCharacters)
 					{
@@ -1073,11 +1160,7 @@ simulated function PopulateMidGameMenu(UTSimpleMenu Menu)
 /** Whether a player can change teams or not.  Used by menus and such. */
 simulated function bool CanChangeTeam()
 {
-	if ( GameClass.Default.bTeamGame && !bStoryMode && class<UTDuelGame>(GameClass) == None )
-	{
-		return true;
-	}
-	return false;
+	return (GameClass.default.bTeamGame && !bStoryMode && (IsPlayersVsBots == 0) && class<UTDuelGame>(GameClass) == None);
 }
 
 /** hook to allow the GRI to prevent pausing; used when it's performing asynch tasks that must be completed */
@@ -1348,8 +1431,6 @@ simulated function UIScene OpenUIScene(UTPlayerController InstigatorPC, UIScene 
 	local LocalPlayer LP;
 	local UIScene s;
 
-	// Check all replication conditions
-
 	LP = LocalPlayer(InstigatorPC.Player);
 	UIController = LP.ViewportClient.UIController;
 	if ( UIController != none )
@@ -1422,6 +1503,10 @@ defaultproperties
 	SinglePlayerBotNames(2)="Bishop"
 	SinglePlayerBotNames(3)="Jester"
 	bShowMenuOnDeath=false
+	bHeroesAllowed=false
 
+	// When not set to -1, the map vote timer is displayed in the menu
 	MapVoteTimeRemaining=-1
+	VoteRoundTimeRemaining=-1
+	VoteRoundTimeCounter=-1
 }

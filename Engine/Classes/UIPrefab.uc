@@ -1,7 +1,7 @@
 ﻿/**
  * This widget class is a container for widget archetypes.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Known issues:
  *	- copy/paste operations aren't propagated to UIPrefabInstances

@@ -11,6 +11,7 @@ var transient UTUITabControl TabControl;
 var transient UILabel MapVoteClock;
 var transient UIPanel LoadingPanel;
 var transient UIImage LoadingRotator;
+var transient UILabel LoadingLabel;
 var transient bool bInitial;
 
 var transient bool bNeedsProfileSave;
@@ -22,6 +23,7 @@ var transient UTUITabPage_VoteTab VotePage;
 var transient bool bLoading;
 var transient bool bWaitingForReady;
 var transient bool bReturningToMainMenu;
+var transient bool bWasDownloading;
 
 var transient UTUIScene_MessageBox MBScene;
 
@@ -65,6 +67,8 @@ event SceneActivated( bool bInitialActivation )
 				bPauseGameWhileActive = true;
 			}
 		}
+
+		//RemoveGameVoteTab();	 //We want the GameTab back
 	}
 }
 
@@ -106,6 +110,7 @@ event SceneDeactivated()
 event PostInitialize( )
 {
 	local class<UTGame> GameClass;
+	local UTPlayerController PC;
 
 	Super.PostInitialize();
 
@@ -114,8 +119,9 @@ event PostInitialize( )
 	ButtonBar.ClearButton(0);
 	ButtonBar.ClearButton(1);
 
-    LoadingPanel = UIPanel(FindChilD('LoadingPanel',true));
-    LoadingRotator = UIImage(FindChild('ConnectingImage',true));
+	LoadingPanel = UIPanel(FindChild('LoadingPanel',true));
+	LoadingRotator = UIImage(FindChild('ConnectingImage',true));
+	LoadingLabel = UILabel(FindChild('LoadingLabel', true));
 
 	MapVoteClock = UILabel(FindChild('MapVoteClock',true));
 
@@ -153,10 +159,17 @@ event PostInitialize( )
 	OnRawInputKey=HandleInputKey;
 	OnPreRenderCallBack = PreRenderCallBack;
 
+	InGamePage = UTUITabPage_InGame(FindChild('GameTab',true));
+
 	VotePage = UTUITabPage_VoteTab(FindChild('VoteTab', True));
 
 	// Disable the Vote tab until it is needed (note: the vote tab gets reordered when shown)
-	TabControl.RemoveTabByTag('VoteTab');
+	PC = GetUTPlayerOwner(0);
+
+	if (PC == none || PC.VoteRI == none)
+		TabControl.RemoveTabByTag('VoteTab');
+	else
+		RepositionVotePage();
 }
 
 function PreRenderCallBack()
@@ -172,13 +185,12 @@ function PreRenderCallBack()
 
 	bCloseOnLevelChange = false;
 
-	OnPreREnderCallBack = none;
+	OnPreRenderCallBack = none;
 }
 
 
 function ActivateTab(name TabTag)
 {
-
 	if (TabTag == 'ChatTab' && IsConsole())
 	{
 		TabTag = 'ScoreTab';
@@ -192,6 +204,29 @@ function ActivateTab(name TabTag)
 		}
 	}
 }
+
+/*
+function RemoveGameVoteTab()
+{
+	local WorldInfo WI;
+	local UTGameReplicationInfo GRI;
+
+	//Remove the "game" tab if we are in Instant Action
+	WI = GetWorldInfo();
+	if (WI != none && WI.NetMode == NM_Standalone && InGamePage.GetOwnerTabControl() != None)
+	{
+		GRI = UTGameReplicationInfo(WI.GRI);
+		if (GRI != None && !GRI.bStoryMode) 
+		{
+			TabControl.RemovePage(InGamePage, 0);
+		}
+		else
+		{
+			`log("Didn't remove"@InGamePage.GetOwnerTabControl()@"GRI:"@(GRI != None)@"Story:"@GRI.bStoryMode);
+		}
+	}
+}
+*/
 
 /** Function that sets up a buttonbar for this scene, automatically routes the call to the currently selected tab of the scene as well. */
 function SetupButtonBar()
@@ -435,19 +470,24 @@ event UpdateVote(UTGameReplicationInfo GRI)
 	local string s, LeadingMaps;
 	local UTVoteReplicationInfo VoteRI;
 	local UTPlayerController UTPC;
-	local int i;
+	local int i, VoteTimeRemaining;
 
 	UTPC = GetUTPlayerOwner();
 
-	if (UTPC != none && UTPC.VoteRI != none)
+	if (UTPC != none && UTPC.VoteRI != none && UTPC.VoteRI.bSupportsNewVoting)
+		VoteTimeRemaining = GRI.VoteRoundTimeCounter;
+	else
+		VoteTimeRemaining = GRI.MapVoteTimeRemaining;
+
+	if (UTPC != none && UTPC.VoteRI != none && VoteTimeRemaining != -1)
 	{
 		VoteRI = UTPC.VoteRI;
 
 		// Disable the mapvote clock when voting is over
 		if (!VoteRI.bVotingOver)
 		{
-			S = "<Strings:UTGameUI.MidGameMenu.VoteTimePrefix>"@GRI.MapVoteTimeRemaining@
-				((GRI.MapVoteTimeRemaining > 1) ? "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>" : "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>");
+			S = "<Strings:UTGameUI.MidGameMenu.VoteTimePrefix>"@VoteTimeRemaining@
+				((VoteTimeRemaining > 1) ? "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>" : "<Strings:UTGameUI.MidGameMenu.VoteTimeSuffixA>");
 		}
 
 
@@ -482,24 +522,56 @@ event UpdateVote(UTGameReplicationInfo GRI)
 	}
 }
 
+function UpdateVoteMenuLists(UTVoteReplicationInfo VRI, optional bool bUpdateGameLists, optional bool bUpdateMapLists, optional bool bUpdateMutatorLists)
+{
+	if (VotePage != none)
+	{
+		if (bUpdateGameLists)
+			VotePage.UpdateGameVoteLists(VRI);
+
+		if (bUpdateMapLists)
+			VotePage.UpdateMapVoteLists(VRI);
+
+		if (bUpdateMutatorLists)
+			VotePage.UpdateMutatorVoteLists(VRI);
+	}
+}
+
+function ScoreTabKickVoteNotify()
+{
+	local UTUITabPage_Scoreboard ScoreTab;
+
+	ScoreTab = UTUITabPage_Scoreboard(FindChild('ScoreTab', True));
+
+	if (ScoreTab != none)
+		ScoreTab.NotifyKickVoteConfirmed();
+}
+
 function BeginVoting(UTVoteReplicationInfo NewVoteRI)
 {
-	local UTUITabPage_VoteTab VoteTab;
+	if (VotePage != none)
+	{			   
+		RepositionVotePage();
+		VotePage.BeginVoting(NewVoteRI);
+	}
+}
+
+function RepositionVotePage()
+{
 	local int Idx;
 
 	// If the vote tab is not yet being displayed, then add it now (next to the game tab)
-	Idx = TabControl.FindPageIndexByPageRef(UITabPage(FindChild('GameTab', True))) + 1;
+	// always after SCORES
+	Idx = Max(1, TabControl.FindPageIndexByPageRef(InGamePage) + 1);
 
 	if (TabControl.GetPageAtIndex(Idx) != VotePage)
-		TabControl.InsertPage(VotePage, 0, TabControl.FindPageIndexByPageRef(UITabPage(FindChild('GameTab', True)))+1, false);
+	{
+		// If the page is already being displayed, but not at the correct index, then remove it first
+		if (TabControl.FindPageIndexByPageRef(VotePage) != INDEX_None)
+			TabControl.RemovePage(VotePage, 0);
 
-
-	VoteTab = UTUITabPage_VoteTab(FindChild('VoteTab', True));
-
-	//`log("### BeginVoting"@VoteTab,, 'UTVotingDebug');
-
-	if (VoteTab != none)
-		VoteTab.BeginVoting(NewVoteRI);
+		TabControl.InsertPage(VotePage, 0, Idx, false);
+	}
 }
 
 /**
@@ -561,11 +633,50 @@ event BeginLoading()
 	SetupButtonBar();
 }
 
+event TickLoading(float DeltaTime)
+{
+	local Player PlayerRef;
+	local string LabelText;
+	local bool bIsDownloading;
+	local int DownloadPercent, DownloadCount;
+
+	if (LoadingLabel != none)
+	{
+		PlayerRef = GetPlayerOwner();
+
+		if (PlayerRef != none)
+		{
+			bIsDownloading = PlayerRef.IsDownloading();
+
+			if (bIsDownloading)
+			{
+				LabelText = Localize("MidGameMenu", "DownloadText", "UTGameUI");
+
+				DownloadPercent = PlayerRef.GetDownloadStatus();
+				DownloadCount = PlayerRef.GetDownloadListInfo();
+				LabelText = Repl(Repl(LabelText, "`p", DownloadPercent), "`c", DownloadCount);
+
+				LoadingLabel.SetDataStoreBinding(LabelText);
+				bWasDownloading = True;
+			}
+			else if (bWasDownloading)
+			{
+				LoadingLabel.SetDataStoreBinding("<Strings:UTGameUI.Generic.Loading>");
+				bWasDownloading = False;
+			}
+		}
+	}
+}
+
 event EndLoading()
 {
+	if (VotePage != none)
+		VotePage.ResetVoteLists();
 
 	bLoading = false;
+	bWasDownloading = False;
 	LoadingPanel.SetVisibility(false);
+	LoadingLabel.SetDataStoreBinding("<Strings:UTGameUI.Generic.Loading>");
 	ButtonBar.SetVisibility(true);
 	SetupButtonBar();
 }

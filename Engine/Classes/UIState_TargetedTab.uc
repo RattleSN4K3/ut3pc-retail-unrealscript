@@ -4,7 +4,7 @@
  *
  * @note: native only because UITabButton references this class in native code.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIState_TargetedTab extends UIState
 	native(UIPrivate);

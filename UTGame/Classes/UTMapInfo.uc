@@ -168,7 +168,6 @@ simulated function DrawMap(Canvas Canvas, UTPlayerController PlayerOwner, float 
 	local Pawn PawnOwner, P, SecondPawn;
 	local linearcolor FinalColor, TC;
 	local bool bInSensorRange, bDrawAutoObjective, bIsSplitScreen;
-	local UTPlayerReplicationInfo PRI;
 	local UTPawn UTP;
 	local UTPlayerController PC;
 	local UTVehicle V;
@@ -378,15 +377,38 @@ simulated function DrawMap(Canvas Canvas, UTPlayerController PlayerOwner, float 
 			Objectives[i].RenderExtraDetails(self, Canvas, PlayerOwner, ColorPercent, Objectives[i] == CurrentActor);
 		}
 
-		For ( i=0; i<WI.GRI.PRIArray.Length; i++ )
+		// If the selected actor is a vehicle, highlight it as we would an objective
+		V = UTVehicle(CurrentActor);
+		if ( V != None )
 		{
-			PRI = UTPlayerReplicationInfo(WI.GRI.PRIArray[i]);
-			if ( PRI != None )
-			{
-				PRI.bHUDRendered = false;
-			}
+			Canvas.SetPos(V.HUDLocation.X - 12 * MapScale, V.HUDLocation.Y - 12 * MapScale * Canvas.ClipY / Canvas.ClipX);
+			Canvas.SetDrawColor(255,255,0,255);
+			Canvas.DrawTile(class'UTHUD'.default.AltHudTexture,25*MapScale,25*MapScale,273,494,12,13);
 		}
 
+		if ( bIsSplitScreen )
+		{
+			// draw "key vehicles" on minimap
+			for ( i=0; i<2; i++ )
+			{
+				if ( KeyVehicles[i] == None )
+				{
+					continue;
+				}
+
+				if ( !KeyVehicles[i].bKeyVehicle || (KeyVehicles[i].Health <=0) || KeyVehicles[i].bDeleteMe )
+				{
+					KeyVehicles[i] = None;
+					continue;
+				}
+
+				KeyVehicles[i].SetHUDLocation(UpdateHUDLocation(KeyVehicles[i].Location));
+				class'UTHud'.static.GetTeamColor(KeyVehicles[i].Team, FinalColor);
+				KeyVehicles[i].RenderMapIcon(self, Canvas, PlayerOwner, FinalColor);
+			}
+		}
+		else
+		{
 		// Draw all vehicles in sensor range that aren't locked (locked vehicles handled by vehicle factory)
 		ForEach WI.AllPawns(class'Pawn', P)
 		{
@@ -410,12 +432,6 @@ simulated function DrawMap(Canvas Canvas, UTPlayerController PlayerOwner, float 
 				{
 					continue;
 				}
-			}
-			PRI = UTPlayerReplicationInfo(P.PlayerReplicationInfo);
-
-			if ( PRI != none )
-			{
-				PRI.bHUDRendered = true;
 			}
 
 			if ( WI.GRI.OnSameTeam(PlayerOwner, P) )
@@ -453,45 +469,7 @@ simulated function DrawMap(Canvas Canvas, UTPlayerController PlayerOwner, float 
 				}
 			}
 		}
-
-		// on clients, get map info for non-relevant clients from PRIs
-		if ( PlayerOwner.Role < ROLE_Authority )
-		{
-			For ( i=0; i<WI.GRI.PRIArray.Length; i++ )
-			{
-				PRI = UTPlayerReplicationInfo(WI.GRI.PRIArray[i]);
-				if ( (PRI != None) && !PRI.bHUDRendered )
-				{
-					bInSensorRange = false;
-					if ( PRI.HUDPawnClass == None )
-					{
-						continue;
-					}
-					else if ( WI.GRI.OnSameTeam(PlayerOwner, PRI) )
-					{
-						bInSensorRange = true;
-					}
-					else
-					{
-						// only draw if close to a sensor
-						for ( j=0; j<Sensors.Length; j++ )
-						{
-							if ( VSize(PRI.HUDPawnLocation - Sensors[j].Location) < Sensors[j].MaxSensorRange )
-							{
-								bInSensorRange = true;
-								break;
-							}
-						}
-					}
-
-					if ( bInSensorRange )
-					{
-						class'UTHud'.static.GetTeamColor(PRI.Team.TeamIndex, FinalColor);
-						PRI.RenderMapIcon(self, Canvas, PlayerOwner, FinalColor);
-					}
-				}
-			}
-		}
+	}
 	}
 	else
 	{

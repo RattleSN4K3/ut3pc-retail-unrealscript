@@ -2,7 +2,7 @@
  * Provides an interface for dealing with non-widgets that have UIStyleReferences which need to be resolved when the widget's
  * style is resolved.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 interface UIStyleResolver
 	native(UIPrivate);

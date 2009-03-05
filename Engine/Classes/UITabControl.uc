@@ -8,7 +8,7 @@
  * A UITabControl is composed of two main areas - the "tab region" and the "client region".  The tab region is where the
  * tabs are rendered, while the client region is where the currently active panel is rendered.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UITabControl extends UIObject
 	native(UIPrivate)
@@ -304,6 +304,7 @@ event bool RemovePage( UITabPage PageToRemove, int PlayerIndex )
 {
 	local bool bResult;
 	local int PageIndex;
+	local UITabButton TabButton;
 
 //	`log(">>>" @ `location @ `showobj(PageToRemove),,'DevUI' );
 	if ( PageToRemove != None )
@@ -314,10 +315,13 @@ event bool RemovePage( UITabPage PageToRemove, int PlayerIndex )
 		{
 			Pages.Remove(PageIndex,1);
 
+			TabButton = PageToRemove.GetTabButton();
 			// remove the tab page's button from our children array; this will clear the button's OnClicked delegate.
-			if ( PageToRemove.GetTabButton() != None )
+			if (TabButton != None)
 			{
-				RemoveChild(PageToRemove.GetTabButton());
+                //Make sure the tabbutton isn't focused
+				TabButton.KillFocus(None, PlayerIndex);
+				RemoveChild(TabButton);
 			}
 
 			// fire the notication that we've removed a page

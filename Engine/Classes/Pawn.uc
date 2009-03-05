@@ -205,6 +205,9 @@ var bool				bPlayedDeath;			// set when death animation has been played (used in
 
 var() SkeletalMeshComponent	Mesh;
 
+/** Used for position smoothing in net games */
+var vector MeshTranslationOffset;
+
 var	CylinderComponent		CylinderComponent;
 
 var()	float				RBPushRadius; // Unreal units
@@ -265,6 +268,10 @@ var	native const pointer	PhysicsPushBody;
  * so we can detect and avoid a rare case where Pawns get stuck in that state
  */
 var int FailedLandingCount;
+
+/** Used for interpolating client yaw */
+var int ReceivedYaw;
+var float InterpolatedYaw;
 
 
 
@@ -765,6 +772,12 @@ function bool NeedToTurn(vector targ)
 	return ((LookDir Dot AimDir) < 0.93);
 }
 
+/** returns true if this pawn wants to force a special attack (for AI) */
+function bool ForceSpecialAttack(Pawn EnemyPawn)
+{
+	return false;
+}
+
 simulated function String GetHumanReadableName()
 {
 	if ( PlayerReplicationInfo != None )
@@ -1140,6 +1153,14 @@ simulated event Rotator GetViewRotation()
 
 	if ( Controller != None )
 	{
+		if ( WorldInfo.bWithinDemoPlayback )
+		{
+			PC = PlayerController(Controller);
+			if ( PC != None )
+			{
+				return PC.BlendedTargetViewRotation;
+			}
+		}
 		return Controller.Rotation;
 	}
 	else if ( Role < ROLE_Authority )
@@ -2284,6 +2305,8 @@ function PlayHit(float Damage, Controller InstigatedBy, vector HitLocation, clas
 
 	LastPainTime = WorldInfo.TimeSeconds;
 }
+
+function ToggleMelee();
 
 /** TurnOff()
 Freeze pawn - stop sounds, animations, physics, weapon firing

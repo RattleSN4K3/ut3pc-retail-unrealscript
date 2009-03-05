@@ -1,7 +1,7 @@
 ﻿/**
  * Returns the tab control's currently active page.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_GetActivePage extends UIAction_GetPageReference;
 

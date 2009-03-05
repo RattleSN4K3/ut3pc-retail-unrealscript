@@ -671,10 +671,23 @@ function bool DenyPickupQuery(class<Inventory> ItemClass, Actor Pickup)
 {
 	if (ItemClass==Class && DualMode != EDM_Dual)
 	{
-		DualMode = EDM_DualEquipping;
-		BecomeDual();			// Handle any animations/effects locally.
+		DelayedBecomeDual();
 	}
 	return super.DenyPickupQuery(ItemClass, Pickup);
+}
+
+/**
+  * Delay becoming dual if currently bringing up enforcer (for animation reasons)
+  */
+function DelayedBecomeDual()
+{
+	if ( !bLoaded )
+	{
+		SetTimer(0.5, false, 'DelayedBecomeDual');
+		return;
+	}
+	DualMode = EDM_DualEquipping;
+	BecomeDual();			// Handle any animations/effects locally.
 }
 
 /**
@@ -903,6 +916,13 @@ simulated function AkimboCheck()
 {
 	local vector HitLocation, HitNormal;
 	local pawn HitPawn;
+
+	if ( (Instigator == none) || (self != Instigator.Weapon) )
+	{
+		ClearTimer('AkimboCheck');
+		SetAkimbo(FALSE, FALSE);
+		return;
+	}
 
 	// Go akimbo if you are shooting a dead thing within 300 units, or a live thing within 150
 	HitPawn = Pawn( Trace(HitLocation, HitNormal, Location + ((300 * vect(1,0,0)) >> Rotation), Location, TRUE) );
@@ -1476,4 +1496,9 @@ defaultproperties
 
 	PivotTranslation=(Y=-10.0)
 	DualIconCoordinates=(U=600,V=515,UL=126,VL=75)
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=50,RightAmplitude=60,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.120)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

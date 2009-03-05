@@ -550,6 +550,7 @@ function DisplayProgressMessage()
     local float X, Y;
     local int Alpha;
     local float TimeLeft;
+	local string MOTDText;
 
     TimeLeft = PlayerOwner.ProgressTimeOut - WorldInfo.TimeSeconds;
 
@@ -603,9 +604,10 @@ function DisplayProgressMessage()
 
 		if( WorldInfo.GRI.MessageOfTheDay != "" )
 		{
-			Canvas.TextSize (WorldInfo.GRI.MessageOfTheDay, FontDX, FontDY);
+			MOTDText = Repl(WorldInfo.GRI.MessageOfTheDay,"`n","\n");
+			Canvas.TextSize (MOTDText, FontDX, FontDY);
 			Canvas.SetPos (X - (FontDX / 2.0), Y);
-			Canvas.DrawText (WorldInfo.GRI.MessageOfTheDay);
+			Canvas.DrawText (MOTDText);
 			Y += FontDY;
 		}
     }

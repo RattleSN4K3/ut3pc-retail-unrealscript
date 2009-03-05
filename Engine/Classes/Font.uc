@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 1998-2007 Epic Games, Inc.
+ * Copyright 1998-2008 Epic Games, Inc.
  *
  * A font object, containing information about a set of glyphs.
  * The glyph bitmaps are stored in the contained textures, while

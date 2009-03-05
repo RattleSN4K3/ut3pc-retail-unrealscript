@@ -117,6 +117,7 @@ function byte BestMode()
 {
 	local float EnemyDist;
 	local UTBot B;
+	local UTPawn EnemyPawn;
 
 	bWaitForCombo = false;
 	B = UTBot(Instigator.Controller);
@@ -140,6 +141,16 @@ function byte BestMode()
 			return 1;
 		}
 		return 0;
+	}
+
+	if ( UTSlowVolume(B.Enemy.PhysicsVolume) != None )
+	{
+		return 1;
+	}
+	EnemyPawn = UTPawn(B.Enemy);
+	if ( (EnemyPawn != None) && EnemyPawn.bHasSlowField )
+	{
+		return 1;
 	}
 
 	EnemyDist = VSize(B.Enemy.Location - Instigator.Location);
@@ -404,5 +415,10 @@ defaultproperties
 	IconY=129
 	IconWidth=22
 	IconHeight=48
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=90,RightAmplitude=40,LeftFunction=WF_Constant,RightFunction=WF_LinearDecreasing,Duration=0.1200)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }
 

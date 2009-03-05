@@ -729,7 +729,10 @@ state WeaponFiring
 	{
 		// in single fire more, it is not possible to refire. You have to release and re-press fire to shot every time
 		if (CurrentFireMode==0)
+		{
 			EndFire( CurrentFireMode );
+			DemoEndFire(CurrentFireMode);
+		}
 
 		return false;
 	}

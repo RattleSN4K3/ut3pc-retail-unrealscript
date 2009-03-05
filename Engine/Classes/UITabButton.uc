@@ -1,7 +1,7 @@
 ﻿/**
  * This widget is used by the UITabControl.  It is always associated with a UITabPage.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UITabButton extends UILabelButton
 	native(inherit)

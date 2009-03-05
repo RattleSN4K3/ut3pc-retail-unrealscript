@@ -351,8 +351,9 @@ function UpdateButtonStates()
 	local UITabControl TabControlOwner;
 	local OnlineGameSearchResult SelectedGame;
 	local bool bValidServerSelected, bHasPendingSearches, bIsLANMatch, bIsCampaignMode;
-	local bool bPlayerMutButEnabled;
+	local bool bPlayerMutButEnabled, bGameComboEnabled;
 	local int PlayerIndex, CurrentGameMode;
+	local string OutVal;
 
 	TabControlOwner = GetOwnerTabControl();
 	if ( TabControlOwner != None )
@@ -440,7 +441,11 @@ function UpdateButtonStates()
 					//If we are about to disable the button force the mutators list
 					if (ButtonBar.Buttons[PlayerMutDetailsIdx].IsEnabled() && !bPlayerMutButEnabled)
 					{
-						 OnButtonBar_MutatorDetails(GetButtonBarButton(PlayerMutDetailsIdx), PlayerIndex);
+                        //Every time a server update refresh happens, we don't want to switch back to mutators
+						if (bIsLANMatch)
+						{
+							OnButtonBar_MutatorDetails(GetButtonBarButton(PlayerMutDetailsIdx), PlayerIndex);
+						}
 					}
 					
 					ButtonBar.Buttons[PlayerMutDetailsIdx].SetEnabled(bPlayerMutButEnabled);
@@ -454,7 +459,10 @@ function UpdateButtonStates()
 
 				if ( GameTypeCombo != None )
 				{
-					GameTypeCombo.SetEnabled(!bHasPendingSearches && GetDesiredMatchType() != SERVERBROWSER_SERVERTYPE_LAN, PlayerIndex);
+					GetDataStoreStringValue("<Registry:ListAllGameModes>", OutVal);
+					bGameComboEnabled = !bool(OutVal) && (GetDesiredMatchType() != SERVERBROWSER_SERVERTYPE_LAN);
+
+					GameTypeCombo.SetEnabled(!bHasPendingSearches && bGameComboEnabled, PlayerIndex);
 				}
 
 				// we must have a valid server selected in order to activate the Server Details button.
@@ -572,6 +580,7 @@ private function ProcessJoin()
 	local UTUIScene UTScene;
 	local OnlineGameSearchResult GameToJoin;
 	local int ControllerId, CurrentSelection;
+	local UTQueryHelper QH;
 
 	UTScene = UTUIScene(GetScene());
 	if(UTScene.ConditionallyCheckNumControllers())	// Check to make sure that the player has 2 controllers connected if they are trying to join as splitscreen.
@@ -596,9 +605,13 @@ private function ProcessJoin()
 
 					// Start the async task
 					ControllerId = GetBestControllerId();
-					if (!GameInterface.JoinOnlineGame(ControllerId,GameToJoin))
+					if (!GameInterface.JoinOnlineGame(ControllerId,GameToJoin) && GameToJoin.GameSettings.ServerIP != "")
 					{
-						//@todo - should we do anything here?  OnJoinGameComplete will be called even if the call to JoinOnlineGame returns FALSE.
+						// Joining through Gamespy failed; ask if the client wants to connect directly
+						QH = Class'UTQueryHelper'.static.GetQueryHelper(UTScene);
+
+						// We don't want the URL parameter to contain 'Open ', so strip the first 5 characters from BuildJoinURL
+						QH.DisplayFindIPError(True, Mid(BuildJoinURL(GameToJoin.GameSettings.ServerIP), 5));
 					}
 				}
 				else
@@ -830,7 +843,7 @@ function SubmitServerListQuery( int PlayerIndex )
 }
 
 /**
- * Delegate fired each time a new server is recieved, or when the action completes (if there was an error)
+ * Delegate fired each time a new server is received, or when the action completes (if there was an error)
  *
  * @param bWasSuccessful true if the async action completed without error, false if there was an error
  */
@@ -886,6 +899,11 @@ function OnFindOnlineGamesComplete(bool bWasSuccessful)
 		{
 			OnCancelSearchComplete(true);
 		}
+	}
+	else
+	{
+		//Update the details of the server we have currently selected
+		OnServerList_ValueChanged(self, GetBestPlayerIndex());
 	}
 }
 
@@ -990,6 +1008,11 @@ function OnCancelSearchComplete( bool bWasSuccessful )
 	local UTUIScene UTOwnerScene;
 	local UTUIScene_MessageBox MessageBoxScene;
 
+	if (RefreshingLabel != None)
+	{
+		RefreshingLabel.SetVisibility(false);
+	}
+	
 	if ( bWasSuccessful )
 	{
 		CurrentAction = QueryCompletionAction;
@@ -1197,6 +1220,10 @@ function bool OnButtonBar_Refresh(UIScreenObject InButton, int InPlayerIndex)
 	if ( InButton != None && InButton.IsEnabled(InPlayerIndex) )
 	{
 		RefreshServerList(InPlayerIndex);
+		if (ServerList.CanAcceptFocus())
+		{
+			ServerList.SetFocus(none);
+		}
 	}
 	return true;
 }
@@ -1206,6 +1233,10 @@ function bool OnButtonBar_CancelQuery( UIScreenObject InButton, int inPlayerInde
 	if ( InButton != None && InButton.IsEnabled(InPlayerIndex) )
 	{
 		CancelQuery();
+		if (ServerList.CanAcceptFocus())
+		{
+			ServerList.SetFocus(none);
+		}
 	}
 	return true;
 }
@@ -1229,6 +1260,10 @@ function bool OnButtonBar_PlayerDetails( UIScreenObject InButton, int InPlayerIn
 		MutatorList.SetVisibility(false);
 		PlayerList.SetVisibility(true);
 		ButtonBar.SetButton(PlayerMutDetailsIdx, "<Strings:UTGameUI.Frontend.TabCaption_Mutators>", OnButtonBar_MutatorDetails);
+		if (ServerList.CanAcceptFocus())
+		{
+		   ServerList.SetFocus(none);
+		}
 	}
 	return true;
 }
@@ -1242,6 +1277,10 @@ function bool OnButtonBar_MutatorDetails( UIScreenObject InButton, int InPlayerI
 		PlayerList.SetVisibility(false);
 		MutatorList.SetVisibility(true);
 		ButtonBar.SetButton(PlayerMutDetailsIdx, "<Strings:UTGameUI.Campaign.PlayerLabel>", OnButtonBar_PlayerDetails);
+		if (ServerList.CanAcceptFocus())
+		{
+			ServerList.SetFocus(none);
+		}
 	}
 	return true;
 }
@@ -1255,14 +1294,51 @@ function OnServerList_SubmitSelection( UIList Sender, int PlayerIndex )
 /** Server List - Value Changed. */
 function OnServerList_ValueChanged( UIObject Sender, int PlayerIndex )
 {
+	local int CurrentSelection;
+	local OnlineGameSearchResult SelectedGame;
+
 	RefreshDetailsList();
 	if ( IsVisible() )
 	{
+		if (!SearchDataStore.HasOutstandingQueries())
+		{
+			//Fire off a query to get extended data
+			CurrentSelection = ServerList.GetCurrentItem();
+			if ( SearchDataStore.GetSearchResultFromIndex(CurrentSelection, SelectedGame) && SelectedGame.GameSettings.bIsLanMatch == false )
+			{
+				// Add a delegate for when the search completes.  We will use this callback to do any post searching work.
+				GameInterface.AddFindOnlineGamesCompleteDelegate(OnUpdateServerComplete);
+				if (GameInterface.QueryAuxServerInfo(PlayerIndex, SearchDataStore.GetCurrentGameSearch(), SelectedGame) == false)
+				{
+					OnUpdateServerComplete(false);
+				}
+			}
+		}
+
 		UpdateButtonStates();
 	}
 	else
 	{
 		bGametypeOutdated = true;
+	}
+}
+
+//Called after the individual server updates are complete (player names/etc)
+function OnUpdateServerComplete(bool bWasSuccessful)
+{
+	if (bWasSuccessful)
+	{	   
+		RefreshDetailsList();
+		if ( IsVisible() )
+		{
+			UpdateButtonStates();
+		}
+	}
+
+	//Don't clear the delegate if we have other outstanding queries
+	if ( !SearchDataStore.HasOutstandingQueries() )
+	{
+		GameInterface.ClearFindOnlineGamesCompleteDelegate(OnUpdateServerComplete);
 	}
 }
 
@@ -1272,6 +1348,10 @@ function bool OnButtonBar_AddFavorite(UIScreenObject InButton, int InPlayerIndex
 	if ( InButton != None && InButton.IsEnabled(InPlayerIndex) )
 	{
 		AddToFavorites(InPlayerIndex);
+		if (ServerList.CanAcceptFocus())
+		{
+			ServerList.SetFocus(none);
+		}
 	}
 	return true;
 }
@@ -1297,7 +1377,8 @@ function AddToFavorites( int inPlayerIndex )
 		if ( FavsDataStore != None && !HasServerInFavorites(ControllerId, SelectedGame.GameSettings.OwningPlayerId) )
 		{
 			// add it
-			if ( FavsDataStore.AddServer(ControllerId, SelectedGame.GameSettings.OwningPlayerId, SelectedGame.GameSettings.OwningPlayerName) )
+			if (FavsDataStore.AddServerPlusIP(ControllerId, SelectedGame.GameSettings.OwningPlayerId, SelectedGame.GameSettings.OwningPlayerName,
+								SelectedGame.GameSettings.ServerIP))
 			{
 				TabControlOwner = GetOwnerTabControl();
 				if ( TabControlOwner != None && TabControlOwner.ActivePage == Self )
@@ -1347,7 +1428,8 @@ function int GetGameTypeSearchProviderIndex( optional string GameClassName )
 		}
 		else
 		{
-			ProviderIdx = INDEX_NONE;
+			// If the gametype has no search class set, default to the custom search object (which will filter for the actual gameclass)
+			ProviderIdx = SearchDataStore.FindSearchConfigurationIndex('UTGameSearchCustom');
 		}
 	}
 
@@ -1365,9 +1447,11 @@ function OnGameTypeChanged( UIObject Sender, int PlayerIndex )
 {
 	local int ProviderIdx;
 	local array<UIDataStore> BoundDataStores;
-	local string GameTypeClassName;
+	local string GameTypeClassName, OptStr;
 
-	if (!IsConsole() && IsVisible()
+	GetDataStoreStringValue("<Registry:ListAllGameModes>", OptStr);
+
+	if (!bool(OptStr) && !IsConsole() && IsVisible()
 	&&	GameTypeCombo != None && GameTypeCombo.ComboList != None
 
 	// calling SaveSubscriberValue on the combobox list will set the currently selected gametype as the value for the UTMenuItems:GameModeFilter field
@@ -1379,15 +1463,15 @@ function OnGameTypeChanged( UIObject Sender, int PlayerIndex )
 		// make sure to update the GameSettings value - this is used to build the join URL
 		SetDataStoreStringValue("<UTGameSettings:CustomGameMode>", GameTypeClassName);
 
-		// find the index into the UTMenuItems data store for the gametype with the specified class name
+		// find the index into the GameSearch data store for the gametype with the specified class name
+		// *THIS IS NOT THE SAME AS THE MENU ITEM DATASTORE INDEX*
 		ProviderIdx = GetGameTypeSearchProviderIndex(GameTypeClassName);
 		`Log(`location@"- Game mode filter class set to" @ GameTypeClassName @ "(" $ ProviderIdx $ ")");
 
 		if ( ProviderIdx != INDEX_NONE )
 		{
-			MenuItemDataStore.GameModeFilter = ProviderIdx;
-
 			// update the online game search data store's current gametype
+			UTDataStore_GameSearchDM(SearchDataStore).CustomGameTypeClass = GameTypeClassName;
 			SearchDataStore.SetCurrentByIndex(ProviderIdx, false);
 			OnSwitchedGameType();
 
@@ -1402,13 +1486,18 @@ function OnGameTypeChanged( UIObject Sender, int PlayerIndex )
  */
 function NotifyGameTypeChanged()
 {
+	local string OptStr;
+
 	if ( IsVisible() )
 	{
 		if (GameTypeCombo != None && !IsConsole())
 		{
+			GetDataStoreStringValue("<Registry:ListAllGameModes>", OptStr);
+
 			// update the gametype combo to reflect the currently selected gametype.  This will cause OnGameTypeChanged
 			// to be called
-			GameTypeCombo.ComboList.RefreshSubscriberValue();
+			if (!bool(OptStr))
+				GameTypeCombo.ComboList.RefreshSubscriberValue();
 		}
 		else
 		{

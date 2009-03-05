@@ -10,7 +10,8 @@ defaultproperties
 	// Set the specific game mode
 	LocalizedSettings(0)=(Id=CONTEXT_GAME_MODE,ValueIndex=CONTEXT_GAME_MODE_CTF,AdvertisementType=ODAT_OnlineService)
 
-	Properties(4)=(PropertyId=PROPERTY_NUMBOTS,Data=(Type=SDT_Int32,Value1=9),AdvertisementType=ODAT_OnlineService)
+	Properties(4)=(PropertyId=PROPERTY_NUMBOTS,Data=(Type=SDT_Int32,Value1=10),AdvertisementType=ODAT_OnlineService)
+	Properties(9)=(PropertyId=PROPERTY_NUMBOTSIA,Data=(Type=SDT_Int32,Value1=10),AdvertisementType=ODAT_DontAdvertise)
 
 	// Change the default goalscore to 3 for CTF.
 	Properties(2)=(PropertyId=PROPERTY_GOALSCORE,Data=(Type=SDT_Int32,Value1=3),AdvertisementType=ODAT_OnlineService)

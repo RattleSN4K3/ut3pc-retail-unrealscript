@@ -1,7 +1,7 @@
 ﻿/**
  * This action allows designers to change the index of a UIList.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_SetListIndex extends UIAction_SetValue;
 

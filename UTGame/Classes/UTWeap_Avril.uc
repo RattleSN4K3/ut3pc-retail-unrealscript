@@ -185,21 +185,22 @@ simulated function bool TryPutDown()
 
 		if (TimerCount > MinTimerTarget)
 		{
-			DeferredReloadTime = TimerRate - TimerCount;
+			DeferredReloadTime = FMax(DeferredReloadTime, TimerRate - TimerCount);
 			PutDownWeapon();
 			return true;
 		}
 		else
 		{
 			// Shorten the wait time
-			SetTimer( MinTimerTarget - TimerCount , false, 'RefireCheckTimer');
-			DeferredReloadTime = TimerRate - MinTimerTarget - (MinTimerTarget - TimerCount);
+			SetTimer( MinTimerTarget - TimerCount , IsInState('WeaponFiring'), 'RefireCheckTimer');
+			DeferredReloadTime = FMax(DeferredReloadTime, TimerRate - MinTimerTarget - (MinTimerTarget - TimerCount));
 			return true;
 		}
 	}
 	else
 	{
-		DeferredReloadTime = 0;
+		//DeferredReloadTime = 0;
+		PutDownWeapon();
 		return true;
 	}
 
@@ -544,7 +545,7 @@ function FindTargetedProjectiles(vector TargetLocation, out array<UTSpiderMineTr
 		{
 			Trap = UTSpiderMineTrap(A);
 			if ( Trap != None && (Instigator.Controller == Trap.InstigatorController || WorldInfo.GRI.OnSameTeam(Trap, Instigator)) &&
-				FastTrace(TargetLocation, A.Location + vect(0,0,32)) )
+				(FastTrace(TargetLocation, A.Location + vect(0,0,32)) || FastTrace(TargetLocation + vect(0,0,32), A.Location+vect(0,0,16)))  )
 			{
 				// spider mine trap spawns mines to follow target if they can see it
 				Traps[Traps.length] = Trap;
@@ -704,6 +705,7 @@ simulated function PlayWeaponPutDown()
 simulated function PutDownWeapon()
 {
 	EndFire(1); // Stop the laser beam
+	DemoEndFire(1);
 	super.PutDownWeapon();
 }
 
@@ -732,6 +734,7 @@ auto simulated state Inactive
 		if (bTargetingLaserActive)
 		{
 			EndFire(1);
+			DemoEndFire(1);
 		}
 
 		Super.BeginState(PreviousStateName);
@@ -766,8 +769,43 @@ state Active
 
 simulated state WeaponFiring
 {
+	/**
+	 * Make sure that aborted weapon switch didn't set deferred reload
+	 */
+	simulated function RefireCheckTimer()
+	{
+		if ( DeferredReloadTime > 0 )
+		{
+			SetTimer(DeferredReloadTime, true, 'RefireCheckTimer');
+			DeferredReloadTime = 0.0;
+			return;
+		}
+		SetTimer(GetFireInterval(0), true, 'RefireCheckTimer');
+		
+		super.RefireCheckTimer();
+	}
+	
+	simulated function bool CanThrow()
+	{
+		return (Instigator == None) || (Instigator.Health <= 0);
+	}
+	
 	simulated event EndState( Name NextStateName )
 	{
+		local float TimerRate, MinTimerTarget, TimerCount;
+
+		// check if just got off hoverboard or other vehicle, too fast to have reloaded
+		if ( NextStateName == 'WeaponEquipping' )
+		{	
+			TimerRate = GetTimerRate('RefireCheckTimer');
+			if ( TimerRate > 0 )
+			{
+				MinTimerTarget = TimerRate * MinReloadPct[CurrentFireMode];
+				TimerCount = GetTimerCount('RefireCheckTimer');
+				DeferredReloadTime = (TimerCount > MinTimerTarget) ? TimerRate - TimerCount : TimerRate - MinTimerTarget - (MinTimerTarget - TimerCount);
+			}
+		}
+		
 		// do not call ClearFlashLocation() here as that is for the beam which may still be firing
 
 		// Set weapon as not firing
@@ -781,6 +819,11 @@ simulated state WeaponFiring
 	}
 }
 
+simulated function bool CanThrow()
+{
+	return bCanThrow && HasAnyAmmo() && ((DeferredReloadTime <= 0.0) || (Instigator == None) || (Instigator.Health <= 0));
+}
+
 simulated state WeaponEquipping
 {
 	simulated function bool TryPutDown()
@@ -791,7 +834,7 @@ simulated state WeaponEquipping
 		EquipTimeRemaining = GetTimerRate('WeaponEquipped') - GetTimerCount('WeaponEquipped');
 		if (EquipTimeRemaining > EquipTime)
 		{
-			DeferredReloadTime = EquipTimeRemaining;
+			DeferredReloadTime = FMax(DeferredReloadTime, EquipTimeRemaining);
 		}
 
 		return Super.TryPutDown();

@@ -29,6 +29,9 @@ var transient int SelectedPage;
 /** TRUE if the value for any options in the scene have changed */
 var	private	bool	bDirty;
 
+/** Set if this menu was loaded from the mid game menu */
+var transient bool bFromMidGameMenu;
+
 event SceneActivated(bool bInitialActivation)
 {
 	Super.SceneActivated(bInitialActivation);
@@ -84,9 +87,10 @@ function OnPanelsSceneOpened(UIScene OpenedScene, bool bInitialActivation)
 {
 	local UTUIFrontEnd_SettingsPanels PanelsSceneInst;
 
+	PanelsSceneInst = UTUIFrontEnd_SettingsPanels(OpenedScene);
+
 	if ( bInitialActivation )
 	{
-		PanelsSceneInst = UTUIFrontEnd_SettingsPanels(OpenedScene);
 		if ( PanelsSceneInst != None )
 		{
 			PanelsSceneInst.OnNotifyOptionChanged = OnSettingValueChanged;
@@ -94,6 +98,10 @@ function OnPanelsSceneOpened(UIScene OpenedScene, bool bInitialActivation)
 			PanelsSceneInst.TabControl.ActivatePage(PanelsSceneInst.TabControl.GetPageAtIndex(SelectedPage), GetBestPlayerIndex());
 		}
 	}
+
+
+	if (bFromMidGameMenu && PanelsSceneInst != none)
+		PanelsSceneInst.MidGameMenuSetup();
 }
 
 /** Handler for the OnOptionChanged delegate of each panel; called when the user changes the value for an option in any panel */
@@ -111,7 +119,31 @@ function OnSettingValueChanged(UIScreenObject InObject, name OptionName, int Pla
 
 function MidGameMenuSetup()
 {
+	local int i;
+	local GameUISceneClient CurSceneClient;
+
 	// Remove any special options here.
+
+
+	// Pass on a call to the settings panel scene
+	bFromMidGameMenu = True;
+
+	CurSceneClient = GetSceneClient();
+
+	if (CurSceneClient != none)
+	{
+		for (i=CurSceneClient.ActiveScenes.Length-1; i>=0; --i)
+		{
+			if (UTUIFrontEnd_SettingsPanels(CurSceneClient.ActiveScenes[i]) != none)
+			{
+				UTUIFrontEnd_SettingsPanels(CurSceneClient.ActiveScenes[i]).MidGameMenuSetup();
+				break;
+			}
+
+			if (CurSceneClient.ActiveScenes[i] == Self)
+				break;
+		}
+	}
 }
 
 function UILabel GetTitleLabel()

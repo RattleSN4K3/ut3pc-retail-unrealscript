@@ -921,6 +921,13 @@ simulated state WeaponBeamFiring
 			MuzzleFlashPSC.ClearParameter('Link_Beam_Color');
 		}
 	}
+
+
+	/** You can run around spamming the beam and needing to look around all speed **/
+	simulated function bool CanViewAccelerationWhenFiring()
+	{
+		return TRUE;
+	}
 }
 
 simulated state WeaponPuttingDown
@@ -1040,6 +1047,7 @@ function byte BestMode()
 	local UTBot B;
 	local UTVehicle V;
 	local UTGameObjective ObjTarget;
+	local UTPawn EnemyPawn;
 
 	B = UTBot(Instigator.Controller);
 	if ( B == None )
@@ -1068,6 +1076,16 @@ function byte BestMode()
 	}
 	EnemyDist = VSize(B.Enemy.Location - Instigator.Location);
 	if ( EnemyDist > WeaponRange )
+	{
+		return 0;
+	}
+
+	if ( UTSlowVolume(B.Enemy.PhysicsVolume) != None )
+	{
+		return 0;
+	}
+	EnemyPawn = UTPawn(B.Enemy);
+	if ( (EnemyPawn != None) && EnemyPawn.bHasSlowField )
 	{
 		return 0;
 	}
@@ -1228,4 +1246,10 @@ defaultproperties
 
 	QuickPickGroup=5
 	QuickPickWeight=0.8
+
+	Begin Object Class=ForceFeedbackWaveform Name=BeamForceFeedbackWaveform1
+		Samples(0)=(LeftAmplitude=20,RightAmplitude=10,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.100)
+		bIsLooping=TRUE
+	End Object
+	BeamWeaponFireWaveForm=BeamForceFeedbackWaveform1
 }

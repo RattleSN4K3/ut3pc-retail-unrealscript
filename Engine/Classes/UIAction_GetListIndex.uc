@@ -1,7 +1,7 @@
 ﻿/**
  * This action retrieves the index and value of the item at the index for the list that activated this action.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_GetListIndex extends UIAction_GetValue
 	native(inherit);

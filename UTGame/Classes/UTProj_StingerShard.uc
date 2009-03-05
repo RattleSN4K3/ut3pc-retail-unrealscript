@@ -20,6 +20,15 @@ var vector OldLocation;
 
 var() float SpikeVictimVelFactor;
 
+/** Used to prevent rare infinite recursion when spiking overlapping dead bodies */
+var bool bCanCreateSpike;
+
+simulated function PostBeginPlay()
+{
+	Super.PostBeginPlay();
+	bCanCreateSpike = true;
+}
+
 /**
  * Insure that our constraint is destroyed when we are destroyed
  */
@@ -105,6 +114,7 @@ static function bool CreateSpike(UTPawn DeadPawn, vector InitialHitLocation, vec
 			if (Shard != None)
 			{
 				// Give this shard a push
+				Shard.bCanCreateSpike = false;
 				Shard.Speed = 800;
 				Shard.AccelRate = 0.0f;
 				Shard.Init(Direction);
@@ -130,7 +140,7 @@ simulated function ClientSideTouch(Actor Other, Vector HitLocation)
 
 	DeadPawn = UTPawn(Other);
 
-	if (CreateSpike(DeadPawn, HitLocation, Normal(Vector(Rotation))))
+	if ( bCanCreateSpike && CreateSpike(DeadPawn, HitLocation, Normal(Vector(Rotation))))
 	{
 		Destroy();
 	}
@@ -243,13 +253,13 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 		{
 			P = UTPawn(Other);
 			Other.TakeDamage(Damage, InstigatorController, HitLocation, MomentumTransfer * Normal(Velocity), MyDamageType,, self);
-			if (P != None && (WorldInfo.NetMode == NM_DedicatedServer || !CreateSpike(P, HitLocation, Normal(Velocity))))
+			if (P != None && (WorldInfo.NetMode == NM_DedicatedServer || !bCanCreateSpike || !CreateSpike(P, HitLocation, Normal(Velocity))))
 			{
 
 				if (P != None && P.Health <= 0)
 				{
 					P.TearOffMomentum = Velocity;
-					if (WorldInfo.NetMode != NM_DedicatedServer)
+					if (WorldInfo.NetMode != NM_DedicatedServer && bCanCreateSpike)
 					{
 						CreateSpike(P, HitLocation, Normal(Velocity));
 					}
@@ -323,7 +333,7 @@ defaultproperties
 	Damage=38
 	DamageRadius=0
 	MomentumTransfer=70000
-	CheckRadius=30.0
+	CheckRadius=27.0
 
 	MyDamageType=class'UTDmgType_StingerShard'
 	LifeSpan=10.0

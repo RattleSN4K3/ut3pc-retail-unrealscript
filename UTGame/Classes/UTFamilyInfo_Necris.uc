@@ -19,6 +19,8 @@ defaultproperties
 	ArmSkinPackageName="CH_Necris_Arms"
 	RedArmSkinName="CH_Necris_Arms.Materials.MI_CH_Necris_FirstPersonArms_VRed"
 	BlueArmSkinName="CH_Necris_Arms.Materials.MI_CH_Necris_FirstPersonArms_VBlue"
+
+	TrustWorthiness=-2.5
 }
 
 

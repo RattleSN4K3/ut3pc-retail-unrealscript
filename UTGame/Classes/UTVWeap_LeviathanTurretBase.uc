@@ -78,6 +78,7 @@ simulated function DeactivateShield()
 {
 	bShieldActive = false;
 	MyVehicle.SetShieldActive(SeatIndex, false);
+	ClearTimer('DeactivateShield');
 }
 
 /*********************************************************************************************

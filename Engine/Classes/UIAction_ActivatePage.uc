@@ -1,7 +1,7 @@
 ﻿/**
  * Activates a tab page in a tab control.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_ActivatePage extends UIAction_TabControl;
 

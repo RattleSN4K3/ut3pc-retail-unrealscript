@@ -2,7 +2,7 @@
  * This class is used for linking variables of different types.  It contains a variable of each supported type and can
  * be connected to most types of variables links.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SeqVar_Union extends SequenceVariable
 	native(inherit);

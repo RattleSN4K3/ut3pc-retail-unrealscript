@@ -1189,6 +1189,18 @@ native static final function SetUTracing( bool bShouldUTrace );
  */
 native static final function bool IsUTracing();
 
+/**
+ * Returns whether the current script was remotely executed (i.e. through a replicated function)
+ * NOTE: Mainly for debugging, not for general usage
+ */
+native static final function bool IsNetScript();
+
+/**
+ * Returns the name of the replicated function where script execution began,
+ * if the current script was remotely executed
+ */
+native static final function name GetNetFuncName();
+
 
 //
 // Goto state and label.
@@ -1378,6 +1390,7 @@ native(536) final function SaveConfig( optional bool bRefreshInstances, optional
  */
 native static final function StaticSaveConfig( optional bool bRefreshInstances, optional string PropertyName );
 
+
 /**
  * Resets the values for configurable properties in this object's class back to the values in the corresponding Default*.ini file.
  *
@@ -1386,13 +1399,14 @@ native static final function StaticSaveConfig( optional bool bRefreshInstances, 
  * @param	PropertyName		if specified, only this property's value will be reset.
  */
 native static final function ResetConfig( optional bool bRefreshInstances, optional string PropertyName );
+*/
 
 /**
  * Removes the values for all configurable properties in this object's class from the .ini file.
  *
  * @param	PropertyName		if specified, only this property's value will be removed.
  */
-native(537) final function ClearConfig( optional string PropertyName );
+native(538) final function ClearConfig( optional string PropertyName );
 
 /**
  * Removes the values for all configurable properties in this object's class from the .ini file.
@@ -1400,7 +1414,7 @@ native(537) final function ClearConfig( optional string PropertyName );
  * @param	PropertyName		if specified, only this property's value will be removed.
  */
 native static final function StaticClearConfig( optional string PropertyName );
-*/
+
 
 /**
  * Retrieve the names of sections which contain data for the specified PerObjectConfig class.

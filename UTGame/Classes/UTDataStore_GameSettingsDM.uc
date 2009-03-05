@@ -15,7 +15,9 @@ defaultproperties
 	GameSettingsCfgList.Add((GameSettingsClass=class'UTGame.UTGameSettingsVCTF',SettingsName="UTGameSettingsVCTF"))
 	GameSettingsCfgList.Add((GameSettingsClass=class'UTGame.UTGameSettingsWAR',SettingsName="UTGameSettingsWAR"))
 	GameSettingsCfgList.Add((GameSettingsClass=class'UTGame.UTGameSettingsDUEL',SettingsName="UTGameSettingsDUEL"))
+	GameSettingsCfgList.Add((GameSettingsClass=class'UTGame.UTGameSettingsGreed',SettingsName="UTGameSettingsGreed"))
+	GameSettingsCfgList.Add((GameSettingsClass=class'UTGame.UTGameSettingsBetrayal',SettingsName="UTGameSettingsBetrayal"))
 	GameSettingsCfgList.Add((GameSettingsClass=class'UTGame.UTGameSettingsCampaign',SettingsName="UTGameSettingsCampaign"))
-
+					 
 	Tag=UTGameSettings
 }

@@ -3,7 +3,7 @@
  * Each scene has its own SceneDataStore, which is capable of containing an arbitrary number of data elements, configurable
  * by the designer using the UI editor.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SceneDataStore extends UIDataStore
 	native(UIPrivate)

@@ -94,6 +94,7 @@ function PlayAnnouncementNow(class<UTLocalMessage> InMessageClass, int MessageIn
 {
 	local SoundNodeWave ASound;
 	local bool bUsingVoiceCue;
+	local UTHUD HUD;
 
 	ASound = InMessageClass.Static.AnnouncementSound(MessageIndex, OptionalObject, PlayerOwner);
 
@@ -110,7 +111,12 @@ function PlayAnnouncementNow(class<UTLocalMessage> InMessageClass, int MessageIn
 
 		//@FIXME: part of playsound pool?
 		// if we are a UTVoice when we want to use the special UTVoiceSoundCue which is in the correct SoundGroup (i.e. effects)
-		if ( ClassIsChildOf( InMessageClass, class'UTVoice' ) || ClassIsChildOf( InMessageClass, class'UTScriptedVoiceMessage' ) )
+		HUD = UTHUD(PlayerOwner.myHUD);
+		if ( (HUD != None) && HUD.bIsSplitScreen && !HUD.bIsFirstPlayer && ClassIsChildOf( InMessageClass, class'UTScriptedVoiceMessage' ) )
+		{
+			CurrentAnnouncementComponent = None;
+		}
+		else if ( ClassIsChildOf( InMessageClass, class'UTVoice' ) || ClassIsChildOf( InMessageClass, class'UTScriptedVoiceMessage' ) )
 		{
 			CurrentAnnouncementComponent = PlayerOwner.CreateAudioComponent(UTVoiceSoundCue, false, false);
 			bUsingVoiceCue = TRUE;
@@ -148,11 +154,11 @@ function PlayAnnouncementNow(class<UTLocalMessage> InMessageClass, int MessageIn
 		SetTimer(ASound.Duration * WorldInfo.TimeDilation + 0.05, false,'AnnouncementFinished');
 
 		if ( InMessageClass.default.bShowPortrait 
-			&& (UTHUD(PlayerOwner.MyHUD) != None) 
+			&& (HUD != None) 
 			&& (UTPlayerReplicationInfo(PRI) != None) 
 			&& (PRI != PlayerOwner.PlayerReplicationInfo) )
 		{
-			UTHUD(PlayerOwner.MyHUD).ShowPortrait(UTPlayerReplicationInfo(PRI), ASound.Duration+0.5, ClassIsChildOf(InMessageClass, class'UTScriptedVoiceMessage'));
+			HUD.ShowPortrait(UTPlayerReplicationInfo(PRI), ASound.Duration+0.5, ClassIsChildOf(InMessageClass, class'UTScriptedVoiceMessage'));
 		}
 	}
 	else

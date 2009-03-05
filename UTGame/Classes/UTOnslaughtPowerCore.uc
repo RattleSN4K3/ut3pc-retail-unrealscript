@@ -14,6 +14,11 @@ var()	bool	bNoCoreSwitch;		// If true, don't switch cores between rounds
 /** if set, the team that controls this core is the Necris team (can affect what vehicle factories will activate for this team) */
 var()	bool	bNecrisCore;
 
+/** Only leviathan should attack this core */
+var()	bool	bOnlyLeviathanAttack;
+
+var UTVehicle_Leviathan CachedLeviathan;
+
 /** set during beginstate of active state */
 var bool bResettingCore;
 
@@ -165,6 +170,11 @@ simulated function PostBeginPlay()
 		BaseMaterialInstance = BaseMesh.CreateAndSetMaterialInstanceConstant(0);
 
 		DamageCrossfader = AnimNodeBlend(BaseMesh.FindAnimNode('DamageCrossfade'));
+	}
+	// hack don't attack cores directly in cold harbor
+	if ( WorldInfo.GetMapName() ~= "COLDHARBOR" )
+	{
+		bNeverAttack = true;
 	}
 }
 
@@ -633,12 +643,25 @@ simulated state ObjectiveDestroyed
 					UTSeqEvent_PowerCoreDestructionEffect(DestructionEvents[i]).MeshActor = KismetMeshActor;
 					DestructionEvents[i].CheckActivate(self, None);
 				}
+
+				foreach LocalPlayerControllers(class'PlayerController', PC)
+				{
+					if (LocalPlayer(PC.Player) != None)
+					{
+						PC.ClientPlayForceFeedbackWaveform(CoreDestroyWaveForm);
+					}
+				}
 			}
 			else
 			{
 				foreach LocalPlayerControllers(class'PlayerController', PC)
 				{
 					PC.ClientPlaySound(DestroyedSound);
+
+					if (LocalPlayer(PC.Player) != None)
+					{
+						PC.ClientPlayForceFeedbackWaveform(CoreDestroyWaveForm);
+					}
 				}
 
 				if (DefenderTeamIndex < 2)
@@ -760,12 +783,61 @@ function FailedLinkHeal(Controller C)
 
 function bool TellBotHowToDisable(UTBot B)
 {
+	local UTGame G;
+	local UTOnslaughtPowerNode CountdownNode;
+	local UTGameObjective O;
+	local UTVehicle V;
+	
 	if ( bNeverAttack )
 	{
 		// defend prime node instead
 		return LinkedNodes[0].TellBotHowToHeal(B);
 	}
 
+	if ( bOnlyLeviathanAttack )
+	{
+		G = UTGame(WorldInfo.Game);
+		if ( (CachedLeviathan == None) || CachedLeviathan.bDeleteMe )
+		{
+			CachedLeviathan = None;
+			for ( V=G.VehicleList; V!=None; V=V.NextVehicle )
+			{
+				if ( UTVehicle_Leviathan(V) != None )
+				{
+					CachedLeviathan = UTVehicle_Leviathan(V);
+					break;
+				}
+			}
+		}
+		if ( CachedLeviathan != None )
+		{
+			if ( WorldInfo.GRI.OnSameTeam(self, CachedLeviathan) )
+			{
+				return LinkedNodes[0].TellBotHowToHeal(B);
+			}
+			else
+			{
+				return Super.TellBotHowToDisable(B);
+			}
+		}
+
+		// would like a countdown node if there is one
+		for ( O=UTTeamInfo(B.PlayerReplicationInfo.Team).AI.Objectives; O!=None; O=O.NextObjective )
+		{
+			CountdownNode = UTOnslaughtPowerNode(O);
+			if ( CountdownNode != None 
+				&& CountdownNode.IsA('UTOnslaughtCountdownNode')
+				&& !CountdownNode.bIsDisabled
+				&& CountdownNode.PoweredBy(B.PlayerReplicationInfo.Team.TeamIndex) ) 
+			{
+				if ( CountdownNode.DefenderTeamIndex == B.PlayerReplicationInfo.Team.TeamIndex )
+					return CountdownNode.TellBotHowToHeal(B);
+				else
+					return CountdownNode.TellBotHowToDisable(B);
+			}
+		}
+
+	}
 	return Super.TellBotHowToDisable(B);
 }
 
@@ -773,4 +845,11 @@ DefaultProperties
 {
 	ReducedDamageTime=+10.0
 	DestroyedStinger=15
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform10
+		Samples(0)=(LeftAmplitude=50,RightAmplitude=25,LeftFunction=WF_Noise,RightFunction=WF_LinearIncreasing,Duration=3.000)
+		Samples(1)=(LeftAmplitude=75,RightAmplitude=50,LeftFunction=WF_Noise,RightFunction=WF_LinearIncreasing,Duration=3.000)
+		Samples(2)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_Noise,RightFunction=WF_Noise,Duration=4.500)
+		Samples(3)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=5.000)
+	End Object
+	CoreDestroyWaveForm=ForceFeedbackWaveform10
 }

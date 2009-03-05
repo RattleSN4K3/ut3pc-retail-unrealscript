@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 2006-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Option widget that works similar to a read only combobox.
  */

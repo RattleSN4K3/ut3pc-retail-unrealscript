@@ -1,7 +1,7 @@
 ﻿/**
  * This event is activated when the value of a UIComboBox is changed.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIEvent_NumericOptionListValueChanged extends UIEvent_ValueChanged
 	native(inherit);

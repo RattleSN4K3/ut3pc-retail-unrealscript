@@ -41,6 +41,7 @@ var int SinglePlayerCharacterIndex;
 var repnotify CustomCharData CharacterData;
 /** the mesh constructed from the above data */
 var SkeletalMesh CharacterMesh;
+
 /** Texture of render of custom character head. */
 var	Texture		CharPortrait;
 
@@ -98,6 +99,10 @@ var Array<IntStat> VehicleKillStats;
 /** Armor, health, and powerups picked up by this player */
 var Array<IntStat> PickupStats;
 
+// Pickup Flags
+var bool bAllPickupsFoundThisMap;
+var Array<INT> PickupFlags;
+
 struct native TimeStat
 {
 	var name StatName;
@@ -122,8 +127,20 @@ var bool bPrecachedBot;
 var localized string OrdersString[8];
 var byte OrdersIndex;
 
+/************************************
+*  Hero related variables
+************************************/
+var float HeroThreshold;
+var bool bHasBeenHero;
+
 /** Voice to use for TTS. */
 var transient ETTSSpeaker TTSSpeaker;
+
+/** Weapon award (most kills) at end of match - can reference by class since some aren't always loaded for console */
+var int WeaponAwardIndex;
+
+/** Used for weapon award calculation */
+var int WeaponAwardKills;
 
 
 
@@ -188,6 +205,14 @@ function int IncrementKillStat(name NewStatName)
 	local int i, Len;
 	local IntStat NewStat;
 
+	// Check if we should increment "Arachnophobia" achievement progress
+	// We are doing this here because we cannot modify UTGameContent scripts for UT3Gold
+	if (NewStatName == 'KILLS_SPIDERMINE' && UTPlayerController(Owner) != None && 
+		UTTeamGame(WorldInfo.Game) == None && UTDeathmatch(WorldInfo.Game) != None)
+	{
+		UTPlayerController(Owner).ClientUpdateAchievement(EUTA_UT3GOLD_Arachnophobia, 1);
+	}
+
 	Len = KillStats.Length;
 	for (i=0; i<Len; i++ )
 	{
@@ -202,6 +227,7 @@ function int IncrementKillStat(name NewStatName)
 	NewStat.StatName = NewStatName;
 	NewStat.StatValue = 1;
 	KillStats[Len] = NewStat;
+	UpdateEventStatAchievements(NewStatName); // need to track the roadkill award which is a kill stat
 	return 1;
 }
 
@@ -249,16 +275,110 @@ function int IncrementSuicideStat(name NewStatName)
 	return 1;
 }
 
+function UpdateEventStatAchievements(name StatName)
+{
+	local UTPlayerController PC;
+
+	PC = UTPlayerController(Owner);
+
+	if (PC != None && UTGame(WorldInfo.Game).IsMPOrHardBotsGame())
+	{
+		if (StatName == 'REWARD_HEADHUNTER')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_BrainSurgeon, 1);
+		}
+		else if (StatName == 'REWARD_COMBOKING')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_DontTaseMeBro, 1);
+		}
+		else if (StatName == 'REWARD_BIOHAZARD')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_GooGod, 1);
+		}
+		else if (StatName == 'REWARD_GUNSLINGER')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_Pistolero, 1);
+		}
+		else if (StatName == 'REWARD_BLUESTREAK')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_ShardOMatic, 1);
+		}
+		else if (StatName == 'REWARD_JACKHAMMER')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_Hammerhead, 1);
+		}
+		else if (StatName == 'REWARD_SHAFTMASTER')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_StrongestLink, 1);
+		}
+		else if (StatName == 'REWARD_BIGGAMEHUNTER')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_BigGameHunter, 1);
+		}
+		else if (StatName == 'REWARD_ROCKETSCIENTIST')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_HaveANiceDay, 0);
+		}
+		else if (StatName == 'REWARD_FLAKMASTER')
+		{
+			PC.ClientUpdateAchievement(EUTA_WEAPON_HaveANiceDay, 1);
+		}
+		else if (StatName == 'SPREE_KILLINGSPREE')
+		{
+			PC.ClientUpdateAchievement(EUTA_HUMILIATION_SerialKiller, 1);
+		}
+		else if (StatName == 'MULTIKILL_MONSTERKILL')
+		{
+			PC.ClientUpdateAchievement(EUTA_HUMILIATION_SirSlaysALot, 1);
+		}
+		else if (StatName == 'EVENT_FIRSTBLOOD')
+		{
+			PC.ClientUpdateAchievement(EUTA_HUMILIATION_OffToAGoodStart, 1);
+		}
+		else if (StatName == 'EVENT_ENDSPREE')
+		{
+			PC.ClientUpdateAchievement(EUTA_HUMILIATION_KillJoy, 1);
+		}
+		else if (StatName == 'EVENT_RANOVERKILLS')
+		{
+			PC.ClientUpdateAchievement(EUTA_VEHICLE_Armadillo, 1);
+		}
+		else if (StatName == 'EVENT_TOPGUN')
+		{
+			PC.ClientUpdateAchievement(EUTA_VEHICLE_Ace, 1);
+		}
+		else if (StatName == 'EVENT_BULLSEYE')
+		{
+			PC.ClientUpdateAchievement(EUTA_VEHICLE_Deathwish, 1);
+		}
+		else if (StatName == 'EVENT_HATTRICK')
+		{
+			PC.ClientUpdateAchievement(EUTA_GAME_HatTrick, 1);
+		}
+		else if (StatName == 'EVENT_RETURNEDORB')
+		{
+			PC.ClientUpdateAchievement(EUTA_GAME_BeingAHero, 1);
+		}
+	}
+}
+
 function int IncrementEventStat(name NewStatName)
 {
 	local int i, Len;
 	local IntStat NewStat;
+
+	//`log("Increment Event Stat "$NewStatName);
 
 	Len = EventStats.Length;
 	for (i=0; i<Len; i++ )
 	{
 		if ( EventStats[i].StatName == NewStatName )
 		{
+			// this is the only one we count more than once per match
+			if (NewStatName == 'EVENT_RETURNEDORB')
+			{
+				UpdateEventStatAchievements(NewStatName);
+			}
 			EventStats[i].StatValue++;
 			return EventStats[i].StatValue;
 		}
@@ -268,7 +388,30 @@ function int IncrementEventStat(name NewStatName)
 	NewStat.StatName = NewStatName;
 	NewStat.StatValue = 1;
 	EventStats[Len] = NewStat;
+	UpdateEventStatAchievements(NewStatName);
 	return 1;
+}
+
+function int AddToEventStat(name NewStatName, int Amount)
+{
+	local int i, Len;
+	local IntStat NewStat;
+
+	Len = EventStats.Length;
+	for (i=0; i<Len; i++ )
+	{
+		if ( EventStats[i].StatName == NewStatName )
+		{
+			EventStats[i].StatValue += Amount;
+			return EventStats[i].StatValue;
+		}
+	}
+
+	// didn't find it - add a new one
+	NewStat.StatName = NewStatName;
+	NewStat.StatValue = Amount;
+	EventStats[Len] = NewStat;
+	return Amount;
 }
 
 function int IncrementNodeStat(name NewStatName)
@@ -400,6 +543,41 @@ function int IncrementPickupStat(name NewStatName)
 	return 1;
 }
 
+function int UpdatePickupFlags(int index)
+{
+	local int Len, Offset, BitIndex;
+
+	if (index >=0 && !bAllPickupsFoundThisMap && Owner != None && UTPlayerController(Owner) != None)
+	{
+		// find where this bit will be in 32 bit values
+		Offset = index / 32;
+		BitIndex = index % 32;
+
+		Len = PickupFlags.Length;
+
+		if (Offset+1 > Len)
+		{
+			// grow the array if we need to
+			PickupFlags.Length = Offset + 1;
+		}
+
+		// mark this pickup as taken
+		if ((PickupFlags[Offset] | (1<<BitIndex)) != PickupFlags[Offset])
+		{
+			PickupFlags[Offset] = PickupFlags[Offset] | (1<<BitIndex);
+			//`log("Picked up pickup "$index$" resolved to Offset "$Offset$", BitIndex "$BitIndex$" : PickupFlags["$Offset$"] = "$PickupFlags[Offset]);
+			if (class'UTDeathmatch'.static.CheckLikeTheBackOfMyHandAchievement(UTPlayerController(Owner), UTGame(WorldInfo.Game).NextPickupIndex-1))
+			{
+				ClientOnAllPickupsTaken();
+				//Server knows we have all pickups
+				bAllPickupsFoundThisMap = true;
+			}  
+		}
+	}
+
+	return 1;
+}
+
 function StartPowerupTimeStat(name NewStatName)
 {
 	local int i, Len;
@@ -422,9 +600,40 @@ function StartPowerupTimeStat(name NewStatName)
 	return;
 }
 
+function UpdatePowerupAchievements(name StatName, int time)
+{
+	local UTPlayerController PC;
+
+	PC = UTPlayerController(Owner);
+
+	if (PC != None && UTGame(WorldInfo.Game).IsMPOrHardBotsGame())
+	{
+		if (StatName == 'POWERUPTIME_BERSERK')
+		{
+			PC.ClientUpdateAchievement(EUTA_POWERUP_SeeingRed, time);
+		}
+		if (StatName == 'POWERUPTIME_INVISIBILITY')
+		{
+			PC.ClientUpdateAchievement(EUTA_POWERUP_NeverSawItComing, time);
+		}
+		if (StatName == 'POWERUPTIME_INVULNERABILITY')
+		{
+			PC.ClientUpdateAchievement(EUTA_POWERUP_SurvivalFittest, time);
+		}
+		if (StatName == 'POWERUPTIME_UDAMAGE')
+		{
+			PC.ClientUpdateAchievement(EUTA_POWERUP_DeliveringTheHurt, time);
+		}
+		if (StatName == 'POWERUPTIME_SLOWFIELD')
+		{
+			PC.ClientUpdateAchievement(EUTA_UT3GOLD_TheSlowLane, time);
+		}
+	}
+}
+
 function StopPowerupTimeStat(name NewStatName)
 {
-	local int i, Len;
+	local int i, Len, TimeDelta;
 
 	Len = PowerupTimeStats.Length;
 	for (i=0; i<Len; i++ )
@@ -433,7 +642,9 @@ function StopPowerupTimeStat(name NewStatName)
 		{
 			if (PowerupTimeStats[i].CurrentStart >= 0.0)
 			{
-				PowerupTimeStats[i].TotalTime = PowerupTimeStats[i].TotalTime + WorldInfo.TimeSeconds - PowerupTimeStats[i].CurrentStart;
+				TimeDelta = WorldInfo.TimeSeconds - PowerupTimeStats[i].CurrentStart + 0.5;
+				UpdatePowerupAchievements(NewStatName, TimeDelta);
+				PowerupTimeStats[i].TotalTime = PowerupTimeStats[i].TotalTime + TimeDelta;
 				//Mark the current start in case we call stop twice
 				PowerupTimeStats[i].CurrentStart = -1.0;
 			}
@@ -582,25 +793,73 @@ function UTCarriedObject GetFlag()
 	return HasFlag;
 }
 
-function LogMultiKills(bool bEnemyKill)
+simulated function bool IsHero()
 {
-	if ( bEnemyKill && (WorldInfo.TimeSeconds - LastKillTime < 4) )
-	{
-		MultiKillLevel++;
-		IncrementEventStat(class'UTLeaderboardWriteDM'.Default.MULTIKILL[Min(MultiKillLevel-1, 4)]);
-	}
-	else
-		MultiKillLevel=0;
-
-	if ( bEnemyKill )
-		LastKillTime = WorldInfo.TimeSeconds;
+	return false;
 }
 
-function IncrementSpree()
+simulated function bool CanBeHero()
 {
-	spree++;
-	if ( spree > 4 )
-		UTGame(WorldInfo.Game).NotifySpree(self, spree);
+	return false;
+}
+
+simulated function float GetHeroMeter()
+{
+	return 0.0f;
+}
+
+function int GetNumCoins()
+{
+	return 0;
+}
+
+function ResetHero();
+function IncrementHeroMeter(float AddedValue, optional class<UTDamageType> DamageType);
+function CheckHeroMeter();
+function bool TriggerHero()
+{
+	return false;
+}
+
+function AddCoins(int Coins);
+
+// Deprecated
+function LogMultiKills(bool bEnemyKill);
+
+// Deprecated
+function IncrementSpree();
+
+function IncrementKills(bool bEnemyKill, class<UTDamageType> DamageType)
+{
+
+	if ( bEnemyKill )
+	{
+		IncrementHeroMeter(1.0, DamageType);
+
+		if ( WorldInfo.TimeSeconds - LastKillTime < 4 )
+		{
+			IncrementHeroMeter(1.0, DamageType);
+			MultiKillLevel++;
+			IncrementEventStat(class'UTLeaderboardWriteDM'.Default.MULTIKILL[Min(MultiKillLevel-1, 4)]);
+		}
+		else
+		{
+			MultiKillLevel = 0;
+		}
+
+		LastKillTime = WorldInfo.TimeSeconds;
+
+		spree++;
+		if ( spree > 4 )
+		{
+			IncrementHeroMeter(1.0, DamageType);
+			UTGame(WorldInfo.Game).NotifySpree(self, spree);
+		}
+	}
+	else
+	{
+		MultiKillLevel = 0;
+	}
 }
 
 /* Reset()
@@ -621,6 +880,8 @@ function Reset()
 	PickupStats.length = 0;
 	DrivingStats.length = 0;
 	PowerupTimeStats.length = 0;
+	PickupFlags.length = 0;
+	bHasBeenHero = false;
 }
 
 simulated function string GetCallSign()
@@ -679,6 +940,11 @@ function SeamlessTravelTo(PlayerReplicationInfo NewPRI)
 	if (UTPRI != None)
 	{
 		UTPRI.CharacterMesh = CharacterMesh;
+        //Save the materials also so we can switch teams (server only)
+ 		UTPRI.RedBodyMIC = RedBodyMIC;
+ 		UTPRI.RedHeadMIC = RedHeadMIC;
+ 		UTPRI.BlueBodyMIC = BlueBodyMIC;
+ 		UTPRI.BlueHeadMIC = BlueHeadMIC;
 		UTPRI.CharPortrait = CharPortrait;
 		UTPRI.VoiceClass = VoiceClass;
 		UTPRI.SinglePlayerCharacterIndex = SinglePlayerCharacterIndex;
@@ -780,10 +1046,8 @@ server reliable function ServerTeleportToActor(Actor DestinationActor)
 
 			UTGameObjective(DestinationActor).TeleportTo( OwnedPawn );
 		}
-
-		// Handle Leviathans
-
-		else if ( UTVehicle_Leviathan(DestinationActor) != none )
+		// Handle Leviathans (but only if the current gametype allows that)
+		else if (UTVehicle_Leviathan(DestinationActor) != none && UTOnslaughtGame(WorldInfo.Game) != none)
 		{
 			Levi = 	UTVehicle_Leviathan(DestinationActor);
 			if ( Levi.AnySeatAvailable() )
@@ -826,7 +1090,6 @@ simulated event ReplicatedEvent(name VarName)
 				LastReceivedCharacterDataTime = WorldInfo.TimeSeconds;
 			}
 		}
-
 
 		Super.ReplicatedEvent(VarName);
 	}
@@ -913,7 +1176,6 @@ function SetCharacterData(const out CustomCharData NewData)
 		CharacterData = NewData;
 		CharacterDataChangeCount++;
 		bForceNetUpdate = TRUE;
-
 
 		if (WorldInfo.NetMode != NM_DedicatedServer)
 		{
@@ -1104,7 +1366,7 @@ simulated function bool AttemptMidGameMenu()
 		GRI = UTGameReplicationInfo(WorldInfo.GRI);
 		if (GRI != none)
 		{
-			GRI.ShowMidGameMenu(PlayerOwner,'GameTab',true);
+			GRI.ShowMidGameMenu(PlayerOwner,'ScoreTab',true);
 			if ( GRI.CurrentMidGameMenu != none )
 			{
 				GRI.CurrentMidGameMenu.bInitial = true;
@@ -1118,6 +1380,23 @@ simulated function bool AttemptMidGameMenu()
 	return false;
 }
 
+/** Called when all pickups on a map have been touched in one playthrough **/
+function client reliable simulated ClientOnAllPickupsTaken()
+{
+	local string FinalMsg;
+
+	//Client knows from LoadProfileSettings whether we have finished this map already
+	if (!bAllPickupsFoundThisMap)
+	{
+		bAllPickupsFoundThisMap = true;
+        FinalMsg = Localize("ToastMessages","AllPickupsOneMap","UTGameUI");
+
+		// Display toast
+		class'UTUIScene'.static.ShowOnlineToast(FinalMsg);
+//		UTPlayerController(Owner).SaveProfile();
+	}
+}
+
 defaultproperties
 {
 	LastKillTime=-5.0
@@ -1127,4 +1406,7 @@ defaultproperties
 	CharPortrait=Texture2D'CH_IronGuard_Headshot.T_IronGuard_HeadShot_DM'
 	CharacterCacheClass=class'UTProcessedCharacterCache'
 	CharacterMeshTeamNum=255
+	WeaponAwardIndex=-1
+
+	HeroThreshold=20.0
 }

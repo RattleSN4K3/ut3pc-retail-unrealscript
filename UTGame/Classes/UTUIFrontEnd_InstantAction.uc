@@ -70,9 +70,9 @@ function OnStartGame_Confirm(UTUIScene_MessageBox MessageBox, int SelectedOption
 		GameSettings.BuildURL(URL);
 
 		// Num play needs to be the number of bots + 1 (the player).
-		if(GameSettings.GetIntProperty(PROPERTY_NUMBOTS, OutValue))
+		if(GameSettings.GetIntProperty(PROPERTY_NUMBOTSIA, OutValue))
 		{
-			URL $= "?NumPlay=" $ (OutValue+1);
+			URL $= "?NumPlay=" $OutValue;
 		}
 
 		// Append any mutators
@@ -80,9 +80,16 @@ function OnStartGame_Confirm(UTUIScene_MessageBox MessageBox, int SelectedOption
 		if(Len(Mutators) > 0)
 		{
 			URL = URL $ "?mutator=" $ Mutators;
+
+			// Store the mutator list so that the mutator selection menu is persistent
+			// NOTE: PROPERTY_CUSTOMMUTCLASSES was primarily implemented for mutator filtering, but it can be reused here
+			GameSettings.SetStringProperty(PROPERTY_CUSTOMMUTCLASSES, Mutators);
 		}
 
 		URL = URL $ GetCommonOptionsURL();
+
+		if (SettingsDataStore != none)
+			SettingsDataStore.StoreCurrentSettings(SettingsProfileName);
 
 		// Check for split screen
 		ConditionallyStartSplitscreen();
@@ -92,4 +99,9 @@ function OnStartGame_Confirm(UTUIScene_MessageBox MessageBox, int SelectedOption
 		`Log("UTUIFrontEnd: Starting Game..." $ GameExec);
 		ConsoleCommand(GameExec);
 	}
+}
+
+defaultproperties
+{
+	SettingsProfileName="InstantActionMenu"
 }

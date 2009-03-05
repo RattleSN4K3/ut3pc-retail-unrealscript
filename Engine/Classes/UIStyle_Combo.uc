@@ -1,7 +1,7 @@
 ﻿/**
  * Contains a reference to style data from either existing style, or custom defined UIStyle_Data.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
 class UIStyle_Combo extends UIStyle_Data

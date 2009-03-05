@@ -29,6 +29,9 @@ var string DetailsScene;
 /** Index of the player we went to get detailed stats about */
 var int CurrentPlayerIndex;
 
+/** If buttons are disabled due to pending online queries */
+var bool bAreButtonsDisabled;
+
 /** Activated event for the scene, should set focus to the main list. */
 event SceneActivated(bool bInitialActivation)
 {
@@ -221,25 +224,32 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 {
 	local bool bResult;
 
-	bResult=false;
-
-	if(EventParms.EventType==IE_Released)
+	if (bAreButtonsDisabled == false)
 	{
-		if(EventParms.InputKeyName=='XboxTypeS_X')
+		bResult=false;
+		if(EventParms.EventType==IE_Released)
 		{
-			OnToggleView();
-			bResult=true;
+			if(EventParms.InputKeyName=='XboxTypeS_X')
+			{
+				OnToggleView();
+				bResult=true;
+			}
+			else if(EventParms.InputKeyName=='XboxTypeS_Y')
+			{
+				OnToggleMatchType();
+				bResult=true;
+			}
+			else if(EventParms.InputKeyName=='XboxTypeS_B' || EventParms.InputKeyName=='Escape')
+			{
+				OnBack();
+				bResult=true;
+			}
 		}
-		else if(EventParms.InputKeyName=='XboxTypeS_Y')
-		{
-			OnToggleMatchType();
-			bResult=true;
-		}
-		else if(EventParms.InputKeyName=='XboxTypeS_B' || EventParms.InputKeyName=='Escape')
-		{
-			OnBack();
-			bResult=true;
-		}
+	}
+	else
+	{
+		//while buttons are disabled (due to refreshing stats), just consume the input
+		bResult=true;
 	}
 
 	return bResult;
@@ -297,6 +307,7 @@ function RefreshStats()
 	ButtonBar.Buttons[1].SetEnabled(false);
 	ButtonBar.Buttons[2].SetEnabled(false);
 	ButtonBar.Buttons[3].SetEnabled(false);
+	bAreButtonsDisabled = true;
 
 	// Issue the stats.
 	`Log("UTUIFrontEnd_Leaderboards::RefreshStats() - Refreshing leaderboard.");
@@ -320,8 +331,10 @@ function OnStatsReadComplete(bool bWasSuccessful)
 	ButtonBar.Buttons[1].SetEnabled(true);
 	ButtonBar.Buttons[2].SetEnabled(true);
 	ButtonBar.Buttons[3].SetEnabled(true);
+	bAreButtonsDisabled = false;
 
 	OnRankListChanged();
+	StatsList.SetFocus(none);
 }
 
 /** Callback for when the user submits the currently selected list item. */

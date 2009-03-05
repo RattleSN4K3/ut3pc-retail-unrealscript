@@ -432,6 +432,10 @@ native static final function AddOverlay( Font Font, string Text, float X, float 
  */
 native static final function AddOverlayWrapped( Font Font, string Text, float X, float Y, float ScaleX, float ScaleY, float WrapWidth );
 
+/**
+ * Call when a cheat was enabled, to disable achievement progress
+ */
+native static final function CheatWasEnabled();
 
 defaultproperties
 {

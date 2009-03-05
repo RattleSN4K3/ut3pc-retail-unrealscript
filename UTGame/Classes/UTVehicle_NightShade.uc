@@ -16,6 +16,9 @@ var ParticleSystemComponent HoverDustPSC;
  */
 simulated function Cloak(bool bIsEnabled, optional bool bForce=FALSE)
 {
+	if (bIsEnabled && Role == ROLE_Authority && DeployedState != EDS_Undeployed)
+		return;
+
 	super.Cloak(bIsEnabled, bForce);
 
 	if ( WorldInfo.NetMode != NM_DedicatedServer )
@@ -187,4 +190,5 @@ defaultproperties
 	bIsNecrisVehicle=true
 
 	HornIndex=2
+	VehicleIndex=7
 }

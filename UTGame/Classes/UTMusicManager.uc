@@ -325,7 +325,14 @@ function Tick(float DeltaTime)
 		}
 		else
 		{
-			NewState = MST_Ambient;
+			if ( (CurrentState == MST_Action) && (WorldInfo.TimeSeconds - LastActionEventTime < 16) )
+			{
+				NewState = MST_Action;
+			}
+			else
+			{
+				NewState = MST_Ambient;
+			}
 		}
 
 		if ( NewState != CurrentState )

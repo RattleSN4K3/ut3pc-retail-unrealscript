@@ -1,7 +1,7 @@
 ﻿/**
  * Provides access to the number of pages in the tab control.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_GetPageCount extends UIAction_TabControl;
 

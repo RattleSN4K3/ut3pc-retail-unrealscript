@@ -1,7 +1,7 @@
 ﻿/**
  * This is the base class for all actions which interact with specific fields from a data provider.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_DataStoreField extends UIAction_DataStore
 	native(inherit)

@@ -27,9 +27,14 @@ var transient bool bFullyInitialized;
 /** Whether or not the option list should be refreshed. */
 var transient bool bForceRefreshOptionList;
 
+/** The name that this class uses to store the current game profiles settings (for reloading previous menu option settings) */
+var string SettingsProfileName;
+
 /** PostInitialize event - Sets delegates for the scene. */
 event PostInitialize()
 {
+	local UIObject GameModeList, SafeRegionPnl;
+
 	Super.PostInitialize();
 
 	// Get a reference to the settings datastore.
@@ -61,6 +66,14 @@ event PostInitialize()
 	SetDataStoreStringValue("<Registry:SelectedGameMode>", GameMode);
 	MapTab.OnGameModeChanged();
 
+
+	GameModeList = FindChild('lstGameModes',true);
+	SafeRegionPnl = GameModeTab.FindChild('pnlSafeRegion', true);
+
+	//Make some space for longer names in the game mode list (ITA fix)
+	GameModeList.SetDockTarget(UIFACE_Right, SafeRegionPnl, UIFACE_RIGHT);
+	GameModeList.SetDockPadding(UIFACE_Right, 0);
+
 	bFullyInitialized=true;
 	bForceRefreshOptionList=true;
 }
@@ -83,15 +96,26 @@ event SceneActivated(bool bInitialActivation)
 /** Sets up the button bar for the scene. */
 function SetupButtonBar()
 {
+	local int NumPages, PageIndex;
 	if(ButtonBar != None)
 	{
 		ButtonBar.Clear();
 
-		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", OnButtonBar_Back);
-		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Next>", OnButtonBar_Next);
+		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", OnButtonBar_Back);		
 
 		if( TabControl != None && UTTabPage(TabControl.ActivePage) != None )
 		{
+			//Only show the next button if we aren't on the last page
+			NumPages = TabControl.GetPageCount();
+			if (  NumPages > 1 )
+			{
+				PageIndex = TabControl.FindPageIndexByPageRef(TabControl.ActivePage);
+				if ( PageIndex < NumPages - 1 )
+				{
+					ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Next>", OnButtonBar_Next);
+				}
+			}
+
 			if(TabControl.ActivePage != GameModeTab)
 			{
 				ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.QuickStartGame>", OnButtonBar_StartGame);
@@ -109,11 +133,25 @@ function OnStartGame();
 /** Callback for when the gamemode changes on the game mode selection tab. */
 function OnGameModeSelected(string InGameMode, string InDefaultMap, string GameSettingsClass, bool bSelectionSubmitted)
 {
+	local int i;
+	local UTUITabPage_GameSettings UTSettings;
+
 	GameMode = InGameMode;
 	MapName = InDefaultMap;
 
-	// Set the game settings object to use
+	// Set the game settings object to use and have it load values from the stored settings profile
 	SettingsDataStore.SetCurrentByName(name(GameSettingsClass));
+	SettingsDataStore.LoadToCurrentSettings(SettingsProfileName);
+
+	// If a mod with a custom settings scene was selected, grab the string for loading the settings scene
+	if (GameModeTab != none && GameModeTab.GameModeList != none && GameSettingsTab != none)
+	{
+		i = GameModeTab.GameModeList.GetCurrentItem();
+		UTSettings = UTUITabPage_GameSettings(GameSettingsTab);
+
+		if (i != INDEX_None && UTSettings != none)
+			class'UTUIMenuList'.static.GetCellFieldString(GameModeTab.GameModeList, 'ModGameSettingsScene', i, UTSettings.CurModSettingsScene);
+	}
 
 	// Refresh map list.
 	SetDataStoreStringValue("<Registry:SelectedGameMode>", InGameMode);

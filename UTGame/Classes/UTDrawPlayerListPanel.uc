@@ -54,8 +54,7 @@ event DrawPanel()
 		}
 	}
 
-
-	bTeamMode = GRI.GameClass.default.bTeamGame;
+	bTeamMode = (GRI.GameClass != None) ? GRI.GameClass.default.bTeamGame : false;
 
 	Canvas.Font = TextFont;
 	Canvas.Strlen("Q",XL,YL);
@@ -102,7 +101,7 @@ event DrawPanel()
 			PRI = GRI.PRIArray[i];
 			if (PRI != none && !PRI.bOnlySpectator && (!bTeamMode || (PRI.Team != none && PRI.Team.TeamIndex == TeamIdx)) )
 			{
-				if (PRI.bReadyToPlay)
+				if ( GRI.bRequireReady && PRI.bReadyToPlay )
 				{
 					Canvas.SetPos(0,Y);
 					Canvas.DrawTile(Texture2D'UI_HUD.HUD.UI_HUD_BaseC',28*ResScale*0.7,23*ResScale*0.7,821,183,28,23);

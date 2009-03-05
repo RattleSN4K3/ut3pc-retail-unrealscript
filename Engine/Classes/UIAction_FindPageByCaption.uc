@@ -1,7 +1,7 @@
 ﻿/**
  * Finds the tab page whose button has the specified caption or data store binding value.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_FindPageByCaption extends UIAction_GetPageReference;
 

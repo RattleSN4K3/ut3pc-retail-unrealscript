@@ -26,6 +26,7 @@ event PostBeginPlay()
 	if (Base == MyLift && MyLift != None)
 	{
 		LiftOffset = Location - MyLift.Location;
+		MyLift.bIsLift = true;
 	}
 }
 

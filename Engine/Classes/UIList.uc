@@ -7,7 +7,7 @@
  * tracking which elements are selected, changing the selected element, etc.), adding and removing elements from the
  * list, and passing data back and forth between the data source and the presenter components.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIList extends UIObject
 	native(UIPrivate)

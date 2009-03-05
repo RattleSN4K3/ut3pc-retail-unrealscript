@@ -24,4 +24,5 @@ defaultproperties
 	NodeDamageScaling=0.4
 	bNeverGibs=true
 	CustomTauntIndex=2
+	bCausesBloodSplatterDecals=true
 }

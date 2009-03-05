@@ -1316,7 +1316,7 @@ function DrawItem(int ItemIndex, float XPos, out float YPos)
 
 		// On PC when we're using the mouse we'll snap the color for selected item, so the user knows exactly which
 		// menu item will be selected when clicking the mouse
-		if( !IsConsole() && bIsUsingMouseNavigation )
+		if( (!IsConsole() && bIsUsingMouseNavigation) || BubbleRadius == 0 )
 		{
 			Canvas.DrawColor = (ItemIndex==Selection) ? SelectedColor : NormalColor;
 		}
@@ -1510,7 +1510,7 @@ defaultproperties
 	SelectedTextPadding=(X=0.0,Y=0.2)
 	SelectedTextOffset=(X=0.0,Y=0.05)
 
-    TransitionTime=0.125
+    TransitionTime=0
 	BubbleRadius=2
 
 	/** Selection Image UVs. */

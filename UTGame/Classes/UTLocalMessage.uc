@@ -113,6 +113,7 @@ static function bool KilledByVictoryMessage(int AnnouncementIndex)
 
 defaultproperties
 {
+	bIsConsoleMessage=false
 	MessageArea=1
 	AnnouncementVolume=2.0
 }

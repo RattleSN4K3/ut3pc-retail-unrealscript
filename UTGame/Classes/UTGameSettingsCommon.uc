@@ -83,6 +83,14 @@ function BuildURL(out string OutURL)
 	// Append properties marked with the databinding keyword to the URL
 	AppendDataBindingsToURL(OutURL);
 
+	// Remove undesired URL options
+	Class'UTGame'.static.RemoveOption(OutURL, "PingInMs");
+	Class'UTGame'.static.RemoveOption(OutURL, "AverageSkillRating");
+	Class'UTGame'.static.RemoveOption(OutURL, "EngineVersion");
+	Class'UTGame'.static.RemoveOption(OutURL, "MinNetVersion");
+	Class'UTGame'.static.RemoveOption(OutURL, "ServerIP");
+
+
 	// Iterate through localized settings and append them
 	for (SettingIdx = 0; SettingIdx < LocalizedSettings.length; SettingIdx++)
 	{
@@ -93,7 +101,8 @@ function BuildURL(out string OutURL)
 			switch(LocalizedSettings[SettingIdx].Id)
 			{
 			case CONTEXT_BOTSKILL:
-				OutURL $= "?Difficulty=" $ LocalizedSettings[SettingIdx].ValueIndex;
+				//botskill is 0-7 in game CONTEXT_BOTSKILL_NOVICE starts at 1
+				OutURL $= "?Difficulty=" $ Clamp(LocalizedSettings[SettingIdx].ValueIndex-1, 0, 7);
 				break;
 
 			case CONTEXT_VSBOTS:
@@ -164,6 +173,9 @@ function BuildURL(out string OutURL)
 			switch(Properties[SettingIdx].PropertyId)
 			{
 			case PROPERTY_NUMBOTS:
+			case PROPERTY_NUMBOTSIA:
+			case PROPERTY_STEAMID:
+			case PROPERTY_STEAMVAC:
 				// Will be handled by game launching code.
 				break;
 
@@ -175,8 +187,11 @@ function BuildURL(out string OutURL)
 
 			// skip this property because we assemble the mask on the server side based on the mutator class names
 			case PROPERTY_EPICMUTATORS:
-			// skip this property because we assemble the list of friendly names based on the active mutators
+			// skip this property because we assemble the list of friendly names/classnames based on the active mutators
 			case PROPERTY_CUSTOMMUTATORS:
+			case PROPERTY_CUSTOMMUTCLASSES:
+			case PROPERTY_CUSTOMMAPNAME:
+			case PROPERTY_CUSTOMGAMEMODE:
 				break;
 
 			default:
@@ -358,8 +373,8 @@ function int GenerateMutatorBitmaskFromURL( const out string URL )
  */
 function SetCustomMutators( UTUIDataStore_MenuItems MenuDataStore, const out array<string> MutatorClassNames )
 {
-	local int Idx, MutatorIdx;
-	local string MutatorName, CustomMutators, CustomMutatorDelimiter;
+	local int Idx, MutatorIdx, Pos;
+	local string MutatorName, CustomMutators, CustomMutatorDelimiter, CustomMutClasses;
 
 	// just cache the delimiter so we don't have to evaluate each time
 	CustomMutatorDelimiter = Chr(28);
@@ -381,10 +396,25 @@ function SetCustomMutators( UTUIDataStore_MenuItems MenuDataStore, const out arr
 				CustomMutators $= MutatorName;
 			}
 		}
+
+		// Append the classname for the current mutator (only the classname, not the package name)
+		Pos = InStr(MutatorClassNames[Idx], ".");
+
+		// N.B. The delimiter must come before and after every mutator class entry
+		CustomMutClasses $= CustomMutatorDelimiter;
+
+		if (Pos == INDEX_None)
+			CustomMutClasses $= MutatorClassNames[Idx];
+		else
+			CustomMutClasses $= Mid(MutatorClassNames[Idx], Pos+1);
 	}
 
-	//@note - CustomMutators might be blank
+	if (CustomMutClasses != "")
+		CustomMutClasses $= CustomMutatorDelimiter;
+
+	//@note - CustomMutators/CustomMutClasses might be blank
 	SetStringProperty(PROPERTY_CUSTOMMUTATORS, CustomMutators);
+	SetStringProperty(PROPERTY_CUSTOMMUTCLASSES, CustomMutClasses);
 }
 
 defaultproperties
@@ -399,7 +429,7 @@ defaultproperties
 	//@note: due to the way that UTUICollectionCheckbox works, for any settings which have on/off values, the "no/off/disabled/etc." value
 	// must be at index 0 [in the ValueMappings array], and the "yes/on/enabled" value must be at index 1
 	LocalizedSettings(0)=(Id=CONTEXT_GAME_MODE,ValueIndex=CONTEXT_GAME_MODE_DM,AdvertisementType=ODAT_OnlineService)
-	LocalizedSettingsMappings(0)=(Id=CONTEXT_GAME_MODE,Name="GameMode",ValueMappings=((Id=CONTEXT_GAME_MODE_DM),(Id=CONTEXT_GAME_MODE_TDM),(Id=CONTEXT_GAME_MODE_CTF),(Id=CONTEXT_GAME_MODE_VCTF),(Id=CONTEXT_GAME_MODE_WAR),(Id=CONTEXT_GAME_MODE_DUEL),(Id=CONTEXT_GAME_MODE_CAMPAIGN),(Id=CONTEXT_GAME_MODE_CUSTOM)))
+	LocalizedSettingsMappings(0)=(Id=CONTEXT_GAME_MODE,Name="GameMode",ValueMappings=((Id=CONTEXT_GAME_MODE_DM),(Id=CONTEXT_GAME_MODE_TDM),(Id=CONTEXT_GAME_MODE_CTF),(Id=CONTEXT_GAME_MODE_VCTF),(Id=CONTEXT_GAME_MODE_WAR),(Id=CONTEXT_GAME_MODE_DUEL),(Id=CONTEXT_GAME_MODE_CAMPAIGN),(Id=CONTEXT_GAME_MODE_GREED),(Id=CONTEXT_GAME_MODE_BETRAYAL),(Id=CONTEXT_GAME_MODE_CUSTOM)))
 
 	LocalizedSettings(1)=(Id=CONTEXT_BOTSKILL,ValueIndex=CONTEXT_BOTSKILL_AVERAGE,AdvertisementType=ODAT_OnlineService)
 	LocalizedSettingsMappings(1)=(Id=CONTEXT_BOTSKILL,Name="BotSkill",ValueMappings=((Id=CONTEXT_BOTSKILL_NOVICE),(Id=CONTEXT_BOTSKILL_AVERAGE),(Id=CONTEXT_BOTSKILL_EXPERIENCED),(Id=CONTEXT_BOTSKILL_SKILLED),(Id=CONTEXT_BOTSKILL_ADEPT),(Id=CONTEXT_BOTSKILL_MASTERFUL),(Id=CONTEXT_BOTSKILL_INHUMAN),(Id=CONTEXT_BOTSKILL_GODLIKE)))
@@ -442,12 +472,12 @@ defaultproperties
 	PropertyMappings(1)=(Id=PROPERTY_CUSTOMGAMEMODE,Name="CustomGameMode")
 
 	Properties(2)=(PropertyId=PROPERTY_GOALSCORE,Data=(Type=SDT_Int32,Value1=20),AdvertisementType=ODAT_OnlineService)
-	PropertyMappings(2)=(Id=PROPERTY_GOALSCORE,Name="GoalScore",MappingType=PVMT_PredefinedValues,PredefinedValues=((Type=SDT_Int32, Value1=0), (Type=SDT_Int32, Value1=5),(Type=SDT_Int32, Value1=10),(Type=SDT_Int32, Value1=15),(Type=SDT_Int32, Value1=20),(Type=SDT_Int32, Value1=25),(Type=SDT_Int32, Value1=30),(Type=SDT_Int32, Value1=35),(Type=SDT_Int32, Value1=40),(Type=SDT_Int32, Value1=45),(Type=SDT_Int32, Value1=50),(Type=SDT_Int32, Value1=55),(Type=SDT_Int32, Value1=60)))
+	PropertyMappings(2)=(Id=PROPERTY_GOALSCORE,Name="GoalScore",MappingType=PVMT_PredefinedValues,PredefinedValues=((Type=SDT_Int32, Value1=0),(Type=SDT_Int32, Value1=5),(Type=SDT_Int32, Value1=10),(Type=SDT_Int32, Value1=15),(Type=SDT_Int32, Value1=20),(Type=SDT_Int32, Value1=25),(Type=SDT_Int32, Value1=30),(Type=SDT_Int32, Value1=35),(Type=SDT_Int32, Value1=40),(Type=SDT_Int32, Value1=45),(Type=SDT_Int32, Value1=50),(Type=SDT_Int32, Value1=55),(Type=SDT_Int32, Value1=60),(Type=SDT_Int32, Value1=70),(Type=SDT_Int32, Value1=80),(Type=SDT_Int32, Value1=90),(Type=SDT_Int32, Value1=100),(Type=SDT_Int32, Value1=125),(Type=SDT_Int32, Value1=150)))
 
 	Properties(3)=(PropertyId=PROPERTY_TIMELIMIT,Data=(Type=SDT_Int32,Value1=20),AdvertisementType=ODAT_OnlineService)
 	PropertyMappings(3)=(Id=PROPERTY_TIMELIMIT,Name="TimeLimit",MappingType=PVMT_PredefinedValues,PredefinedValues=((Type=SDT_Int32, Value1=0), (Type=SDT_Int32, Value1=5),(Type=SDT_Int32, Value1=10),(Type=SDT_Int32, Value1=15),(Type=SDT_Int32, Value1=20),(Type=SDT_Int32, Value1=30),(Type=SDT_Int32, Value1=45),(Type=SDT_Int32, Value1=60)))
 
-	Properties(4)=(PropertyId=PROPERTY_NUMBOTS,Data=(Type=SDT_Int32,Value1=5),AdvertisementType=ODAT_OnlineService)
+	Properties(4)=(PropertyId=PROPERTY_NUMBOTS,Data=(Type=SDT_Int32,Value1=6),AdvertisementType=ODAT_OnlineService)
 	PropertyMappings(4)=(Id=PROPERTY_NUMBOTS,Name="NumBots",MappingType=PVMT_PredefinedValues,PredefinedValues=((Type=SDT_Int32, Value1=0),(Type=SDT_Int32, Value1=1),(Type=SDT_Int32, Value1=2),(Type=SDT_Int32, Value1=3),(Type=SDT_Int32, Value1=4),(Type=SDT_Int32, Value1=5),(Type=SDT_Int32, Value1=6),(Type=SDT_Int32, Value1=7),(Type=SDT_Int32, Value1=8),(Type=SDT_Int32, Value1=9),(Type=SDT_Int32, Value1=10),(Type=SDT_Int32, Value1=11),(Type=SDT_Int32, Value1=12),(Type=SDT_Int32, Value1=13),(Type=SDT_Int32, Value1=14),(Type=SDT_Int32, Value1=15),(Type=SDT_Int32, Value1=16)))
 
 	Properties(5)=(PropertyId=PROPERTY_SERVERDESCRIPTION,Data=(Type=SDT_String),AdvertisementType=ODAT_QoS)
@@ -458,4 +488,17 @@ defaultproperties
 
 	Properties(7)=(PropertyId=PROPERTY_CUSTOMMUTATORS,Data=(Type=SDT_String),AdvertisementType=ODAT_QoS)
 	PropertyMappings(7)=(Id=PROPERTY_CUSTOMMUTATORS,Name="CustomMutators")
+
+	Properties(8)=(PropertyId=PROPERTY_CUSTOMMUTCLASSES,Data=(Type=SDT_String),AdvertisementType=ODAT_QoS)
+	PropertyMappings(8)=(Id=PROPERTY_CUSTOMMUTCLASSES,Name="CustomMutClasses")
+
+   Properties(9)=(PropertyId=PROPERTY_NUMBOTSIA,Data=(Type=SDT_Int32,Value1=6),AdvertisementType=ODAT_DontAdvertise)
+	PropertyMappings(9)=(Id=PROPERTY_NUMBOTSIA,Name="NumBotsIA",MappingType=PVMT_PredefinedValues,PredefinedValues=((Type=SDT_Int32, Value1=0),(Type=SDT_Int32, Value1=1),(Type=SDT_Int32, Value1=2),(Type=SDT_Int32, Value1=3),(Type=SDT_Int32, Value1=4),(Type=SDT_Int32, Value1=5),(Type=SDT_Int32, Value1=6),(Type=SDT_Int32, Value1=7),(Type=SDT_Int32, Value1=8),(Type=SDT_Int32, Value1=9),(Type=SDT_Int32, Value1=10),(Type=SDT_Int32, Value1=11),(Type=SDT_Int32, Value1=12),(Type=SDT_Int32, Value1=13),(Type=SDT_Int32, Value1=14),(Type=SDT_Int32, Value1=15),(Type=SDT_Int32, Value1=16)))
+
+	Properties(10)=(PropertyId=PROPERTY_STEAMID,Data=(Type=SDT_Int64),AdvertisementType=ODAT_DontAdvertise)
+	PropertyMappings(10)=(Id=PROPERTY_STEAMID,Name="SteamID",MappingType=PVMT_RawValue)
+
+	Properties(11)=(PropertyId=PROPERTY_STEAMVAC,Data=(Type=SDT_Int32),AdvertisementType=ODAT_DontAdvertise)
+	PropertyMappings(11)=(Id=PROPERTY_STEAMVAC,Name="SteamVAC",MappingType=PVMT_RawValue)
+
 }

@@ -31,7 +31,7 @@ simulated function SpawnBeam(vector Start, vector End, bool bFirstPerson)
 
 	E = WorldInfo.MyEmitterPool.SpawnEmitter(BeamTemplate, Start);
 	E.SetVectorParameter('ShockBeamEnd', End);
-	if (bFirstPerson)
+	if (bFirstPerson && !class'Engine'.static.IsSplitScreen())
 	{
 		E.SetDepthPriorityGroup(SDPG_Foreground);
 	}

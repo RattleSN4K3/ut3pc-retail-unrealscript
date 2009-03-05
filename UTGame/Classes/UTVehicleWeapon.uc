@@ -244,7 +244,7 @@ simulated event vector GetDesiredAimPoint(optional out Actor TargetActor)
 	local Controller C;
 	local PlayerController PC;
 
-	C = MyVehicle.Seats[SeatIndex].SeatPawn.Controller;
+	C = (MyVehicle != None) ? MyVehicle.Seats[SeatIndex].SeatPawn.Controller : None;
 
 	PC = PlayerController(C);
 	if (PC != None)
@@ -268,6 +268,10 @@ simulated event vector GetDesiredAimPoint(optional out Actor TargetActor)
 /** returns the location and rotation that the weapon's fire starts at */
 simulated function GetFireStartLocationAndRotation(out vector StartLocation, out rotator StartRotation)
 {
+	if ( MyVehicle == None )
+	{
+		return;
+	}
 	if ( MyVehicle.Seats[SeatIndex].GunSocket.Length>0 )
 	{
 		MyVehicle.GetBarrelLocationAndRotation(SeatIndex, StartLocation, StartRotation);
@@ -460,7 +464,7 @@ simulated function Projectile ProjectileFire()
 */
 simulated function vector InstantFireStartTrace()
 {
-	return MyVehicle.GetPhysicalFireStartLoc(self);
+	return (MyVehicle != None) ? MyVehicle.GetPhysicalFireStartLoc(self) : vect(0,0,0);
 }
 
 /**
@@ -468,6 +472,10 @@ simulated function vector InstantFireStartTrace()
 */
 simulated function vector InstantFireEndTrace(vector StartTrace)
 {
+	if  (MyVehicle == None )
+	{
+		return StartTrace;
+	}	
 	return StartTrace + vector(AddSpread(MyVehicle.GetWeaponAim(self))) * GetTraceRange();;
 }
 

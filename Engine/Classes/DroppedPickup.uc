@@ -16,6 +16,7 @@ var				Inventory					Inventory;			// the dropped inventory item which spawned th
 var	repnotify	class<Inventory>			InventoryClass;		// Class of the inventory object to pickup
 var				NavigationPoint				PickupCache;		// navigationpoint this pickup is attached to
 var	repnotify	bool						bFadeOut;
+var				bool						bNavigationSet;
 
 native final function AddToNavigation();			// cache dropped inventory in navigation network
 native final function RemoveFromNavigation();
@@ -109,6 +110,7 @@ event Landed(Vector HitNormal, Actor FloorActor)
 	NetUpdateFrequency = 3;
 
 	AddToNavigation();
+	bNavigationSet = true;
 }
 
 /** give pickup to player */
@@ -205,7 +207,11 @@ auto state Pickup
 
 	event BeginState(Name PreviousStateName)
 	{
+		if ( !bNavigationSet && (Physics != PHYS_Falling) )
+		{
 		AddToNavigation();
+			bNavigationSet = true;
+		}
 		SetTimer(LifeSpan - 1, false);
 	}
 
@@ -251,6 +257,7 @@ defaultproperties
 	bOnlyDirtyReplication=true
 	NetUpdateFrequency=8
 	RemoteRole=ROLE_SimulatedProxy
+	Physics=PHYS_Falling
 	bHidden=false
 	NetPriority=+1.4
 	bCollideActors=true

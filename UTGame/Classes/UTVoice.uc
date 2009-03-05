@@ -542,7 +542,9 @@ static function bool AllowVoiceMessage(name MessageType, UTPlayerController PC, 
 	{
 		if ( Left(string(EmoteTag),5) ~= "Taunt" )
 		{
+            //Taunts should be heard by everybody
 			SpeechIndex = Rand(100);
+			bOnlyTeam = false;
 		}
 		else if ( EmoteTag == 'Encouragement' )
 		{ 
@@ -576,36 +578,36 @@ static function bool AllowVoiceMessage(name MessageType, UTPlayerController PC, 
  }
 
 /** Used to play a voice taunt that matches a taunt animation. */
-static function ClientPlayTauntAnim(UTPlayerController PC, PlayerReplicationInfo Sender, Name EmoteTag, int Seed)
-{
-	local int i, TauntIndex;
+ static function ClientPlayTauntAnim(UTPlayerController PC, PlayerReplicationInfo Sender, Name EmoteTag, int Seed)
+ {
+	 local int i, TauntIndex;
 
-	if ( Seed < 100 )
-	{
-		// Look for this EmoteTag, to find appropriate set of voice taunts
-		TauntIndex = -1;
-		for(i=0; i<default.TauntAnimSoundMap.length; i++)
-		{
-			if (default.TauntAnimSoundMap[i].EmoteTag == EmoteTag)
-			{
-				// Pick one randomly
- 				Seed = Min(Seed * default.TauntAnimSoundMap[i].TauntSoundIndex.length/100, default.TauntAnimSoundMap.Length);
-				TauntIndex = TAUNTINDEXSTART + default.TauntAnimSoundMap[i].TauntSoundIndex[Seed];
-				continue;
-			}
-		}
-	}
-	else
-	{
-		TauntIndex = Seed;
-	}
+	 if ( Seed < 100 )
+	 {
+		 // Look for this EmoteTag, to find appropriate set of voice taunts
+		 TauntIndex = -1;
+		 for(i=0; i<default.TauntAnimSoundMap.length; i++)
+		 {
+			 if (default.TauntAnimSoundMap[i].EmoteTag == EmoteTag)
+			 {
+				 // Pick one randomly
+				 Seed = Min(Seed * default.TauntAnimSoundMap[i].TauntSoundIndex.length/100, default.TauntAnimSoundMap.Length);
+				 TauntIndex = TAUNTINDEXSTART + default.TauntAnimSoundMap[i].TauntSoundIndex[Seed];
+				 continue;
+			 }
+		 }
+	 }
+	 else
+	 {
+		 TauntIndex = Seed;
+	 }
 	
-	// If found one, play it
-	if(TauntIndex != -1)
-	{
-		PC.ReceiveLocalizedMessage( default.Class, TauntIndex, Sender );
-	}
-}
+	 // If found one, play it
+	 if(TauntIndex != -1)
+	 {
+		 PC.ReceiveLocalizedMessage( default.Class, TauntIndex, Sender );
+	 }
+ }
 
 /**
   *
@@ -641,6 +643,14 @@ static function SendVoiceMessage(Controller Sender, PlayerReplicationInfo Recipi
 		}
 		if ( !bFoundFriendlyPlayer )
 		{
+	                if ( (SenderPC != None) && AllowVoiceMessage(MessageType, SenderPC, RecipientPC) )
+	                {
+				MessageIndex = GetMessageIndex(Sender, Recipient, MessageType, DamageType);
+	                	if ( MessageIndex != -1 )
+	                	{
+		        	        SenderPC.ReceiveBotVoiceMessage(SenderPRI, MessageIndex, None);
+	                	}
+			}
 			return;
 		}
 	}
@@ -660,6 +670,10 @@ static function SendVoiceMessage(Controller Sender, PlayerReplicationInfo Recipi
 		if ( RecipientPC != None )
 		{
 			RecipientPC.ReceiveBotVoiceMessage(SenderPRI, MessageIndex, None);
+		}
+		if ( SenderPC != None )
+		{
+			SenderPC.ReceiveBotVoiceMessage(SenderPRI, MessageIndex, None);
 		}
 		return;
 	}
@@ -1123,6 +1137,10 @@ static function bool AddAnnouncement(UTAnnouncer Announcer, int MessageIndex, op
 	For ( A=Announcer.Queue; A!=None; A=A.NextAnnouncement )
 	{
 		if ( A.AnnouncementClass == class'UTScriptedVoiceMessage' )
+		{
+			return false;
+		}
+		if ( (MessageIndex < default.TauntSounds.Length) && (class<UTVoice>(A.AnnouncementClass) != None) && (A.MessageIndex < class<UTVoice>(A.AnnouncementClass).default.TauntSounds.Length) )
 		{
 			return false;
 		}

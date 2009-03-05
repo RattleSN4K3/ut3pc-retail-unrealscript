@@ -1,7 +1,7 @@
 ﻿/**
  * Provides the UI with all data associated with the player which owns this viewport.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class PlayerOwnerDataStore extends UIDataStore_GameState
 	native(inherit);

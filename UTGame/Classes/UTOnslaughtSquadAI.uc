@@ -9,6 +9,7 @@ var bool bDefendingSquad;
 var float LastFailedNodeTeleportTime;
 var float MaxObjectiveGetOutDist; //cached highest ObjectiveGetOutDist of all the vehicles available on this level
 var UTOnslaughtNodeObjective OrbObjective; // objective for bot with orb
+var float LastFindObjectiveTime;	// last time tried to find attack objective (with squadobjective == None)
 
 function Initialize(UTTeamInfo T, UTGameObjective O, Controller C)
 {
@@ -185,36 +186,66 @@ function bool CheckVehicle(UTBot B)
 	local int i, j;
 	local UTVehicle V;
 	local Actor Goal;
-	local UTVehicle_Deployable DeployableVehicle;
+	local UTVehicle DeployableVehicle;
 	local UTOnslaughtGame ONSGame;
 	local UTOnslaughtNodeObjective Node;
+	local UTOnslaughtPowerCore EnemyCore;
 	local NavigationPoint TeleportSource;
-	local UTOnslaughtObjective ONSObjective;
+	local UTOnslaughtObjective ONSObjective, FocusObjective;
+	local Pawn FocusEnemy;
+
+	if ( (UTPawn(B.Pawn) != None) && UTPawn(B.Pawn).IsHero() )
+	{
+		return false;
+	}
 
 	ONSObjective = UTOnslaughtObjective(SquadObjective);
-	if (UTVehicle(B.Pawn) != None && UTVehicle(B.Pawn).IsArtillery())
+	DeployableVehicle = B.GetDeployableVehicle();
+	if ( (DeployableVehicle == None) && (UTVehicle(B.Pawn) != None) && UTVehicle(B.Pawn).IsArtillery() )
 	{
-		DeployableVehicle = B.GetDeployableVehicle();
-		if (DeployableVehicle != None && DeployableVehicle.IsDeployed())
+		DeployableVehicle = UTVehicle(B.Pawn);
+	}
+	if ( DeployableVehicle != None )
+	{
+		if ( DeployableVehicle.IsArtillery() )
 		{
 			// if possible, just target and fire at nodes or important enemies
-			if ( (SquadObjective != None) && (SquadObjective.DefenderTeamIndex != Team.TeamIndex) && (ONSObjective != None)
-				&& ONSObjective.LegitimateTargetOf(B) && B.Pawn.CanAttack(SquadObjective) )
+			if ( (SquadObjective != None) && (SquadObjective.DefenderTeamIndex != Team.TeamIndex) && (ONSObjective != None) && ONSObjective.PoweredBy(Team.TeamIndex)
+				&& ONSObjective.LegitimateTargetOf(B) && DeployableVehicle.CanDeployedAttack(SquadObjective) )
 			{
 				B.DoRangedAttackOn(SquadObjective);
 				B.GoalString = "Artillery Attack Objective";
 				return true;
 			}
-			if ( (B.Enemy != None) && B.Pawn.CanAttack(B.Enemy) )
+			if ( (B.Enemy != None) && DeployableVehicle.CanDeployedAttack(B.Enemy) )
 			{
 				B.DoRangedAttackOn(B.Enemy);
 				B.GoalString = "Artillery Attack Enemy";
 				return true;
 			}
+			if ( DeployableVehicle.IsDeployed() )
+			{
+				// check if already focused on valid target
+				FocusObjective = UTOnslaughtObjective(B.Focus);
+				if ( (FocusObjective != None) && (FocusObjective.DefenderTeamIndex != Team.TeamIndex) && FocusObjective.PoweredBy(Team.TeamIndex) && FocusObjective.LegitimateTargetOf(B) && DeployableVehicle.CanDeployedAttack(FocusObjective) )
+				{
+					B.DoRangedAttackOn(FocusObjective);
+					B.GoalString = "Artillery Focus Objective";
+					return true;
+				}
+				FocusEnemy = Pawn(B.Focus);
+				if ( (FocusEnemy != None) && (FocusEnemy.Health > 0) && !WorldInfo.GRI.OnSameTeam(B,FocusEnemy) && DeployableVehicle.CanDeployedAttack(FocusEnemy) )
+				{
+					B.DoRangedAttackOn(FocusEnemy);
+					B.GoalString = "Artillery Focus Enemy";
+					return true;
+				}
+			}			
+				
 			// check squad enemies
 			for ( i=0; i<8; i++ )
 			{
-				if ( (Enemies[i] != None) && (Enemies[i] != B.Enemy) && B.Pawn.CanAttack(Enemies[i]) )
+				if ( (Enemies[i] != None) && (Enemies[i] != B.Enemy) && (Enemies[i] != FocusEnemy) && DeployableVehicle.CanDeployedAttack(Enemies[i]) )
 				{
 					B.DoRangedAttackOn(Enemies[i]);
 					B.GoalString = "Artillery Attack Squad Enemy";
@@ -225,7 +256,7 @@ function bool CheckVehicle(UTBot B)
 			for ( O=Team.AI.Objectives; O!=None; O=O.NextObjective )
 			{
 				Core = UTOnslaughtObjective(O);
-				if ( (Core != None) && Core.PoweredBy(Team.TeamIndex) && (Core.DefenderTeamIndex != Team.TeamIndex) && Core.LegitimateTargetOf(B) && B.Pawn.CanAttack(Core) )
+				if ( (Core != None) && (Core != FocusObjective) && Core.PoweredBy(Team.TeamIndex) && (Core.DefenderTeamIndex != Team.TeamIndex) && Core.LegitimateTargetOf(B) && DeployableVehicle.CanDeployedAttack(Core) )
 				{
 					B.DoRangedAttackOn(Core);
 					B.GoalString = "Artillery Attack Other Node";
@@ -236,27 +267,30 @@ function bool CheckVehicle(UTBot B)
 			// check important enemies
 			for ( V=UTGame(WorldInfo.Game).VehicleList; V!=None; V=V.NextVehicle )
 			{
-				if ( (V.Controller != None) && !V.bCanFly && (V.ImportantVehicle() || V.IsArtillery()) && !WorldInfo.GRI.OnSameTeam(V,B) && B.Pawn.CanAttack(V) )
+				if ( (V.Controller != None) && !V.bCanFly && (V != FocusEnemy) && (V.ImportantVehicle() || V.IsArtillery()) && !WorldInfo.GRI.OnSameTeam(V,B) && DeployableVehicle.CanDeployedAttack(V) )
 				{
 					B.DoRangedAttackOn(V);
 					B.GoalString = "Artillery Attack important vehicle";
 					return true;
 				}
 			}
-
-			if ( Team.Size == DeployableVehicle.NumPassengers() ||
-					( SquadObjective != None &&
-						VSize(B.Pawn.Location - SquadObjective.Location) > DeployableVehicle.ObjectiveGetOutDist &&
-						DeployableVehicle.NoPassengerObjective != SquadObjective &&
-						!SquadObjective.ReachedParkingSpot(B.Pawn) && !B.Pawn.CanAttack(SquadObjective) ) )
+			if ( UTVehicle_Deployable(DeployableVehicle) != None )
 			{
-				DeployableVehicle.SetTimer(0.01, false, 'ServerToggleDeploy');
+				UTVehicle_Deployable(DeployableVehicle).bNotGoodArtilleryPosition = true;
 			}
 		}
-		else if ( !B.Pawn.IsFiring() && (B.Enemy != None) && B.Pawn.CanAttack(B.Enemy) )
+		// check deployables
+		else if ( UTStealthVehicle(DeployableVehicle) != None && UTStealthVehicle(DeployableVehicle).ShouldDropDeployable() )
 		{
-			B.Focus = B.Enemy;
-			B.FireWeaponAt(B.Enemy);
+			return true;
+		}
+		else if ( (UTVehicle_Leviathan(DeployableVehicle) != None) && (UTOnslaughtPowerCore(SquadObjective) == None) )
+		{
+			EnemyCore = UTOnslaughtGame(WorldInfo.Game).PowerCore[1-Team.TeamIndex];
+			if ( (EnemyCore != None) && EnemyCore.bOnlyLeviathanAttack && EnemyCore.PoweredBy(Team.TeamIndex) )
+			{
+				SquadObjective = EnemyCore;
+			}
 		}
 	}
 
@@ -579,6 +613,14 @@ function bool GetOrbToDefendNode(UTBot B)
 {
 	local Actor FlagPosition;
 
+	if ( (UTPawn(B.Pawn) != None) && UTPawn(B.Pawn).IsHero() )
+	{
+		return false;
+	}
+	if ( WorldInfo.TimeSeconds - B.ForcedFlagDropTime < 8 )
+	{
+		return false;
+	}
 	FlagPosition = Team.TeamFlag.Position();
 	if ( (B.RouteGoal != FlagPosition && B.RouteGoal != Team.TeamFlag.LastAnchor && VSize(FlagPosition.Location - B.Pawn.Location) > 1000.0) ||
 	 	ONSTeamAI.FinalCore.FindNodeLinkIndex(UTOnslaughtPowerNode(SquadObjective)) == INDEX_NONE )
@@ -675,8 +717,18 @@ function bool CheckSquadObjectives(UTBot B)
 		return CheckOrbCarrierObjective(B);
 	}
 
+	if ( ((SquadObjective == None) || SquadObjective.bIsDisabled) && (WorldInfo.TimeSeconds - LastFindObjectiveTime > 12.0) )
+	{
+		LastFindObjectiveTime = WorldInfo.TimeSeconds;
+		Team.AI.FindNewObjectiveFor(self, false);
+	}
+
 	// check if should pick up dropped orb
-	if ( (UTPawn(B.Pawn) != None) && UTPawn(B.Pawn).bJustDroppedOrb && (Team.TeamFlag.Holder == None) )
+	if ( (UTPawn(B.Pawn) != None) && 
+		 UTPawn(B.Pawn).bCanPickupInventory && 
+		 UTPawn(B.Pawn).bJustDroppedOrb && 
+		 (Team.TeamFlag.Holder == None) &&
+		 (WorldInfo.TimeSeconds - B.ForcedFlagDropTime > 8) )
 	{
 		Team.TeamFlag.CheckTouching();
 		if ( (Team.TeamFlag.Holder == None) && FindPathToObjective(B, Team.TeamFlag) )
@@ -730,7 +782,8 @@ function bool CheckSquadObjectives(UTBot B)
 	else if ( B.Enemy == None && Team.AI.EnemyTeam.TeamFlag != None && Team.AI.EnemyTeam.TeamFlag.Holder == None &&
 		(SquadObjective == None || (SquadObjective.DefenderTeamIndex == Team.TeamIndex && !SquadObjective.bUnderAttack)) &&
 		VSize(Team.AI.EnemyTeam.TeamFlag.Location - B.Pawn.Location) < 2000.0 &&
-		!B.Pawn.PoweredUp() && B.HasSuperWeapon() == None && !B.HasTimedPowerup() )
+		!B.Pawn.PoweredUp() && B.HasSuperWeapon() == None && !B.HasTimedPowerup() 
+		&& ((UTPawn(B.Pawn) == None) || !UTPawn(B.Pawn).IsHero()) )
 	{
 		ClosestNode = UTOnslaughtPowerNode(UTOnslaughtGame(WorldInfo.Game).ClosestNodeTo(Team.AI.EnemyTeam.TeamFlag));
 		if ( ClosestNode != None && ClosestNode.DefenderTeamIndex == Team.TeamIndex &&

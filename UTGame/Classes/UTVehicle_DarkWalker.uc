@@ -56,7 +56,7 @@ replication
 {
 	if (!bNetOwner)
 		bIsDucking;
-	if (!IsSeatControllerReplicationViewer(1))
+	if (!IsSeatControllerReplicationViewer(1) || bDemoRecording)
 		TurretFlashCount, TurretWeaponRotation;
 }
 
@@ -377,7 +377,7 @@ defaultproperties
 	bDuckObstacles=true
 	ObjectiveGetOutDist=750.0
 	ExtraReachDownThreshold=450.0
-	MaxDesireability=0.75
+	MaxDesireability=1.25
 	SpawnRadius=125.0
 	bNoZSmoothing=true
 	BaseBodyOffset=(Z=0.0)
@@ -474,5 +474,12 @@ defaultproperties
 	bIsNecrisVehicle=true
 
 	HornIndex=3
+	VehicleIndex=1
 	CustomGravityScaling=0.9
+
+	HeroBonus=2.0
+	GreedCoinBonus=6
+
+	ChargeBarPosY=4
+	ChargeBarPosX=3
 }

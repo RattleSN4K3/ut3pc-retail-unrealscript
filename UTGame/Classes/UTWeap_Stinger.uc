@@ -238,6 +238,7 @@ simulated state Active
 				if( PendingFire(i) )
 				{
 					BeginFire(i);
+					DemoBeginFire(i);
 					break;
 				}
 			}
@@ -364,7 +365,20 @@ Begin:
 	TimeWeaponFiring(CurrentFireMode);
 }
 
-
+/**
+ * This function checks to see if the weapon has any ammo available for a given fire mode.
+ *
+ * @param	FireModeNum		- The Fire Mode to Test For
+ * @param	Amount			- [Optional] Check to see if this amount is available.  If 0 it will default to checking
+ *							  for the ShotCost
+ */
+simulated function bool HasAmmo( byte FireModeNum, optional int Amount )
+{
+	if (Amount==0)
+		return (AmmoCount >= 1);
+	else
+		return ( AmmoCount >= Amount );
+}
 
 //-----------------------------------------------------------------
 // AI Interface
@@ -390,6 +404,7 @@ function byte BestMode()
 {
 	local float EnemyDist;
 	local UTBot B;
+	local UTPawn EnemyPawn;
 
 	if ( IsFiring() )
 		return CurrentFireMode;
@@ -397,6 +412,16 @@ function byte BestMode()
 	B = UTBot(Instigator.Controller);
 	if ( (B == None) || (B.Enemy == None) )
 		return 0;
+
+	if ( UTSlowVolume(B.Enemy.PhysicsVolume) != None )
+	{
+		return 1;
+	}
+	EnemyPawn = UTPawn(B.Enemy);
+	if ( (EnemyPawn != None) && EnemyPawn.bHasSlowField )
+	{
+		return 1;
+	}
 
 	EnemyDist = VSize(B.Enemy.Location - Instigator.Location);
 	if ( EnemyDist < 2000 )
@@ -498,8 +523,8 @@ defaultproperties
 	IconHeight=50
 
 	EquipTime=+0.6
-	AimingHelpRadius[0]=8.0
-	AimingHelpRadius[1]=11.0
+	AimingHelpRadius[0]=8.5
+	AimingHelpRadius[1]=11.5
 
 	MuzzleFlashLightClass=class'UTStingerMuzzleFlashLight'
 	CrossHairCoordinates=(U=448,V=0,UL=64,VL=64)

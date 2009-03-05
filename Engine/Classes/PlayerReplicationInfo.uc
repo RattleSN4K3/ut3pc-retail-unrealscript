@@ -71,6 +71,10 @@ var string				SavedNetworkAddress;	/** Used to match up InactivePRI with rejoini
  */
 var repnotify UniqueNetId UniqueId;
 
+/** ID of the friend you followed into the game, if applicable **/
+var UniqueNetId FriendFollowedId;
+
+
 /** Number of matches played (maybe remove this before shipping)  This is really useful for doing soak testing and such to see how long you lasted! NOTE:  This is not replicated out to clients atm. **/
 var int NumberOfMatchesPlayed;
 
@@ -88,7 +92,7 @@ replication
 		StartTime, bOutOfLives, UniqueId, bControllerVibrationAllowed,
 		bFromPreviousLevel_Replicated;
 
-	if ( bNetDirty && (Role == Role_Authority) && !bNetOwner )
+	if ( bNetDirty && (Role == Role_Authority) && (!bNetOwner || bDemoRecording) )
 		PacketLoss, Ping;
 
 	if ( bNetInitial && (Role == Role_Authority) )
@@ -213,7 +217,7 @@ simulated event ReplicatedEvent(name VarName)
 		// new player or name change
 		if ( bHasBeenWelcomed )
 		{
-			if( ShouldBroadCastWelcomeMessage() )
+			if( ShouldBroadCastWelcomeMessage() && !WorldInfo.IsConsoleBuild() )
 			{
 				ForEach LocalPlayerControllers(class'PlayerController', PC)
 				{
@@ -456,6 +460,7 @@ function OverrideWith(PlayerReplicationInfo PRI)
 	bWaitingPlayer = PRI.bWaitingPlayer;
 	bReadyToPlay = PRI.bReadyToPlay;
 	bOutOfLives = PRI.bOutOfLives || bOutOfLives;
+	FriendFollowedId = PRI.FriendFollowedID;
 
 	Team = PRI.Team;
 	TeamID = PRI.TeamID;
@@ -480,6 +485,7 @@ function CopyProperties(PlayerReplicationInfo PRI)
 	PRI.Team = Team;
 	PRI.UniqueId = UniqueId;
 	PRI.NumberOfMatchesPlayed = NumberOfMatchesPlayed;
+	PRI.FriendFollowedId = PRI.FriendFollowedID;
 }
 
 /** called by seamless travel when initializing a player on the other side - copy properties to the new PRI that should persist */

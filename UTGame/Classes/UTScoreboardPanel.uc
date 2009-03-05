@@ -81,6 +81,9 @@ var transient color TeamColors[2];
 /** The Player Index of the currently selected player */
 var transient int SelectedPI;
 
+/** Index of the selected player in the UI list */
+var transient int SelectedUIIndex;
+
 /** We cache this so we don't have to resize everything for a mouse click */
 var transient float LastCellHeight;
 
@@ -99,6 +102,13 @@ var transient float RightColumnWidth;
 var transient float LeftColumnPosX;
 // Width of the header drawn for the left column.
 var transient float LeftColumnWidth;
+// Is this splitscreen
+var transient bool bIsSplitScreen;
+
+// Adjustments to scoreboard positioning when in splitscreen
+var float SplitScreenHeaderAdjustmentY;
+var float SplitScreenScorePosAdjustmentY;
+
 
 // Padding between the top/bottom of the highlighter and the string(s) it is behind.
 var() float HighlightPad;
@@ -120,10 +130,23 @@ var localized string PingString;
 /** whether or not this list should always attempt to include the local player's PRI, skipping other players if necessary to make it fit */
 var bool bMustDrawLocalPRI;
 
+var transient int PRIListSize;
+
+var() Texture2D HeroTexture;
+var() TextureCoordinates HeroCoords;
+
+/** Scoreboard color for allies (in betrayal gametype)*/
+var  color AllyColor;
+
+/** Weapon icon coordinates */
+var UIRoot.TextureCoordinates WeaponCoords[10];
+
 event PostInitialize()
 {
 	local UTPlayerController PC;
 	local EFeaturePrivilegeLevel Level;
+	local GameReplicationInfo GRI;
+
 	Super.PostInitialize();
 	SizeFonts();
 
@@ -144,10 +167,43 @@ event PostInitialize()
 	{
 		Level = PC.OnlineSub.PlayerInterface.CanCommunicate( LocalPlayer(PC.Player).ControllerId );
 		bCensor = Level != FPL_Enabled;
+		GRI = PC.WorldInfo.GRI;
 	}
 
-	HighlightPad = 6.0f;
-	PlayerNamePad = 3.0f;
+	HighlightPad = 3.0f;
+	PlayerNamePad = 1.0f;
+
+	// increase scoreboard panel on PC
+	if (UTHudSceneOwner.IsGame())
+	{
+		if ( (GRI != None) && (GRI.GameClass != None) && GRI.GameClass.default.bTeamGame )
+		{
+			if ( GRI.GameClass != class'UTDuelGame' )
+			{
+				SetPosition( 0.12 , UIFACE_Top, EVALPOS_PercentageOwner);
+				SetPosition( 0.85, UIFACE_Bottom, EVALPOS_PercentageOwner);
+			}
+		}
+		else
+		{
+			SetPosition( 0.14, UIFACE_Top, EVALPOS_PercentageOwner);
+			SetPosition( 0.84, UIFACE_Bottom, EVALPOS_PercentageOwner);
+		}
+	}
+
+	bIsSplitScreen = class'Engine'.static.IsSplitScreen();
+
+	if (bIsSplitScreen)
+	{
+        //Larger scoreboard layout to accomodate more players
+		SetPosition( 0.002756+0.05 , UIFACE_Top, EVALPOS_PercentageOwner);
+		SetPosition( 0.80, UIFACE_Bottom, EVALPOS_PercentageOwner);
+
+		HeaderYPos = default.HeaderYPos * SplitScreenHeaderAdjustmentY;
+		ScorePosition.Y = default.ScorePosition.Y * SplitScreenScorePosAdjustmentY;
+	}
+
+	PRIListSize = 0;
 }
 
 /** Sets the header strings using localized values */
@@ -169,7 +225,6 @@ event GetSupportedUIActionKeyNames(out array<Name> out_KeyNames )
 
 }
 
-
 /**
  * Whenever there is a resolution change, make sure we recache the font sizes
  */
@@ -180,12 +235,12 @@ function OnNotifyResolutionChanged( const out Vector2D OldViewportsize, const ou
 
 function NotifyGameSessionEnded()
 {
+	SelectedUIIndex = INDEX_None;
 	SelectedPI = INDEX_None;
 	PRIList.Length = 0;
 	PlayerOwner = None;
 	Super.NotifyGameSessionEnded();
 }
-
 
 /**
  * Precache the sizing of the fonts so we don't have to constant look it up
@@ -213,7 +268,6 @@ function LinearColor GetHeaderColor()
 /**
  * Draw the Scoreboard
  */
-
 event DrawPanel()
 {
 	local WorldInfo WI;
@@ -242,27 +296,30 @@ event DrawPanel()
 	local float LastPRIY;
 	local UTPlayerReplicationInfo OwningPRI;
 
+	local int BeginIdx,EndIdx;
+
 	WI = UTHudSceneOwner.GetWorldInfo();
 	GRI = UTGameReplicationInfo(WI.GRI);
+
+	if (bIsSplitScreen)
+	{
+		ResolutionScale *= 2.0;
+	}
 
 	MainPerc = 1.0f;
  	ClanTagPerc = 0.35f;
 	ClanMultiplier = -1.25f;
  	MiscPerc = 0.35f;
  	MiscMultiplier = -1.75f;
- 	//ClanPosAdjust = 8.0f * ResolutionScale;
- 	//MiscPosAdjust = 8.0f + (8.0f * ((ResolutionScale-1.0f)/(ResolutionScale-MiscPerc)) * MiscMultiplier);
 	ClanPosAdjust = 8.0f * ((ResolutionScale-1.0f)/ClanTagPerc * ClanMultiplier);
 	MiscPosAdjust = 8.0f * ((ResolutionScale-1.0f)/MiscPerc * MiscMultiplier);
 
 	// Grab the PawnOwner.  We will ditch this at the end of the draw
 	// cycle to make sure there are no Object->Actor references laying around
-
 	PlayerOwner = UTHudSceneOwner.GetUTPlayerOwner();
 	OwningPRI = UTHudSceneOwner.GetPRIOwner();
 
 	// Figure out if we can fit everyone at the default font levels
-
 	FontIndex = EFT_Large;
 
 	if ( bInteractive )
@@ -284,12 +341,11 @@ event DrawPanel()
 	// Draw the background
 	Canvas.SetPos(0,0);
 	LC = GetHeaderColor();
-	Canvas.DrawTileStretched(BackgroundTex, Canvas.CLipX, Canvas.ClipY, BackgroundCoords.U, BackgroundCoords.V, BackgroundCoords.UL, BackgroundCoords.VL,LC,,,ResolutionScale);
-    // Readjust the clip region
+	Canvas.DrawTileStretched(BackgroundTex, Canvas.ClipX, Canvas.ClipY, BackgroundCoords.U, BackgroundCoords.V, BackgroundCoords.UL, BackgroundCoords.VL,LC,,,ResolutionScale);
 
+    // Readjust the clip region
 	tW = ClipX * TextPctWidth;
 	tH = ClipY * TextPctHeight;
-
 
 	Canvas.OrgX += (tW * TextLeftPadPct);
 	Canvas.ClipX -= tW;
@@ -304,9 +360,8 @@ event DrawPanel()
     {
     	Canvas.SetPos(0,0);
     	Canvas.SetDrawColor(255,255,255,255);
-    	Canvas.DrawBox(Canvas.ClipX, Canvas.CLipY);
+    	Canvas.DrawBox(Canvas.ClipX, Canvas.ClipY);
     }
-
 
 	if (bCensor)	// Hide the ClanTag
 	{
@@ -324,42 +379,58 @@ event DrawPanel()
 	NameCnt=0;
 	YPos = 0.0;
 
-	NumPRIsToDraw = Min( (Canvas.ClipY-YPos)/CellHeight, PRIList.length );
+    //Number of player scores to draw is canvas size dependent (rounded up)
+	NumPRIsToDraw = Min( ((Canvas.ClipY-YPos)/CellHeight) + 0.5, PRIList.length );
 	bHasDrawnLocalPRI = !bMustDrawLocalPRI;
 
-	for (i=0;i<PRIList.length;i++)
+	if ( bInteractive )
 	{
-		// If we are at the end of the draw list and haven't drawn the local player yet, wait until we find him to draw the last PRI.
-		if ( !bHasDrawnLocalPRI && (OwningPRI != None) && (OwningPRI.GetTeamNum() == AssociatedTeamIndex || AssociatedTeamIndex == -1) && (NameCnt == NumPRIsToDraw-1) && (PRIList[i] != OwningPRI) )
+		//Create a scrollable list of players NumPRIsToDraw tall
+		BeginIdx = Max(0, SelectedUIIndex - (NumPRIsToDraw/2));
+		EndIdx = Min(PRIList.length, BeginIdx + NumPRIsToDraw);
+		BeginIdx = EndIdx - NumPRIsToDraw;
+		for (i = BeginIdx; i<EndIdx; i++)
 		{
-			continue;
-		}
-
-		// Keep track of whether the local PRI has been drawn yet.
-		if ( OwningPRI != None && PRIList[i] == OwningPRI )
-		{
-			bHasDrawnLocalPRI = true;
-		}
-
-		// Draw the score
-		LastPRIY = YPos;
-		DrawPRI(i, PRIList[i], CellHeight, FontIndex, ClanTagFontIndex, MiscFontIndex, FontScale, YPos);
-		YPos = LastPRIY + CellHeight;
-		NameCnt++;
-
-		if ( NameCnt >= NumPRIsToDraw )
-		{
-			break;
+			// Draw the score
+			LastPRIY = YPos;
+			DrawPRI(i, PRIList[i], CellHeight, FontIndex, ClanTagFontIndex, MiscFontIndex, FontScale, YPos);
+			YPos = LastPRIY + CellHeight;
 		}
 	}
+	else
+	{
+		for (i=0;i<PRIList.length;i++)
+		{
+			// If we are at the end of the draw list and haven't drawn the local player yet, wait until we find him to draw the last PRI.
+			if ( !bHasDrawnLocalPRI && (OwningPRI != None) && IsValidScoreboardPlayer(OwningPRI) && (OwningPRI.GetTeamNum() == AssociatedTeamIndex || AssociatedTeamIndex == -1) && (NameCnt == NumPRIsToDraw-1) && (PRIList[i] != OwningPRI) )
+			{
+				continue;
+			}
 
+			// Keep track of whether the local PRI has been drawn yet.
+			if ( OwningPRI != None && PRIList[i] == OwningPRI )
+			{
+				bHasDrawnLocalPRI = true;
+			}
+
+			// Draw the score
+			LastPRIY = YPos;
+			DrawPRI(i, PRIList[i], CellHeight, FontIndex, ClanTagFontIndex, MiscFontIndex, FontScale, YPos);
+			YPos = LastPRIY + CellHeight;
+			NameCnt++;
+
+			if ( NameCnt >= NumPRIsToDraw )
+			{
+				break;
+			}
+		}
+	}
+	
 	// Clear up Object->Actor references
-
 	PlayerOwner = none;
 	PRIList.Length = 0;
 
     // Restore Clip Region
-
     Canvas.OrgX = OrgX;
     Canvas.OrgY = OrgY;
     Canvas.ClipX = ClipX;
@@ -422,6 +493,7 @@ function CheckSelectedPRI()
 	}
 
 	SelectedPI = INDEX_None;
+	SelectedUIIndex = INDEX_None;
 }
 
 /** Scan the PRIArray and get any valid PRI's for display */
@@ -485,8 +557,8 @@ function float AutoFit(UTGameReplicationInfo GRI, out int FontIndex,out int Clan
 	}
 
 	// Calculate the Actual Cell Height given all the data
-	CellHeight  = Fonts[FontIndex].CharHeight * MainPerc * FontScale + (HighlightPad * 2 * ResolutionScale) - MiscPosAdjust;
-	CellHeight += ClanTagFontIndex >= 0 ? (Fonts[ClanTagFontIndex].CharHeight * FontScale) + (PlayerNamePad * ResolutionScale) - ClanPosAdjust : 0.0f;
+	CellHeight  = (Fonts[FontIndex].CharHeight * MainPerc * FontScale) + (HighlightPad * 2 * ResolutionScale) - MiscPosAdjust;
+	CellHeight += (ClanTagFontIndex >= 0) ? (Fonts[ClanTagFontIndex].CharHeight * FontScale) + (PlayerNamePad * ResolutionScale) - ClanPosAdjust : 0.0f;
 	CellHeight += MiscFontIndex >= 0 ? (Fonts[MiscFontIndex].CharHeight * FontScale) + (PlayerNamePad * ResolutionScale) : 0.0f;
 
 	// Check to see if we fit
@@ -519,12 +591,11 @@ function float AutoFit(UTGameReplicationInfo GRI, out int FontIndex,out int Clan
 		}
 	}
 
-	CellHeight  = Fonts[FontIndex].CharHeight * MainPerc * FontScale + (HighlightPad * 2 * ResolutionScale) - MiscPosAdjust;
-	CellHeight += ClanTagFontIndex >= 0 ? (Fonts[ClanTagFontIndex].CharHeight * FontScale) + (PlayerNamePad * ResolutionScale) - ClanPosAdjust : 0.0f;
+	CellHeight  = (Fonts[FontIndex].CharHeight * MainPerc * FontScale) + (HighlightPad * 2 * ResolutionScale) - MiscPosAdjust;
+	CellHeight += (ClanTagFontIndex >= 0) ? (Fonts[ClanTagFontIndex].CharHeight * FontScale) + (PlayerNamePad * ResolutionScale) - ClanPosAdjust : 0.0f;
 	CellHeight += MiscFontIndex >= 0 ? (Fonts[MiscFontIndex].CharHeight * FontScale) + (PlayerNamePad * ResolutionScale) : 0.0f;
 
 	return CellHeight;
-
 }
 
 
@@ -536,6 +607,13 @@ function float AutoFit(UTGameReplicationInfo GRI, out int FontIndex,out int Clan
  */
 function bool IsValidScoreboardPlayer( UTPlayerReplicationInfo PRI)
 {
+	//@hack: workaround for ghost PRIs - don't show a PRI on the scoreboard for the server if it's unowned
+	if ( !PRI.bIsInactive && PRI.WorldInfo.NetMode != NM_Client &&
+		(PRI.Owner == None || (PlayerController(PRI.Owner) != None && PlayerController(PRI.Owner).Player == None)) )
+	{
+		return false;
+	}
+
 	if ( AssociatedTeamIndex < 0 || PRI.GetTeamNum() == AssociatedTeamIndex )
 	{
 		return !PRI.bOnlySpectator;
@@ -552,14 +630,17 @@ function DrawHighlight(UTPlayerReplicationInfo PRI, float YPos, float CellHeight
 	local float X;
 	local UTPlayerController PC;
  	local LinearColor LC;
+	local bool MyPRI;
+
+	MyPRI = (UTUIScene(GetScene()).GetPRIOwner() == PRI) ? true : false;
 
 	PC = PRI != none ? UTPlayerController(PRI.Owner) : None;
 
-	if ( (!bInteractive && PC != none && PC.Player != none && LocalPlayer(PC.Player) != none ) ||
+	if ( (!bInteractive && PC != none && PC.Player != none && LocalPlayer(PC.Player) != none && MyPRI ) ||
 		 ( bInteractive && PRI != None && PRI.PlayerID == SelectedPI ) )
 	{
 
-		if ( !bInteractive || IsFocused() )
+		if ( bInteractive || IsFocused() )
 		{
 			// Figure out where to draw the bar
 			X = (Canvas.ClipX * 0.5) - (Canvas.ClipX * BarPerc * 0.5);
@@ -602,12 +683,12 @@ function float DrawScore(UTPlayerReplicationInfo PRI, float YPos, int FontIndex,
 	Spot = GetPlayerDeaths(PRI);
 	Canvas.Font = Fonts[FontIndex].Font;
 	Canvas.StrLen( Spot, Width, Height );
-	DrawString( Spot, RightColumnPosX+RightColumnWidth-Width, YPos,FontIndex,FontScale);
+	DrawString( Spot, RightColumnPosX+RightColumnWidth-Width, YPos,FontIndex,FontScale * MainPerc);
 
 	// Draw the player's Frags
 	Spot = GetPlayerScore(PRI);
 	Canvas.StrLen( Spot, Width, Height );
-	DrawString( Spot, LeftColumnPosX+LeftColumnWidth-Width, YPos,FontIndex,FontScale);
+	DrawString( Spot, LeftColumnPosX+LeftColumnWidth-Width, YPos,FontIndex,FontScale * MainPerc);
 
 	return LeftColumnPosX;
 }
@@ -617,13 +698,47 @@ function float DrawScore(UTPlayerReplicationInfo PRI, float YPos, int FontIndex,
  */
 simulated function DrawPlayerNum(UTPlayerReplicationInfo PRI,int PIndex, out float YPos, float FontIndex, float FontScale)
 {
-	local string Spot;
-	local float XL, YL;
+	local float XL, YL, Y, W, H;
+	local color C;
+	local UIRoot.TextureCoordinates WeapCoords;
 
-	Spot = (PIndex < 9) ? " " : "";
-	Spot $= PIndex+1$". ";
-	StrLen( Spot,XL,YL, FontIndex, FontScale );
-	DrawString( Spot, Canvas.ClipX * HeaderXPct - XL, YPos, FontIndex, FontScale);
+	if ( PRI == None )
+	{
+		return;
+	}
+	else if ( PRI.WorldInfo.GRI.bMatchIsOver && (PRI.WeaponAwardIndex >= 0) && (PRI.WorldInfo.GRI.GameClass != class'UTDuelGame') )
+	{
+		C = Canvas.DrawColor;
+		WeapCoords = WeaponCoords[PRI.WeaponAwardIndex];
+		StrLen("00",XL,YL, FontIndex, FontScale);
+		W = XL * 1.8;
+		H = 1.25 * W * WeapCoords.VL/WeapCoords.UL;
+		Y = YPos + (YL * 0.5) - (H * 0.5);
+
+		Canvas.SetPos(-0.5*XL, Y);
+		Canvas.SetDrawColor(0,0,0,255);
+		Canvas.DrawTile(class'UTHUD'.default.IconHudTexture, W+2.0, H+2.0, WeapCoords.U, WeapCoords.V, WeapCoords.UL, WeapCoords.VL);
+		Canvas.SetPos(-0.5*XL, Y);
+		Canvas.SetDrawColor(255,255,255,255);
+		Canvas.DrawTile(class'UTHUD'.default.IconHudTexture, W, H, WeapCoords.U, WeapCoords.V, WeapCoords.UL, WeapCoords.VL);
+		Canvas.DrawColor = C;
+	}
+	else if ( PRI.IsHero() )
+	{
+		C = Canvas.DrawColor;
+
+		// Figure out how much space we have
+		StrLen("00",XL,YL, FontIndex, FontScale);
+		W = XL * 0.8;
+		H = W * HeroCoords.VL/HeroCoords.UL;
+
+		Y = YPos + (YL * 0.5) - (H * 0.5);
+
+		Canvas.SetPos(XL * 0.5, Y);
+		Canvas.SetDrawColor(255,255,0,255);
+		Canvas.DrawTile(class'UTHUD'.default.UT3GHudTexture, W, H, HeroCoords.U, HeroCoords.V, HeroCoords.UL, HeroCoords.VL);
+		Canvas.DrawColor = C;
+	}
 }
 
 /**
@@ -631,7 +746,6 @@ simulated function DrawPlayerNum(UTPlayerReplicationInfo PRI,int PIndex, out flo
  */
 function DrawPlayerName(UTPlayerReplicationInfo PRI, float NameOfst, float NameClipX, out float YPos, int FontIndex, float FontScale, bool bIncludeClan)
 {
-
 	local float XL, YL;
 	local string Spot;
 
@@ -646,7 +760,58 @@ function DrawPlayerName(UTPlayerReplicationInfo PRI, float NameOfst, float NameC
 
 	DrawString( Spot, NameOfst, YPos, FontIndex, FontScale * MainPerc);
 
+	if (UTBetrayalPRI(PRI) != None)
+	{
+		DrawDaggers(UTBetrayalPRI(PRI), NameOfst + XL + 5, YPos);
+	}
+
 	YPos += YL;
+}
+
+function DrawDaggers(UTBetrayalPRI PRI, float PosX, float PosY)
+{
+	local int i, TempCount, DaggerWidth, DaggerHeight;
+	local int NumGoldDaggers, NumSilverDaggers;
+	local TextureCoordinates DaggerTexCoords;
+	local float DaggerSpacing, SilverDaggerOffset;
+
+	DaggerWidth = class'UTBetrayalHUD'.default.DaggerWidth;
+	DaggerHeight = class'UTBetrayalHUD'.default.DaggerHeight;
+	DaggerSpacing = class'UTBetrayalHUD'.default.DaggerSpacing;
+	SilverDaggerOffset = class'UTBetrayalHUD'.default.SilverDaggerOffset;
+	DaggerTexCoords = class'UTBetrayalHUD'.default.DaggerTexCoords;
+
+	//Just sanity clamp
+	TempCount = Clamp(PRI.BetrayalCount, 0, 100);
+	NumGoldDaggers = TempCount / 5;
+	NumSilverDaggers = TempCount % 5;
+
+	//Start drawing the daggers
+	for (i=0; i<NumGoldDaggers; i++)
+	{
+		Canvas.SetPos(PosX, PosY);
+		Canvas.DrawColorizedTile(class'UTHUD'.default.UT3GHudTexture, DaggerWidth * ResolutionScale, DaggerHeight * ResolutionScale, DaggerTexCoords.U, DaggerTexCoords.V, DaggerTexCoords.UL, DaggerTexCoords.VL, class'UTHUD'.default.GoldLinearColor);
+
+		//Don't bump for the last gold dagger drawn
+		if (i<NumGoldDaggers-1)
+		{
+			PosX += (DaggerSpacing * ResolutionScale);
+		}
+	}
+
+	//Add spacing between gold/silver daggers
+	if (NumGoldDaggers > 0)
+	{
+		PosX += (SilverDaggerOffset * ResolutionScale);
+	}
+
+	for (i=0; i<NumSilverDaggers; i++)
+	{
+		Canvas.SetPos(PosX, PosY);
+		Canvas.DrawColorizedTile(class'UTHUD'.default.UT3GHudTexture, DaggerWidth * ResolutionScale, DaggerHeight * ResolutionScale, DaggerTexCoords.U, DaggerTexCoords.V, DaggerTexCoords.UL, DaggerTexCoords.VL, class'UTHUD'.default.SilverLinearColor);
+
+		PosX += (DaggerSpacing * ResolutionScale);
+	}
 }
 
 /**
@@ -678,13 +843,19 @@ function DrawMisc(UTPlayerReplicationInfo PRI, float NameOfst, out float YPos, i
 function DrawPRI(int PIndex, UTPlayerReplicationInfo PRI, float CellHeight, int FontIndex, int ClanTagFontIndex, int MiscFontIndex, float FontScale, out float YPos)
 {
 	local float NameOfst, NameClipX;
+	local PlayerReplicationInfo OwnerPRI;
 
 	// Set the default Drawing Color
 	DrawHighlight(PRI, YPos, CellHeight, FontScale);
 
-	if ( PRI == UTUIScene(GetScene()).GetPRIOwner() )
+	OwnerPRI = UTUIScene(GetScene()).GetPRIOwner();
+	if ( PRI == OwnerPRI )
 	{
 		Canvas.DrawColor = class'UTHUD'.default.GoldColor;
+	}
+	else if ( (UTBetrayalPRI(PRI) != None) && PRI.WorldInfo.GRI.OnSameTeam(PRI, OwnerPRI) )
+	{
+		Canvas.DrawColor = AllyColor;
 	}
 	else
 	{
@@ -700,7 +871,7 @@ function DrawPRI(int PIndex, UTPlayerReplicationInfo PRI, float CellHeight, int 
 	DrawClanTag(PRI, NameOfst, YPos, ClanTagFontIndex, FontScale);
 
 	// Draw the player's Score so we can see how much room we have to draw the name
-	if ( PRI == UTUIScene(GetScene()).GetPRIOwner() )
+	if ( PRI == OwnerPRI )
 	{
 		Canvas.DrawColor.A = 255;
 	}
@@ -720,11 +891,7 @@ function DrawPRI(int PIndex, UTPlayerReplicationInfo PRI, float CellHeight, int 
 
 
 	// Draw the Player's Name and position on the team - NOTE it doesn't increment YPos
-
-	if (bDrawPlayerNum)
-	{
 		DrawPlayerNum(PRI, PIndex, YPos, FontIndex, FontScale);
-	}
 
 	DrawPlayerName(PRI, NameOfst, NameClipX, YPos, FontIndex, FontScale, (ClanTagFontIndex >= 0));
 
@@ -831,7 +998,7 @@ function string GetLeftMisc(UTPlayerReplicationInfo PRI)
 			return "";
 		}
 	}
-	return "LMisc";
+	return "";
 }
 
 /**
@@ -874,7 +1041,6 @@ function string GetRightMisc(UTPlayerReplicationInfo PRI)
 /**
  * Does string replace on the user string for several values
  */
-
 function string UserString(string Template, UTPlayerReplicationInfo PRI)
 {
 	// TO-DO - Hook up the various values
@@ -915,6 +1081,149 @@ function StrLen(String Text, out float XL, out float YL, int FontIdx, float Font
 	}
 }
 
+function int GetPRICount()
+{
+	local UTPlayerReplicationInfo PRI;
+	local int CurPRIIndex;
+	local int Players;
+	local UTGameReplicationInfo GRI;
+
+	GRI = UTGameReplicationInfo( UTHudSceneOwner.GetWorldInfo().GRI );
+
+	// Iterate over our PRIs and figure out the GUI index for the currently selected player
+	Players = 0;
+	for( CurPRIIndex = 0; CurPRIIndex < GRI.PRIArray.Length; CurPRIIndex++ )
+	{
+		PRI = UTPlayerReplicationInfo( GRI.PRIArray[ CurPRIIndex ] );
+		if( PRI != none && IsValidScoreboardPlayer( PRI ) )
+		{
+			Players++;
+		}
+	}
+
+	return Players;
+}
+
+
+function int GetSelectedIndex()
+{
+	local UTPlayerReplicationInfo PRI;
+	local int CurPRIIndex;
+	local int PlayerIndex;
+	local UTGameReplicationInfo GRI;
+
+	GRI = UTGameReplicationInfo( UTHudSceneOwner.GetWorldInfo().GRI );
+
+	// Iterate over our PRIs and figure out the GUI index for the currently selected player
+	PlayerIndex = 0;
+	for( CurPRIIndex = 0; CurPRIIndex < GRI.PRIArray.Length; CurPRIIndex++ )
+	{
+		PRI = UTPlayerReplicationInfo( GRI.PRIArray[ CurPRIIndex ] );
+		if( PRI != none && IsValidScoreboardPlayer( PRI ) )
+		{
+			if( PRI.PlayerID == SelectedPI )
+			{
+				return PlayerIndex;
+			}
+			PlayerIndex++;
+		}
+	}
+
+	return -1;
+}
+
+function SetSelectedIndex(int GUIIndex)
+{
+	local UTPlayerReplicationInfo PRI;
+	local int CurPRIIndex;
+	local array<UTPlayerReplicationInfo> PRIs;
+	local UTGameReplicationInfo GRI;
+
+	GRI = UTGameReplicationInfo( UTHudSceneOwner.GetWorldInfo().GRI );
+
+	// Iterate over our PRIs and figure out the GUI index for the currently selected player
+	SelectedUIIndex = 0;
+	for( CurPRIIndex = 0; CurPRIIndex < GRI.PRIArray.Length; CurPRIIndex++ )
+	{
+		PRI = UTPlayerReplicationInfo( GRI.PRIArray[ CurPRIIndex ] );
+		if( PRI != none && IsValidScoreboardPlayer( PRI ) )
+		{
+			PRIs[ PRIs.Length ] = PRI;
+			if( GUIIndex == SelectedUIIndex )
+			{
+				break;
+			}
+			SelectedUIIndex++;
+		}
+	}
+
+	// clamp them
+	SelectedUIIndex = Clamp(SelectedUIIndex, 0, PRIs.length - 1);
+	if ( SelectedUIIndex >= 0 )
+	{
+		SelectedPI = PRIs[ SelectedUIIndex ].PlayerID;
+		OnSelectionChange( self, PRIs[ SelectedUIIndex ] );
+	}
+}
+
+function bool FindSelfInScoreboard(out int GUIIndex)
+{
+	local UTPlayerReplicationInfo OwningPRI;
+	local UTPlayerReplicationInfo PRI;
+	local int CurPRIIndex;
+	local int PlayerIndex;
+	local UTGameReplicationInfo GRI;
+
+	OwningPRI = UTHudSceneOwner.GetPRIOwner();
+	GRI = UTGameReplicationInfo( UTHudSceneOwner.GetWorldInfo().GRI );
+
+	// Iterate over our PRIs and figure out the GUI index for the currently selected player
+	GUIIndex = -1;
+	if (OwningPRI != None && GRI != None)
+	{
+		PlayerIndex = 0;
+		for( CurPRIIndex = 0; CurPRIIndex < GRI.PRIArray.Length; CurPRIIndex++ )
+		{
+			PRI = UTPlayerReplicationInfo( GRI.PRIArray[ CurPRIIndex ] );
+			if( PRI != none && IsValidScoreboardPlayer( PRI ) )
+			{
+				if( PRI == OwningPRI )
+				{
+					GUIIndex = PlayerIndex;
+					return true;
+				}
+				PlayerIndex++;
+			}
+		}
+	}
+	return false;
+}
+
+function int DisableScoreboard()
+{
+	OnSelectionChange = None;
+	OnProcessInputKey = None;
+	SelectedUIIndex = GetSelectedIndex();
+	SelectedPI = -1;
+
+	return SelectedUIIndex;
+}
+
+function EnableScoreboard(optional int NewUIIndex = -1)
+{
+	OnProcessInputKey = ProcessInputKey;
+	if (NewUIIndex != -1)
+	{
+		SetSelectedIndex(NewUIIndex);
+	}
+	else
+	{
+		SetSelectedIndex(SelectedUIIndex);
+	}
+
+	SetFocus(none);
+}
+
 /*********************************[ InteractiveMode ]*****************************/
 
 function ChangeSelection(int Ofst)
@@ -922,29 +1231,33 @@ function ChangeSelection(int Ofst)
 	local UTGameReplicationInfo GRI;
 	local array<UTPlayerReplicationInfo> PRIs;
 	local UTPlayerReplicationInfo PRI;
-	local int i,idx;
+	local int CurPRIIndex;
+	local int OldSelectedPlayerIndex;
 
 	GRI = UTGameReplicationInfo(UTHudSceneOwner.GetWorldInfo().GRI);
 
-	for (i=0; i < GRI.PRIArray.Length; i++)
+	// Iterate over our PRIs and figure out the GUI index for the currently selected player
+	OldSelectedPlayerIndex = -1;
+	for( CurPRIIndex = 0; CurPRIIndex < GRI.PRIArray.Length; CurPRIIndex++ )
 	{
-		PRI = UTPlayerReplicationInfo(GRI.PRIArray[i]);
+		PRI = UTPlayerReplicationInfo( GRI.PRIArray[ CurPRIIndex ] );
 		if ( PRI != none && IsValidScoreboardPlayer(PRI) )
 		{
 			if (PRI.PlayerID == SelectedPI)
 			{
-				idx = PRIs.Length;
+				OldSelectedPlayerIndex = PRIs.Length;
 			}
 			PRIs[PRIs.Length] = PRI;
 		}
 	}
 
-	if ( (ofst>0 && idx < PRIs.Length-1) || (ofst<0 && idx >0) )
-	{
-		SelectedPI = PRIs[Idx+Ofst].PlayerID;
-		OnSelectionChange(self,PRIs[Idx+Ofst]);
-	}
+	// Adjust and clamp the selection
+	SelectedUIIndex = OldSelectedPlayerIndex + Ofst;
+	SelectedUIIndex = Clamp(SelectedUIIndex, 0, PRIs.length - 1);
 
+	// Selection changed!
+	SelectedPI = PRIs[ SelectedUIIndex ].PlayerID;
+	OnSelectionChange( self, PRIs[ SelectedUIIndex ] );
 }
 
 delegate OnSelectionChange(UTScoreboardPanel TargetScoreboard, UTPlayerReplicationInfo PRI);
@@ -1012,6 +1325,35 @@ function SelectUnderCursor()
 	}
 }
 
+function UTPlayerReplicationInfo GetPRIUnderCursor()
+{
+	local UTGameReplicationInfo GRI;
+	local Vector CursorVector;
+	local int Item, c, i;
+	local UTPlayerReplicationInfo PRI;
+
+	CursorVector = GetMousePosition();
+	GRI = UTGameReplicationInfo(UTHudSceneOwner.GetWorldInfo().GRI);
+
+	Item = int(CursorVector.Y / LastCellHeight);
+
+
+	for (i=0; i<GRI.PRIArray.Length; ++i)
+	{
+		PRI = UTPlayerReplicationInfo(GRI.PRIArray[i]);
+
+		if (PRI != none && IsValidScoreboardPlayer(PRI))
+		{
+			if (c == Item)
+				return PRI;
+
+			c++;
+		}
+	}
+
+	return none;
+}
+
 function bool ProcessInputKey( const out SubscribedInputEventParameters EventParms )
 {
 	if (EventParms.EventType == IE_Pressed || EventParms.EventType == IE_Repeat)
@@ -1033,7 +1375,11 @@ function bool ProcessInputKey( const out SubscribedInputEventParameters EventPar
 			return true;
 		}
 	}
-
+	else if (EventParms.InputKeyName == 'LeftMouseButton' && EventParms.EventType == IE_DoubleClick)
+	{
+		//Call the double click delegate
+		OnDoubleClick(self, 0);
+	}
 
     return false;
 }
@@ -1051,7 +1397,7 @@ defaultproperties
 	SelBarTex=Texture2D'UI_HUD.HUD.UI_HUD_BaseC'
 	AssociatedTeamIndex=-1
 	BarPerc=1.2
-	bDrawPlayerNum=true
+	bDrawPlayerNum=false
 
 	FakeNames(0)="WWWWWWWWWWWWWWW"
 	FakeNames(1)="DrSiN"
@@ -1092,7 +1438,24 @@ defaultproperties
 	DefaultStates.Add(class'Engine.UIState_Active')
 	DefaultStates.Add(class'Engine.UIState_Focused')
 	SelectedPI=-1
+	SelectedUIIndex=-1
 
 	bMustDrawLocalPRI=true
-}
 
+	HeroCoords=(U=136,UL=81,V=11,VL=74)
+	AllyColor=(R=64,G=128,B=255)
+
+	WeaponCoords(0)=(U=453,V=327,UL=135,VL=57)
+	WeaponCoords(1)=(U=600,V=341,UL=111,VL=58)
+	WeaponCoords(2)=(U=600,V=399,UL=128,VL=62)
+	WeaponCoords(3)=(U=728,V=382,UL=162,VL=45)
+	WeaponCoords(4)=(U=453,V=467,UL=147,VL=41)
+	WeaponCoords(5)=(U=131,V=429,UL=132,VL=52)
+	WeaponCoords(6)=(U=453,V=508,UL=147,VL=52)
+	WeaponCoords(7)=(U=131,V=379,UL=129,VL=50)
+	WeaponCoords(8)=(U=726,V=532,UL=165,VL=51)
+	WeaponCoords(9)=(U=453,V=384,UL=147,VL=82)
+
+	SplitScreenHeaderAdjustmentY=1.25
+	SplitScreenScorePosAdjustmentY=1.5
+}

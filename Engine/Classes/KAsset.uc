@@ -38,7 +38,7 @@ simulated event PostBeginPlay()
 	}
 	ReplicatedMesh = SkeletalMeshComponent.SkeletalMesh;
 	ReplicatedPhysAsset = SkeletalMeshComponent.PhysicsAsset;
-	`log("---"@ReplicatedMesh@ReplicatedPhysAsset);
+	//`log("---"@ReplicatedMesh@ReplicatedPhysAsset);
 }
 
 simulated event ReplicatedEvent( name VarName )

@@ -148,4 +148,5 @@ defaultproperties
 	PickupMesh=HealthPickUpMesh
 	Components.Add(HealthPickUpMesh)
 
+	bTrackPickup=true
 }

@@ -10,7 +10,8 @@ class UTUIFrontEnd_Multiplayer extends UTUIFrontEnd_BasicMenu
 
 const MULTIPLAYER_OPTION_QUICKMATCH = 0;
 const MULTIPLAYER_OPTION_JOINGAME = 1;
-const MULTIPLAYER_OPTION_HOSTGAME = 2;
+const MULTIPLAYER_OPTION_JOINGAMELAN = 2;
+const MULTIPLAYER_OPTION_HOSTGAME = 3;
 
 /** Reference to the quick match scene. */
 var string	QuickMatchScene;
@@ -176,6 +177,7 @@ function OnSettingsSceneOpened(UIScene OpenedScene, bool bInitialActivation)
 	PanelSceneInst.OnMarkProfileDirty = MarkProfileDirty;
 	PanelSceneInst.TabControl.ActivatePage(PanelSceneInst.NetworkTab, GetBestPlayerIndex());
 	PanelSceneInst.OnSceneDeactivated = SettingsSceneClosed;
+	PanelSceneInst.OnNotifyOptionChanged = OnSettingValueChanged;
 }
 function SettingsSceneClosed( UIScene DeactivatedScene )
 {
@@ -186,6 +188,19 @@ function SettingsSceneClosed( UIScene DeactivatedScene )
 	}
 
 	PerformMultiplayerChecks();
+}
+
+/** Handler for the OnOptionChanged delegate of the first time settings panel; called when the user changes the value for an option */
+function OnSettingValueChanged(UIScreenObject InObject, name OptionName, int PlayerIndex)
+{
+	local UIDataStorePublisher Publisher;
+	local array<UIDataStore> Unused;
+
+	Publisher = UIDataStorePublisher(InObject);
+	if ( Publisher != None )
+	{
+		Publisher.SaveSubscriberValue(Unused);
+	}
 }
 
 /**
@@ -271,6 +286,14 @@ function OnFirstTimeCharacter_Confirm(UTUIScene_MessageBox MessageBox, int Selec
 function OnSelectItem(int PlayerIndex=GetPlayerIndex())
 {
 	local int SelectedItem, ControllerId;
+	local UTUIDataStore_StringList StringListDataStore;
+	local DataStoreClient DSClient;
+
+	DSClient = class'UIInteraction'.static.GetDataStoreClient();
+	if ( DSClient != None )
+	{
+		StringListDataStore = UTUIDataStore_StringList(DSClient.FindDataStore('UTStringList'));
+	}
 
 	SelectedItem = MenuList.GetCurrentItem();
 	ControllerId = class'UIInteraction'.static.GetPlayerControllerId(PlayerIndex);
@@ -291,11 +314,37 @@ function OnSelectItem(int PlayerIndex=GetPlayerIndex())
 		break;
 
 	case MULTIPLAYER_OPTION_JOINGAME:
-		if ( CheckLinkConnectionAndError() )
+		if ( CheckLinkConnectionAndError() && CheckLoginAndError(ControllerId, true) )
 		{
+			StringListDataStore.SetCurrentValueIndex('MatchType', 1);
 			OpenSceneByName(Joinscene);
 		}
 		break;
+
+	case MULTIPLAYER_OPTION_JOINGAMELAN:
+		if ( CheckLinkConnectionAndError() )
+		{
+			StringListDataStore.SetCurrentValueIndex('MatchType', 0);
+			OpenSceneByName(Joinscene, false, OnJoinLanScene_Opened);
+		}
+		break;
+	}
+}
+
+
+/** Callback for when the join scene has opened for LAN. */
+function OnJoinLanScene_Opened(UIScene OpenedScene, bool bInitialActivation)
+{
+	local UTUIFrontEnd_JoinGame JoinSceneInst;
+
+	// Set a string value to indicate that this is a LAN client, so the
+	// UI is aware of this after we disconnect from the server
+	SetDataStoreStringValue("<Registry:LanClient>", "1");
+
+	JoinSceneInst = UTUIFrontEnd_JoinGame(OpenedScene);	 
+	if ( JoinSceneInst != none && bInitialActivation )
+	{
+		JoinSceneInst.UseLANMode();
 	}
 }
 

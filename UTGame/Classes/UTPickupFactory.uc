@@ -94,6 +94,12 @@ var Array<SoundNodeWave> LocationSpeech;
 
 var float LastSeekNotificationTime;
 
+var	ForceFeedbackWaveform	PickUpWaveForm;
+
+var bool bTrackPickup;
+var int PickupIndex;
+
+
 
 
 replication
@@ -141,6 +147,12 @@ simulated function PostBeginPlay()
 	if ( WorldInfo.bUseConsoleInput )
 	{
 		SetCollisionSize(1.5*CylinderComponent.CollisionRadius, CylinderComponent.CollisionHeight);
+	}
+
+	if ( bTrackPickup == true && WorldInfo.NetMode != NM_Client)
+	{
+		PickupIndex = UTGame(WorldInfo.Game).GetNextPickupIndex();
+		//`log("Assigning PickupIndex "$PickupIndex$" to "$self);
 	}
 }
 
@@ -410,6 +422,7 @@ simulated event SetInitialState()
 function PickedUpBy(Pawn P)
 {
 	local UTBot B;
+	local PlayerController PC;
 
 	Super.PickedUpBy(P);
 
@@ -419,6 +432,12 @@ function PickedUpBy(Pawn P)
 	{
 		B.NoVehicleGoal = None;
 	}
+
+	PC = PlayerController(P.Controller);
+	if(PC != None)
+   	{
+      		UTPlayerReplicationInfo(P.PlayerReplicationInfo).UpdatePickupFlags(PickupIndex);
+   	}
 }
 
 State Disabled
@@ -484,4 +503,12 @@ defaultproperties
 	GlowEmissiveParam=LightStrength
 	bDoVisibilityFadeIn=TRUE
 	VisibilityParamName=ResIn
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformPickUp
+		Samples(0)=(LeftAmplitude=80,RightAmplitude=30,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearIncreasing,Duration=0.20)
+	End Object
+	PickUpWaveForm=ForceFeedbackWaveformPickUp
+
+	bTrackPickup=false
+	PickupIndex=-1
 }

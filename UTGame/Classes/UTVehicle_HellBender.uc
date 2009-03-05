@@ -38,7 +38,7 @@ replication
 {
 	if (bNetDirty)
 		TurretFlashLocation;
-	if (!IsSeatControllerReplicationViewer(1))
+	if (!IsSeatControllerReplicationViewer(1) || bDemoRecording)
 		TurretFlashCount, TurretWeaponRotation;
 }
 
@@ -161,4 +161,5 @@ defaultproperties
 	NonPreferredVehiclePathMultiplier=2.0
 
 	HornIndex=1
+	VehicleIndex=4
 }

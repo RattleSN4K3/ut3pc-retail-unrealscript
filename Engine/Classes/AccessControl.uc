@@ -53,6 +53,15 @@ var localized string ACDescText[3];
 
 var bool bDontAddDefaultAdmin;
 
+struct SessionBanInfo
+{
+	var UniqueNetID BanID;
+	var string BanHash;
+	var string BanIP;
+};
+
+var array<SessionBanInfo> SessionBans;
+
 
 /**
  * @return	TRUE if the specified player has admin priveleges.
@@ -208,6 +217,16 @@ function KickBan( string Target )
 	}
 }
 
+function SessionBan(string Target)
+{
+	local PlayerController P;
+
+	P = PlayerController(GetControllerFromString(Target));
+
+	if (P != none)
+		SessionBanPlayer(P);
+}
+
 function bool KickPlayer(PlayerController C, string KickReason)
 {
 	local string KickString;
@@ -237,9 +256,39 @@ function bool KickPlayer(PlayerController C, string KickReason)
 		{
 			C.Destroy();
 		}
+
 		return true;
 	}
 	return false;
+}
+
+function SessionBanPlayer(PlayerController C)
+{
+	local SessionBanInfo SB;
+
+	if (C != none && !IsAdmin(C) && NetConnection(C.Player) != none)
+	{
+		if (!WorldInfo.IsConsoleBuild())
+		{
+			SB.BanIP = C.GetPlayerNetworkAddress();
+			SB.BanIP = Left(SB.BanIP, InStr(SB.BanIP, ":"));
+		}
+
+		SB.BanID = C.PlayerReplicationInfo.UniqueId;
+
+		if (C.HashResponseCache != "" && C.HashResponseCache != "0")
+			SB.BanHash = C.HashResponseCache;
+
+
+		SessionBans.AddItem(SB);
+
+
+		`log("Session banning '"$C.PlayerReplicationInfo.GetPlayerAlias()$"', IP:"@SB.BanIP$", Hash:"@SB.BanHash$", ID:"@
+			Class'OnlineSubsystem'.static.UniqueNetIDToString(SB.BanID));
+
+
+		KickPlayer(C, SessionBanned);
+	}
 }
 
 function bool AdminLogin( PlayerController P, string Password )
@@ -282,7 +331,7 @@ function AdminExited( PlayerController P )
 {
 	local string LogoutString;
 
-	LogoutString = P.PlayerReplicationInfo.GetPlayerAlias()$"is no longer logged in as a server administrator.";
+	LogoutString = P.PlayerReplicationInfo.GetPlayerAlias()@"is no longer logged in as a server administrator.";
 
 	`log(LogoutString);
 	WorldInfo.Game.Broadcast( P, LogoutString );
@@ -327,10 +376,11 @@ event PreLogin(string Options, string Address, out string OutError, bool bSpecta
 
 	if( (WorldInfo.NetMode != NM_Standalone) && WorldInfo.Game.AtCapacity(bSpectator) )
 	{
-		OutError = PathName(WorldInfo.Game.GameMessageClass) $ ".MaxedOutMessage";
+		//This is passed to Localize in UnPenLev.cpp so the .int has to have this string and it doesn't
+		//OutError = PathName(WorldInfo.Game.GameMessageClass) $ ".MaxedOutMessage";
+		OutError = "Engine.GameMessage.MaxedOutMessage";
 	}
-	else if ( GamePassword != "" && Caps(InPassword) != Caps(GamePassword) &&
-		(AdminPassword == "" || Caps(InPassword) != Caps(AdminPassword)) )
+	else if ( GamePassword != "" && !(InPassword == GamePassword) && (AdminPassword == "" || !(InPassword == AdminPassword)) )
 	{
 		OutError = (InPassword == "") ? "Engine.AccessControl.NeedPassword" : "Engine.AccessControl.WrongPassword";
 	}
@@ -398,6 +448,11 @@ function bool CheckIPPolicy(string Address)
 	{
 		`Log("Denied connection for "$Address$" with IP policy "$IPPolicies[LastMatchingPolicy]);
 	}
+	else if (Address != "" && SessionBans.Find('BanIP', Address) != INDEX_None)
+	{
+		`log("Denied connection for "$Address$" due to session ban");
+		bAcceptAddress = False;
+	}
 
 	return bAcceptAddress;
 }
@@ -405,6 +460,10 @@ function bool CheckIPPolicy(string Address)
 function bool IsHashBanned(const string HashToCheck)
 {
 	local int i;
+
+	// Check for active session bans
+	if (HashToCheck != "" && SessionBans.Find('BanHash', HashToCheck) != INDEX_None)
+		return true;
 
 	//Check the new array for banned id's
 	for (i = 0; i < BannedHashes.length; i++)
@@ -421,6 +480,10 @@ function bool IsHashBanned(const string HashToCheck)
 function bool IsIDBanned(const out UniqueNetID NetID)
 {
 	local int i;
+
+	// Check for active session bans
+	if (SessionBans.Find('BanID', NetID) != INDEX_None)
+		return True;
 
 	//Check the new array for banned id's
 	for (i = 0; i < BannedPlayerInfo.length; i++)

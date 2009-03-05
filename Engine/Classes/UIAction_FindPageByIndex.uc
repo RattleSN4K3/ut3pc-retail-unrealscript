@@ -1,7 +1,7 @@
 ﻿/**
  * Finds the tab page at a particular index in the tab control's Pages array.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_FindPageByIndex extends UIAction_GetPageReference;
 

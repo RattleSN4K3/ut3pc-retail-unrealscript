@@ -805,8 +805,14 @@ event bool EncroachingOn(Actor Other)
 	}
 
 	// If its a non-vehicle pawn, do lots of damage.
-	Other.TakeDamage(10000, GetCollisionDamageInstigator(), Other.Location, Velocity * P.Mass, CrushedDamageType);
+	PancakeOther(P);
 	return false;
+}
+
+/** Crush the pawn vehicle is encroaching */
+function PancakeOther(Pawn Other)
+{
+	Other.TakeDamage(10000, GetCollisionDamageInstigator(), Other.Location, Velocity * Other.Mass, CrushedDamageType);
 }
 
 /** CrushedBy()

@@ -6,6 +6,7 @@
 class DemoRecSpectator extends UTPlayerController;
 
 var bool bFindPlayer;
+
 /** local copy of RealViewTarget as the C++ code might clear it in some cases we don't want to for demo spectators */
 var PlayerReplicationInfo MyRealViewTarget;
 
@@ -14,6 +15,7 @@ var config bool bLockRotationToViewTarget;
 
 /** If set, automatically switches players every AutoSwitchPlayerInterval seconds */
 var config bool bAutoSwitchPlayers;
+
 /** Interval to use if bAutoSwitchPlayers is TRUE */
 var config float AutoSwitchPlayerInterval;
 
@@ -36,6 +38,20 @@ simulated event ReceivedPlayer()
 	if (Role == ROLE_Authority && WorldInfo.Game != None)
 	{
 		ClientSetHUD(WorldInfo.Game.HUDType, WorldInfo.Game.ScoreBoardType);
+	}
+}
+
+event StartServerDemoRec()
+{
+	local UTPawn P;
+
+	Super.StartServerDemoRec();
+
+	// Replicate players weapons into the demo, so they can be fixed up during playback
+	foreach WorldInfo.AllPawns(Class'UTPawn', P)
+	{
+		if (P.Weapon != none)
+			P.DemoWeapon = P.Weapon;
 	}
 }
 
@@ -296,5 +312,6 @@ defaultproperties
 	RemoteRole=ROLE_AutonomousProxy
 	bDemoOwner=1
 	bBehindView=true
+	bSmoothClientDemo=false
 }
 

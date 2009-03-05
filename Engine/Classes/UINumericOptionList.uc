@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright 2006-2007 Epic Games, Inc. All Rights Reserved.
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * Widget which looks like a UIOptionList but contains a numeric range for its data instead of a list of strings
  */

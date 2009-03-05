@@ -86,8 +86,8 @@ function SetupButtonBar()
 {
 	ButtonBar.Clear();
 
-	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.PlayOffline>", OnButtonBar_PlayOffline);
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Login>", OnButtonBar_Login);
+	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.PlayOffline>", OnButtonBar_PlayOffline);
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.CreateProfileLoginScreen>", OnButtonBar_CreateProfile);
 
 	if(IsConsole(CONSOLE_PS3))

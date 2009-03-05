@@ -38,15 +38,6 @@ event PostInitialize()
 /** Sets up the scene's button bar. */
 function SetupButtonBar()
 {
-	local int i;
-
-	// HACK - In this menu, set the button bar button's color to the right color to account for the skins
-
-	for (i=0;i<6;i++)
-	{
-		ButtonBar.Buttons[i].StringRenderComponent.SetColor( MakeLinearColor(0.0,0.0,0.0,1.0) );
-	}
-
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Cancel>", OnButtonBar_Cancel);
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.SendFriendRequest>", OnButtonBar_SendFriendRequest);
 

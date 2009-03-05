@@ -401,4 +401,9 @@ defaultproperties
 
 	QuickPickGroup=4
 	QuickPickWeight=0.9
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=90,RightAmplitude=50,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.200)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

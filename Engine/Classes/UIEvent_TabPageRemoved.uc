@@ -1,7 +1,7 @@
 ﻿/**
  * Class description
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIEvent_TabPageRemoved extends UIEvent_TabControl;
 

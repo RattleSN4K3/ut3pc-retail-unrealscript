@@ -55,6 +55,7 @@ static function bool AddAnnouncement(UTAnnouncer Announcer, int MessageIndex, op
 
 defaultproperties
 {
+	bIsConsoleMessage=true
 	VictorySounds(0)=SoundNodeWave'A_Announcer_Status.Status.A_StatusAnnouncer_FlawlessVictory'
 	VictorySounds(1)=SoundNodeWave'A_Announcer_Status.Status.A_StatusAnnouncer_HumiliatingDefeat'
 	VictorySounds(2)=SoundNodeWave'A_Announcer_Status.Status.A_StatusAnnouncer_YouHaveWonTheMatch'

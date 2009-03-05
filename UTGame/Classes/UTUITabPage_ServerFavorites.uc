@@ -7,6 +7,11 @@
 class UTUITabPage_ServerFavorites extends UTUITabPage_ServerBrowser;
 
 var	transient	int		RemoveFavoriteIdx;
+var transient int AddIPIdx;
+
+/** Reference to the query helper object, which performs the query for retrieving server details from an IP */
+var UTQueryHelper QueryHelper;
+
 
 /**
  * Sets the correct tab button caption.
@@ -21,6 +26,7 @@ event PostInitialize()
     //Make sure the server details are bound to the right data store
 	DetailsList.SetDataStoreBinding("<" $ SearchDSName $ ":CurrentServerDetails>");
 	MutatorList.SetDataStoreBinding("<" $ SearchDSName $ ":CurrentServerMutators>");
+	PlayerList.SetDataStoreBinding("<" $ SearchDSName $ ":CurrentServerPlayers>");
 }
 
 /**
@@ -65,6 +71,17 @@ function SetupExtraButtons( UTUIButtonBar ButtonBar )
 	if ( ButtonBar != None )
 	{
 		RemoveFavoriteIdx = ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.RemoveFromFavorite>", OnButtonBar_RemoveFavorite);
+		AddIPIdx = ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.AddIP>", OnButtonBar_AddIP);
+
+		if (AddIPIdx == INDEX_None)
+		{
+			// Nasty hack: Remove the 'back' button so that there is room for the 'add ip' button
+			ButtonBar.ClearButton(0);
+			BackButtonIdx = INDEX_None;
+			CancelButtonIdx = INDEX_None;
+
+			AddIPIdx = ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.AddIP>", OnButtonBar_AddIP);
+		}
 	}
 }
 
@@ -80,7 +97,7 @@ function UpdateButtonStates()
 	Super.UpdateButtonStates();
 
 	TabControlOwner = GetOwnerTabControl();
-	if ( RemoveFavoriteIdx != INDEX_NONE && TabControlOwner != None && TabControlOwner.ActivePage == Self )
+	if ( (RemoveFavoriteIdx != INDEX_NONE || AddIPIdx != INDEX_None) && TabControlOwner != None && TabControlOwner.ActivePage == Self )
 	{
 		ButtonBar = GetButtonBar();
 		if ( ButtonBar != None )
@@ -90,9 +107,13 @@ function UpdateButtonStates()
 			{
 				ButtonBar.Buttons[RemoveFavoriteIdx].SetEnabled(bValidServerSelected && HasSelectedServerInFavorites(GetBestControllerId()));
 			}
+
+			if (AddIPIdx != INDEX_None)
+				ButtonBar.Buttons[AddIPIdx].SetEnabled(True);
 		}
 	}
 }
+
 
 /** ButtonBar - Remove from favorite */
 function bool OnButtonBar_RemoveFavorite(UIScreenObject InButton, int InPlayerIndex)
@@ -103,6 +124,34 @@ function bool OnButtonBar_RemoveFavorite(UIScreenObject InButton, int InPlayerIn
 	}
 	return true;
 }
+
+/** ButtonBar - Add IP to favourites */
+function bool OnButtonBar_AddIP(UIScreenObject InButton, int InPlayerIndex)
+{
+	local UTUIScene CurScene;
+	local UTUIScene_InputBox IPInputScene;
+
+	CurScene = UTUIScene(GetScene());
+
+	// Display a dialog box where the player can enter the servers IP and port
+	if (CurScene != none)
+		IPInputScene = CurScene.GetInputBoxScene();
+
+	if (IPInputScene != none)
+	{
+		IPInputScene.DisplayAcceptCancelBox("<Strings:UTGameUI.MessageBox.AddServerIP_Message>",
+							"<Strings:UTGameUI.MessageBox.AddServerIP_Title>",
+							OnAddIPDialog_Closed);
+	}
+	else
+	{
+		`log("Failed to open the input box scene");
+	}
+
+
+	return True;
+}
+
 
 /**
  * Removes the currently selected server from the list of favorites
@@ -135,6 +184,76 @@ function RemoveFavorite( int inPlayerIndex )
 		}
 	}
 }
+
+function OnAddIPDialog_Closed(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
+{
+	local string ServerIP;
+	local UTUIScene CurScene;
+
+	if (SelectedOption == 0)
+	{
+		CurScene = UTUIScene(GetScene());
+		ServerIP = UTUIScene_InputBox(MessageBox).GetValue();
+
+		if (CurScene != none && ServerIP != "")
+		{
+			if (QueryHelper == none)
+				QueryHelper = Class'UTQueryHelper'.static.GetQueryHelper(CurScene);
+
+
+			QueryHelper.OnFindServerByIPComplete = FindServerByIPComplete;
+
+			// Find the server, and if that fails, display an error
+			if (!QueryHelper.FindServerByIP(ServerIP))
+			{
+				QueryHelper.DisplayFindIPError();
+
+				QueryHelper.Release();
+				QueryHelper = none;
+			}
+		}
+	}
+}
+
+function FindServerByIPComplete(OnlineGameSearchResult Result)
+{
+	local int ControllerID;
+	local UTDataStore_GameSearchFavorites FavDataStore;
+
+	if (Result.GameSettings != none)
+	{
+		ControllerID = GetBestControllerID();
+		FavDataStore = GetFavoritesDataStore();
+
+		if (FavDataStore != none)
+		{
+			// Check that the server isn't already in favourites before adding it (N.B. '
+			if (!HasServerInFavorites(ControllerID, Result.GameSettings.OwningPlayerID) && FavDataStore.AddServerPlusIP(
+				ControllerID, Result.GameSettings.OwningPlayerID, Result.GameSettings.OwningPlayerName,
+				Result.GameSettings.ServerIP))
+			{
+				RefreshServerList(GetBestPlayerIndex());
+			}
+			else
+			{
+				QueryHelper.DisplayFindIPError(,, QE_Custom, Localize("MessageBox", "AddIPAlreadyPresent_Message", "UTGameUI"));
+			}
+		}
+		else
+		{
+			// So unlikely it's not worth localizing
+			QueryHelper.DisplayFindIPError(,, QE_Custom, "Invalid Favorites Data store");
+		}
+	}
+	else
+	{
+		QueryHelper.DisplayFindIPError(,, QE_InvalidResult);
+	}
+
+	QueryHelper.Release();
+	QueryHelper = none;
+}
+
 
 DefaultProperties
 {

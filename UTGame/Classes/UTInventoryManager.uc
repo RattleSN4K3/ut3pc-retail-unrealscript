@@ -237,6 +237,7 @@ reliable client function SetCurrentWeapon( Weapon DesiredWeapon )
 
 	if( Role < Role_Authority )
 	{
+		//`log("SET CURRENT WEAPON "$DesiredWeapon@" hero "$UTHeroPawn(Owner).IsHero());
 		ServerSetCurrentWeapon(DesiredWeapon);
 	}
 
@@ -265,6 +266,22 @@ reliable client function ClientSetCurrentWeapon(Weapon DesiredWeapon)
 
 reliable server function ServerSetCurrentWeapon(Weapon DesiredWeapon)
 {
+	local UTPawn PawnOwner;
+	
+	PawnOwner = UTPawn(Owner);
+	if ( (DesiredWeapon != None) || (PawnOwner == None) || !PawnOwner.IsHero() )
+	{
+		DemoSetCurrentWeapon(DesiredWeapon);
+		SetPendingWeapon(DesiredWeapon);
+	}
+	//else `log("DON'T CLEAR WEAPON");
+}
+
+/**
+ * Routes weapon switch events to demos
+ */
+reliable demorecording function DemoSetCurrentWeapon(Weapon DesiredWeapon)
+{
 	SetPendingWeapon(DesiredWeapon);
 }
 
@@ -292,25 +309,10 @@ simulated function SetPendingWeapon( Weapon DesiredWeapon )
 	if ( (PrevWeapon == None || PrevWeapon.AllowSwitchTo(DesiredWeapon)) &&
 		(CurrentPending == None || CurrentPending.AllowSwitchTo(DesiredWeapon)) )
 	{
-		/*
-		if ( Instigator.PlayerReplicationInfo != None )
-		{
-			`log("################## SetPendingWeapon "@Instigator.PlayerReplicationInfo.PlayerName);
-			`log("###   Owner			:"@Owner);
-			`log("###   Role				:"@Role);
-			`log("###   Desired Weapon	:"@DesiredWeapon);
-			`log("###   Current Weapon   :"@PrevWeapon);
-			`log("###   Pending Weapon 	:"@PendingWeapon);
-		}
-		*/
 		// We only work with UTWeapons
-
 		// Detect that a weapon is being reselected.  If so, notify that weapon.
-
 		if ( DesiredWeapon != None && DesiredWeapon == Instigator.Weapon )
 		{
-			//`log("###   *** RESELECTED **");
-
 			if (PendingWeapon != None)
 			{
 				PendingWeapon = None;
@@ -351,17 +353,9 @@ simulated function SetPendingWeapon( Weapon DesiredWeapon )
 			if( PrevWeapon != None && !PrevWeapon.bDeleteMe && !PrevWeapon.IsInState('Inactive') )
 			{
 				PrevWeapon.TryPutDown();
-				/*
-				if ( !PrevWeapon.TryPutdown() )
-				{
-					`log("###    ->>>>>>>>>>> Weapon defered putting itself down until it's done firing");
-				}
-				*/
 			}
 			else
 			{
-				//`log("###    ->>>>>>>>>>> Immediately called Change Weapon");
-
 				// We don't have a weapon, force the call to ChangedWeapon
 				ChangedWeapon();
 			}
@@ -374,7 +368,6 @@ simulated function SetPendingWeapon( Weapon DesiredWeapon )
 		UTP.SetPuttingDownWeapon((PendingWeapon != None));
 	}
 }
-
 
 /**
  * Weapon just given to a player, check if player should switch to this weapon
@@ -407,6 +400,14 @@ simulated function ClientWeaponSet(Weapon NewWeapon, bool bOptionalSet)
 
 	if (Instigator.IsHumanControlled() && PlayerController(Instigator.Controller).bNeverSwitchOnPickup)
 	{
+		NewWeapon.GotoState('Inactive');
+		return;
+	}
+	
+	if ( OldWeapon.IsFiring() || OldWeapon.DenyClientWeaponSet() && (UTWeapon(NewWeapon) != None) )
+	{
+		NewWeapon.GotoState('Inactive');
+		RetrySwitchTo(UTWeapon(NewWeapon));
 		return;
 	}
 
@@ -431,8 +432,36 @@ simulated function Inventory CreateInventory(class<Inventory> NewInventoryItemCl
 	return none;
 }
 
+/** force switch to deployable after getting out of vehicle. 
+  *  (In case didn't switch for some reason before getting in vehicle)
+  */
+function ForceDeployableSwitch()
+{
+	local UTDeployable NewDeployable;
+	local Inventory Inv;
+
+	if ( (UTWeapon(Instigator.Weapon) != None) && (UTDeployable(Instigator.Weapon) == None) )
+	{
+		inv = InventoryChain;
+		while( inv!=none )
+		{
+			NewDeployable = UTDeployable(Inv);
+			if ( NewDeployable != None )
+			{
+				break;
+			}
+
+			Inv = Inv.Inventory;
+		}
+		if ( (NewDeployable != None) && (NewDeployable.AmmoCount > 0) )
+		{
+			RetrySwitchTo(NewDeployable);
+		}
+	}
+}
+
 /** timer function set by RetrySwitchTo() to actually retry the switch */
-function ProcessRetrySwitch()
+simulated function ProcessRetrySwitch()
 {
 	local UTWeapon NewWeapon;
 
@@ -445,14 +474,14 @@ function ProcessRetrySwitch()
 }
 
 /** called to retry switching to the passed in weapon a little later */
-function RetrySwitchTo(UTWeapon NewWeapon)
+simulated function RetrySwitchTo(UTWeapon NewWeapon)
 {
 	PendingSwitchWeapon = NewWeapon;
 	SetTimer(0.1, false, 'ProcessRetrySwitch');
 }
 
 /** checks if we should autoswitch to this weapon (server) */
-function CheckSwitchTo(UTWeapon NewWeapon)
+simulated function CheckSwitchTo(UTWeapon NewWeapon)
 {
 	if ( UTWeapon(Instigator.Weapon) == None ||
 			( Instigator != None && PlayerController(Instigator.Controller) != None &&
@@ -735,6 +764,13 @@ function bool DisruptInventory()
 	local UTPawn P;
 	local UTDroppedItemPickup DroppedBelt;
 
+	P = UTPawn(Instigator);
+
+	// heroes can't be disrupted
+	if ( P.IsHero() )
+	{
+		return false;
+	}
 	bHasDrop = false;
 	ForEach InventoryActors(class'UTInventory', Inv)
 	{
@@ -745,7 +781,6 @@ function bool DisruptInventory()
 		}
 	}
 	// also throw out shield belt
-	P = UTPawn(Instigator);
 	if (P != None && P.ShieldBeltArmor > 0 && P.ShieldBeltPickupClass != None)
 	{
 		DroppedBelt = Spawn(P.ShieldBeltPickupClass,,, Instigator.Location, Instigator.Rotation);

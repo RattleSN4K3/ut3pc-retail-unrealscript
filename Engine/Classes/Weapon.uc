@@ -546,7 +546,6 @@ function GivenTo(Pawn ThisPawn, optional bool bDoNotActivate)
 	}
 }
 
-
 /*********************************************************************************************
  * AI interface
  *********************************************************************************************/
@@ -1102,6 +1101,7 @@ simulated function StartFire(byte FireModeNum)
 
 		// Start fire locally
 		BeginFire(FireModeNum);
+		DemoBeginFire(FireModeNum);
 	}
 }
 
@@ -1120,6 +1120,7 @@ reliable server function ServerStartFire(byte FireModeNum)
 		// A client has fired, so the server needs to
 		// begin to fire as well
 		BeginFire(FireModeNum);
+		DemoBeginFire(FireModeNum);
 	}
 }
 
@@ -1138,6 +1139,7 @@ simulated function BeginFire(Byte FireModeNum)
 }
 
 
+
 /**
  * This initiates the shutdown of a weapon that is firing.
  * Network: Local Player
@@ -1147,6 +1149,7 @@ simulated function StopFire(byte FireModeNum)
 {
 	// Locally shut down the fire sequence
 	EndFire(FireModeNum);
+	DemoEndFire(FireModeNum);
 
 	// Notify the server
 	if( Role < Role_Authority )
@@ -1163,6 +1166,7 @@ simulated function StopFire(byte FireModeNum)
 reliable server function ServerStopFire(byte FireModeNum)
 {
 	EndFire(FireModeNum);
+	DemoEndFire(FireModeNum);
 }
 
 
@@ -1175,6 +1179,14 @@ simulated function EndFire(byte FireModeNum)
 {
 	// Clear the firing flag for this mode
 	ClearPendingFire(FireModeNum);
+}
+
+/**
+ * Passes on EndFire calls to demos
+ */
+reliable demorecording function DemoEndFire(byte FireModeNum)
+{
+	EndFire(FireModeNum);
 }
 
 
@@ -1192,6 +1204,7 @@ simulated function ForceEndFire()
 		if( PendingFire(i) )
 		{
 			EndFire(i);
+			DemoEndFire(i);
 		}
 	}
 }
@@ -1692,6 +1705,7 @@ simulated state Active
 				if( PendingFire(i) )
 				{
 					BeginFire(i);
+					DemoBeginFire(i);
 					break;
 				}
 			}
@@ -1949,6 +1963,14 @@ State PendingClientWeaponSet
 	{
 		ClearTimer('PendingWeaponSetTimer');
 	}
+}
+
+/**
+ * Passes on BeginFire calls to demos
+ */
+reliable demorecording function DemoBeginFire(byte FireModeNum)
+{
+	BeginFire(FireModeNum);
 }
 
 defaultproperties

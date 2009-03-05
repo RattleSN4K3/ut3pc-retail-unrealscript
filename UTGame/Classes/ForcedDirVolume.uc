@@ -16,6 +16,7 @@ var() const ArrowComponent Arrow;
 var() bool bDenyExit; // if the vehicle is being effected by a force volume, the player cannot exit the vehicle.
 var() bool bBlockPawns;
 var() bool bBlockSpectators;
+var() bool bDontBlockRedeemers;
 var vector ArrowDirection;
 var array<UTVehicle> TouchingVehicles;
 
@@ -23,11 +24,22 @@ var array<UTVehicle> TouchingVehicles;
 
 simulated function PostBeginPlay()
 {
+	local string MapName;
+
 	super.PostBeginPlay();
 	
 	if ( !bBlockSpectators && (BrushComponent != None) )
 	{
 		BrushComponent.SetTraceBlocking(false,true);
+	}
+	if ( Name == 'ForcedDirVolume_0' )
+	{
+		// hack don't block redeemers in islander
+		MapName = WorldInfo.GetMapName();
+		if ( Left(MapName, 8) ~= "ISLANDER" )
+		{
+			bDontBlockRedeemers = true;
+		}
 	}
 }
 
@@ -56,7 +68,10 @@ simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLoca
 	}
 	else if ( UTRemoteRedeemer(Other) != None )
 	{
+		if ( !bDontBlockRedeemers )
+		{
 		UTRemoteRedeemer(Other).ForcedDirectionVolume = self;
+	}
 	}
 	else if ( (UTProj_SPMACamera(Other) != None) && (Other.Role == ROLE_Authority) )
 	{

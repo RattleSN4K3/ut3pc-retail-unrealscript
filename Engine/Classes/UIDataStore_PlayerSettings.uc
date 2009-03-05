@@ -1,7 +1,7 @@
 ﻿/**
  * This class provides the UI with access to player settings providers.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIDataStore_PlayerSettings extends UIDataStore_Settings
 	native(inherit);

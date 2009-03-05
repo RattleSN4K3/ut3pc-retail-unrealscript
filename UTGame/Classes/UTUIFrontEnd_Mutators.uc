@@ -26,12 +26,21 @@ var transient UIImage ShiftLeftImage;
 /** Reference to the menu datastore */
 var transient UTUIDataStore_MenuItems MenuDataStore;
 
+/** Reference to the settings datastore which will persistently store mutator settings */
+var transient UIDataStore_OnlineGameSettings SettingsDataStore;
+
 /** Mutators that were enabled when we entered the scene. */
 var transient array<int>	OldEnabledMutators;
 
 /** Post initialization event - Setup widget delegates.*/
 event PostInitialize()
 {
+	local Settings GameSettings;
+	local string MutStr;
+	local array<UTUIResourceDataProvider> MutProviders;
+	local int i, j;
+	local array<string> MutList, SavedMutList;
+
 	AvailableList = UIList(FindChild('lstAvailable', true));
 	EnabledList = UIList(FindChild('lstEnabled', true));
 
@@ -55,11 +64,40 @@ event PostInitialize()
 	ShiftRightImage = UIImage(FindChild('imgArrowLeft', true));
 	ShiftLeftImage = UIImage(FindChild('imgArrowRight', true));
 
-	// Get reference to the menu datastore
+	// Get reference to the menu and settings datastore
 	MenuDataStore = UTUIDataStore_MenuItems(GetCurrentUIController().DataStoreManager.FindDataStore('UTMenuItems'));
+	SettingsDataStore = UIDataStore_OnlineGameSettings(FindDataStore('UTGameSettings'));
+
 
 	// Get the list of mutators before we entered the scene.
 	OldEnabledMutators = MenuDataStore.EnabledMutators;
+
+
+	// Initialize 'EnabledMutators' from the retrieved mutator list
+	GameSettings = SettingsDataStore.GetCurrentGameSettings();
+
+	if (GameSettings.GetStringProperty(PROPERTY_CUSTOMMUTCLASSES, MutStr) && MutStr != "" && MenuDataStore.GetProviderSet('Mutators', MutProviders))
+	{
+		// First build up the class lists
+		MutList.Length = MutProviders.Length;
+
+		for (i=0; i<MutProviders.Length; ++i)
+			MutList[i] = UTUIDataProvider_Mutator(MutProviders[i]).ClassName;
+
+		ParseStringIntoArray(MutStr, SavedMutList, ",", False);
+
+
+		// Now compare the class lists in order to build up the index list
+		MenuDataStore.EnabledMutators.Length = 0;
+
+		for (i=0; i<SavedMutList.Length; ++i)
+		{
+			j = MutList.Find(SavedMutList[i]);
+
+			if (j != INDEX_None)
+				MenuDataStore.EnabledMutators.AddItem(j);
+		}
+	}
 }
 
 /** Sets up the button bar for the parent scene. */
@@ -402,6 +440,10 @@ function OnConfigureMutator()
 /** The user has finished setting up their mutators and wants to continue on. */
 function OnNext()
 {
+	// Wipe the stored game settings mutators once a new mutator list is setup, so that the new list isn't clobbered if the menu is opened again
+	if (SettingsDataStore != none && SettingsDataStore.GetCurrentGameSettings() != none)
+		SettingsDataStore.GetCurrentGameSettings().SetStringProperty(PROPERTY_CUSTOMMUTCLASSES, "");
+
 	CloseScene(self);
 }
 

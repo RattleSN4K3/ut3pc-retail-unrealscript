@@ -237,9 +237,29 @@ function NotifyGameSessionEnded()
 {
 	local int i;
 	local array<UIScene> CurrentlyActiveScenes;
+	local string OutStringValue;
+	local OnlineSubsystem OnlineSub;
+	local OnlineGameSettings GameSettings;
+	local bool bIsLanClient;
 
-	// bPendingLevelChange = true;
-	SaveMenuProgression();
+	// Determine if we are a client in a LAN game
+	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
+	if (OnlineSub != None && OnlineSub.GameInterface != None)
+	{
+		GameSettings = OnlineSub.GameInterface.GetGameSettings();
+		if (GetDataStoreStringValue("<Registry:LanClient>", OutStringValue) && OutStringValue == "1")
+		{
+			SetDataStoreStringValue("<Registry:LanClient>", "0");
+			bIsLanClient = GameSettings.bIsLanMatch;
+		}
+	}
+	
+	// Do not save menu progression if we are a LAN client - doing so
+	// would bring us back to the Internet Game search after disconnecting
+	if ( !bIsLanClient )
+	{
+		SaveMenuProgression();
+	}
 
 	// copy the list of active scenes into a temporary array in case scenes start removing themselves when
 	// they receive this notification

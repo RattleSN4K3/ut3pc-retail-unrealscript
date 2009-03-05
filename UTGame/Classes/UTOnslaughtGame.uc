@@ -16,6 +16,8 @@ var bool	bSpawnNodeSelected;		/** temporarily set true if player had chosen his 
 /** Holds refs to the two orbs */
 var UTOnslaughtFlag Orbs[2];
 
+var UTGameObjective SelectedStartNode;
+
 function InitGameReplicationInfo()
 {
 	local UTOnslaughtMapInfo OnslaughtInfo;
@@ -51,6 +53,12 @@ function UTBot AddBot(optional string BotName, optional bool bUseTeamIndex, opti
 	B = Super.AddBot(BotName, bUseTeamIndex, TeamIndex);
 	UpdateNodePlayerCountRequirements(false);
 	return B;
+}
+
+function PostSeamlessTravel()
+{
+	Super.PostSeamlessTravel();
+	UpdateNodePlayerCountRequirements(false);
 }
 
 function ViewObjective(PlayerController PC)
@@ -252,6 +260,8 @@ function FindCloseActors()
 		{
 			O = ClosestObjectiveTo(A);
 			O.PlayerStarts[O.PlayerStarts.Length] = PlayerStart(A);
+			if ( UTOnslaughtNodeObjective(O) != None )
+				UTOnslaughtNodeObjective(O).bIsTeleportDestination = true;
 		}
 		else if ( UTVehicleFactory(A) != None )
 		{
@@ -450,11 +460,14 @@ function UTOnslaughtObjective ClosestObjectiveTo(Actor A)
 
 	for ( i=0; i<PowerNodes.Length; i++ )
 	{
-		Distance = VSize(A.Location - PowerNodes[i].Location);
-		if ( (Best == None) || (Distance < BestDistance) )
+		if ( PowerNodes[i].bAssociatePlayerStarts )
 		{
-			BestDistance = Distance;
-			Best = PowerNodes[i];
+			Distance = VSize(A.Location - PowerNodes[i].Location);
+			if ( (Best == None) || (Distance < BestDistance) )
+			{
+				BestDistance = Distance;
+				Best = PowerNodes[i];
+			}
 		}
 	}
 	return Best;
@@ -502,6 +515,8 @@ function Reset()
 		if (PRI != None)
 		{
 			PRI.Spree = 0;
+			PRI.ResetHero();
+			PRI.bHasBeenHero = false;
 		}
 	}
 
@@ -853,6 +868,7 @@ function PlayerStart BestPlayerStartAtNode(UTGameObjective SelectedPC, byte Team
 	local float BestRating, NewRating, GoodEnoughRating;
 	local int i, RandStart;
 
+	SelectedStartNode = SelectedPC;
 	GoodEnoughRating = (SelectedPC.bUnderAttack) ? 60.0 : 30.0;
 
 	// Avoid randomness for profiling.
@@ -905,6 +921,11 @@ function PlayerStart BestPlayerStartAtNode(UTGameObjective SelectedPC, byte Team
 		}
 	}
 	return BestStart;
+}
+
+function UTWeaponLocker GetBestLocker(Pawn PlayerPawn)
+{
+	return (SelectedStartNode != None) ? SelectedStartNode.GetBestLocker() : None;
 }
 
 /** finds the closest node to the enemy powercore that has vehicles available according to the passed in array
@@ -1120,7 +1141,14 @@ function ScoreFlag(Controller Scorer, UTOnslaughtFlag TheFlag)
 	if (ScorerPRI.Team != TheFlag.Team)
 	{
 		BroadcastLocalizedMessage(TheFlag.MessageClass, 1 + 7 * TheFlag.Team.TeamIndex, ScorerPRI, None, TheFlag.Team);
+		ScorerPRI.IncrementHeroMeter(2.0);
 		ScorerPRI.IncrementEventStat('EVENT_RETURNEDORB');
+	}
+	else
+	{
+		ScorerPRI.IncrementHeroMeter(2.0);
+		ScorerPRI.IncrementEventStat('EVENT_SCOREDORB');
+		ScorerPRI.CheckHeroMeter();
 	}
 }
 
@@ -1166,7 +1194,7 @@ function bool AllowClientToTeleport(UTPlayerReplicationInfo ClientPRI, Actor Des
 
 	IsTouchingTeleporter = IsTouchingNodeTeleporter(Controller(ClientPRI.Owner).Pawn, Tp);
 	Obj = UTOnslaughtNodeObjective(DestinationActor);
-	if (IsTouchingTeleporter && Tp!=none && Obj != none)
+	if (IsTouchingTeleporter && Tp!=none && Obj != none && Obj.ValidSpawnPointFor(ClientPRI.Team.TeamIndex) )
 	{
 		for (i=0;i<Obj.NodeTeleporters.Length;i++)
 		{
@@ -1447,6 +1475,7 @@ defaultproperties
 	OvertimeCoreDrainPerSec=20.0
 	DeathMessageClass=class'UTTeamDeathMessage'
 	FlagKillMessageName=ORBKILL
+	bStartWithLockerWeaps=true
 
 	// Class used to write stats to the leaderboard
 	OnlineStatsWriteClass=class'UTGame.UTLeaderboardWriteWAR'

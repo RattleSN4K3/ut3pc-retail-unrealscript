@@ -5,7 +5,7 @@ class UTAmmo_FlakCannon extends UTAmmoPickupFactory;
 
 defaultproperties
 {
-	AmmoAmount=10
+	AmmoAmount=8
 	TargetWeapon=class'UTWeap_FlakCannon'
 	PickupSound=SoundCue'A_Pickups.Ammo.Cue.A_Pickup_Ammo_Flak_Cue'
 	MaxDesireability=0.32

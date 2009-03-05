@@ -462,3 +462,8 @@ static final native noexport function string UniqueNetIdToString( const out Uniq
  */
 static final native noexport function bool StringToUniqueNetId( string UniqueNetIdString, out UniqueNetId out_UniqueId );
 
+/**
+ * Returns true if auto-login credentials are set on the commandline
+ */
+native static final noexport function bool CanAutoLogin();
+

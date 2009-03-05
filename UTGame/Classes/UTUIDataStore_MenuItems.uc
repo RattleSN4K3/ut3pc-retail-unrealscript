@@ -61,6 +61,7 @@ DefaultProperties
 {
 	Tag=UTMenuItems
 	WriteAccessType=ACCESS_WriteAll
+	GameModeFilter=2//Deathmatch default
 }
 
 

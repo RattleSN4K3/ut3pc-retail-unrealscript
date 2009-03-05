@@ -186,7 +186,6 @@ function array<texture> GetTextures()
 	return ReferencedTextures;
 }
 
-
 defaultproperties
 {
 	BlendMode=BLEND_Opaque

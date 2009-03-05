@@ -31,7 +31,9 @@ const AUTOEXPAND_VALUE=0;
 var	config	int					VirtualSizeX, VirtualSizeY;
 
 /** whether the various outline indicators should be rendered */
-var	config	bool				bRenderViewportOutline, bRenderContainerOutline, bRenderSelectionOutline, bRenderPerWidgetSelectionOutline, bRenderTitleSafeRegionOutline;
+var	config	bool				bRenderViewportOutline, bRenderContainerOutline, bRenderSelectionOutline,
+						bRenderPerWidgetSelectionOutline, bRenderTitleSafeRegionOutline,
+						bRenderMouseBoundsOutline;
 
 var	config	bool				mViewDrawBkgnd;
 var	config	bool				mViewDrawGrid;

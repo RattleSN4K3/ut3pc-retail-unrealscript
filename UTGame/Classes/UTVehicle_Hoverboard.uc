@@ -1112,13 +1112,10 @@ reliable client function SetOnlyControllableByTilt( bool bActive )
 
 	PC = PlayerController(Controller);
 
-	if( PC == none )
+	if( (PC == none) && (Driver != None) )
 	{
 		PC = PlayerController(Driver.Controller);
 	}
-
-	//`log( "SetOnlyControllableByTilt: " $ bActive $ " " $ PC );
-	//ScriptTrace();
 
 	if( PC != none )
 	{
@@ -1205,6 +1202,14 @@ simulated function ReplicatedEvent(name VarName)
 	}
 	else
 	{
+		if (VarName == 'Driver')
+		{
+			if ( (Driver != None) && (UTPlayerController(Controller) != None) && (Driver.DrivenVehicle == None) )
+			{
+				Driver.DrivenVehicle = self;
+				Driver.StartDriving(self);
+			}
+		}
 		Super.ReplicatedEvent(VarName);
 	}
 }
@@ -1244,7 +1249,7 @@ event bool EncroachingOn(Actor Other)
 
 event RanInto(Actor Other)
 {
-	if (Role == ROLE_Authority && Pawn(Other) != None && !WorldInfo.GRI.OnSameTeam(self, Other))
+	if (Role == ROLE_Authority && Pawn(Other) != None && (!WorldInfo.GRI.OnSameTeam(self, Other) || (UTPawn(Other) != None && UTPawn(Other).IsHero())) )
 	{
 		if (Driver == None)
 		{
@@ -1438,9 +1443,15 @@ function bool OnTouchForcedDirVolume(ForcedDirVolume Vol)
 /** spawn and attach effects for moving over water - called from C++ if RoosterEffect is None when over water */
 simulated event SpawnRoosterEffect()
 {
+	local Vector RoosterEffectOffset;
+
+	// Offset the RoosterEffect to be at the base of the collision cylinder, so it appears at the water's surface
+	RoosterEffectOffset.Z = (-CylinderComponent.Translation.Z - CylinderComponent.CollisionHeight*0.5f);
+
 	RoosterEffect = new(self) class'ParticleSystemComponent';
 	RoosterEffect.bAutoActivate = false;
 	RoosterEffect.SetTemplate(RoosterEffectTemplate);
+	RoosterEffect.SetTranslation(RoosterEffectOffset);
 	Mesh.AttachComponentToSocket(RoosterEffect, 'RearCenterThrusterSocket');
 
 	RoosterNoise = new(self) class'AudioComponent';
@@ -1969,4 +1980,8 @@ defaultproperties
 
 	bHasTowCable=true
 	bEjectKilledBodies=true
+
+	TeamBeaconMaxDist=3000.0
+	TeamBeaconPlayerInfoMaxDist=3000.0
+	bDisplayHealthBar=false
 }

@@ -29,6 +29,12 @@ var localized string NewPlayerMessage;
 var localized string KickWarning;
 var localized string NewSpecMessage, SpecEnteredMessage;
 
+var localized string KickVoteMessage;
+var localized string AnonKickVoteMessage;
+var localized string KickVotePassMessage;
+var localized string KickVoteSpamMessage;
+var localized string MapVoteSubmitted;
+
 //
 // Messages common to GameInfo derivatives.
 //
@@ -116,6 +122,18 @@ static function string GetString(
 
 	case 18:
 		return default.MapVoteInitiated;
+
+	case 19:
+		return Repl(Repl(default.KickVoteMessage, "`v", RelatedPRI_1.GetPlayerAlias()), "`p", RelatedPRI_2.GetPlayerAlias());
+
+	case 20:
+		return Repl(default.AnonKickVoteMessage, "`p", RelatedPRI_2.GetPlayerAlias()); // Not a bug, I use the 2nd PRI here
+
+	case 21:
+		return Repl(default.KickVotePassMessage, "`p", RelatedPRI_1.GetPlayerAlias());
+
+	case 22:
+		return Repl(default.KickVoteSpamMessage, "`v", RelatedPRI_1.GetPlayerAlias());
 	}
 	return "";
 }

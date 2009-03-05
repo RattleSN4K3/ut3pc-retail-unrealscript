@@ -5,7 +5,7 @@ class UTAmmo_SniperRifle extends UTAmmoPickupFactory;
 
 defaultproperties
 {
-	AmmoAmount=10
+	AmmoAmount=8
 	TargetWeapon=class'UTWeap_SniperRifle'
 	PickupSound=SoundCue'A_Pickups.Ammo.Cue.A_Pickup_Ammo_Sniper_Cue'
 

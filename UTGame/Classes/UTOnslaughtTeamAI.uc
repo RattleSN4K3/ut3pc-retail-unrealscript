@@ -306,6 +306,7 @@ function UTOnslaughtNodeObjective GetPriorityOrbObjectiveFor(Controller InContro
 {
 	local UTGameObjective O;
 	local UTOnslaughtNodeObjective Node, PickedNode, NextPickedNode;
+	local UTOnslaughtPowerNode CountdownNode;
 	local float BestDist, NewDist;
 	local int i;
 
@@ -336,6 +337,19 @@ function UTOnslaughtNodeObjective GetPriorityOrbObjectiveFor(Controller InContro
 
 	if ( UTOnslaughtPowerCore(PickedNode) != None )
 	{
+		// would like a countdown node if there is one
+		for ( O=Objectives; O!=None; O=O.NextObjective )
+		{
+			CountdownNode = UTOnslaughtPowerNode(O);
+			if ( CountdownNode != None 
+				&& CountdownNode.IsA('UTOnslaughtCountdownNode')
+				&& !CountdownNode.bIsDisabled
+				&& CountdownNode.PoweredBy(Team.TeamIndex) ) 
+			{
+				return CountdownNode;
+			}
+		}
+
 		// choose a prime node instead
 		for ( i=0; i<PickedNode.NumLinks; i++ )
 		{
@@ -396,6 +410,7 @@ function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, 
 {
 	local UTGameObjective O;
 	local UTOnslaughtNodeObjective Node, PickedNode, NextPickedNode;
+	local UTOnslaughtPowerNode CountdownNode;
 	local array<UTOnslaughtNodeObjective> NodeList;
 	local int i;
 	local bool bPickedObjectiveCovered, bTestObjectiveCovered;
@@ -445,6 +460,20 @@ function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, 
 	}
 	if ( (UTOnslaughtPowerCore(PickedNode) != None) && UTOnslaughtPowerCore(PickedNode).bNeverAttack )
 	{
+		// would like a countdown node if there is one
+		for ( O=Objectives; O!=None; O=O.NextObjective )
+		{
+			CountdownNode = UTOnslaughtPowerNode(O);
+			if ( CountdownNode != None 
+				&& CountdownNode.IsA('UTOnslaughtCountdownNode')
+				&& !CountdownNode.bIsDisabled
+				&& CountdownNode.PoweredBy(Team.TeamIndex) ) 
+			{
+				PickedObjective = CountdownNode;
+				return PickedObjective;
+			}
+		}
+
 		// choose a prime node instead
 		for ( i=0; i<PickedNode.NumLinks; i++ )
 		{
@@ -460,9 +489,14 @@ function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, 
 				}
 			}
 		}
+		
 		if ( (NextPickedNode != None) && (UTOnslaughtPowerCore(NextPickedNode) == None) )
 		{
 			PickedNode = NextPickedNode;
+		}
+		else
+		{
+			PickedNode = None;
 		}
 	}
 	else if (PickedNode != None && bPickedObjectiveCovered)
@@ -474,7 +508,7 @@ function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, 
 		{
 			for (i = 0; i < PickedNode.NumLinks; i++ )
 			{
-				if ( (PickedNode.LinkedNodes[i] != None)
+				if ( (PickedNode.LinkedNodes[i] != None) && !PickedNode.LinkedNodes[i].bIsDisabled 
 					&& (PickedNode.LinkedNodes[i].IsNeutral() || PickedNode.LinkedNodes[i].bIsConstructing) )
 				{
 					NodeList[NodeList.length] = PickedNode.LinkedNodes[i];
@@ -507,6 +541,7 @@ function UTGameObjective GetLeastDefendedObjective(Controller InController)
 	local UTGameObjective O, Best;
 	local bool bCheckDistance;
 	local float BestDistSq, NewDistSq;
+	local UTOnslaughtPowerNode CountdownNode;
 
 	bCheckDistance = (InController != None) && (InController.Pawn != None);
 	for ( O=Objectives; O!=None; O=O.NextObjective )
@@ -542,6 +577,25 @@ function UTGameObjective GetLeastDefendedObjective(Controller InController)
 						BestDistSq = NewDistSq;
 					}
 				}
+			}
+		}
+	}
+	
+	if ( (UTOnslaughtPowerCore(Best) != None) && UTOnslaughtPowerCore(Best).bNeverAttack )
+	{
+		Best = None;
+		
+		// would like a countdown node if there is one
+		for ( O=Objectives; O!=None; O=O.NextObjective )
+		{
+			CountdownNode = UTOnslaughtPowerNode(O);
+			if ( CountdownNode != None 
+				&& CountdownNode.IsA('UTOnslaughtCountdownNode')
+				&& !CountdownNode.bIsDisabled
+				&& CountdownNode.PoweredBy(Team.TeamIndex) ) 
+			{
+				Best = CountdownNode;
+				return Best;
 			}
 		}
 	}
@@ -774,7 +828,7 @@ function UTGameObjective GetPriorityFreelanceObjectiveFor(UTSquadAI InFreelanceS
 	for (O = Objectives; O != None; O = O.NextObjective)
 	{
 		Core = UTOnslaughtObjective(O);
-		if ( Core != None && (Core.IsNeutral() || Core.bIsConstructing) && Core.DefenderTeamIndex != Team.TeamIndex
+		if ( Core != None && !Core.bIsDisabled && (Core.IsNeutral() || Core.bIsConstructing) && Core.DefenderTeamIndex != Team.TeamIndex
 		     && Core.PoweredBy(EnemyTeam.TeamIndex) && (Best == None || Best.DefensePriority < Core.DefensePriority) )
 			Best = O;
 	}

@@ -96,4 +96,6 @@ defaultproperties
 	End Object
 	Spinner=StaticMeshComponent1
  	Components.Add(StaticMeshComponent1)
+
+	bTrackPickup=true
 }

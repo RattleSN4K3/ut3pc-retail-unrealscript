@@ -223,6 +223,7 @@ function ScoreFlag(Controller Scorer, UTCTFFlag theFlag)
 
 		BroadcastLocalizedMessage( AnnouncerMessageClass, 1+7*TheFlag.Team.TeamIndex, ScorerPRI, None, TheFlag.Team );
 		ScorerPRI.IncrementEventStat('EVENT_RETURNEDFLAG');
+		ScorerPRI.IncrementHeroMeter(1.0);
 		if (Dist>1024)
 		{
 			// figure out who's closer
@@ -254,6 +255,8 @@ function ScoreFlag(Controller Scorer, UTCTFFlag theFlag)
 	// Guy who caps gets 5
 	ScorerPRI.bForceNetUpdate = TRUE;
 	ScorerPRI.Score += 5;
+	ScorerPRI.IncrementHeroMeter(6.0);
+	ScorerPRI.CheckHeroMeter();
 	GoalsScored = ScorerPRI.IncrementEventStat('EVENT_SCOREDFLAG');
 	PC = UTPlayerController(Scorer);
 	if ( GoalsScored == 3 )
@@ -426,6 +429,7 @@ defaultproperties
 	bSpawnInTeamArea=true
 	bScoreTeamKills=False
 	MapPrefixes[0]="CTF"
+	Acronym="CTF"
 	TeamAIType(0)=class'UTGame.UTCTFTeamAI'
 	TeamAIType(1)=class'UTGame.UTCTFTeamAI'
 	bScoreVictimsTarget=true

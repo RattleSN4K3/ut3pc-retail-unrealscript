@@ -5,7 +5,7 @@
  * the currently selected item when the list is not visible.  Also supports rendering a caption to left, right, above, or below
  * the editbox.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 
 //`define requires_unique_list_datasource 1

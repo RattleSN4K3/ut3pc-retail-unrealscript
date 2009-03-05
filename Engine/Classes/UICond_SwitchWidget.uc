@@ -2,7 +2,7 @@
  * This sequence object provides a fast way to activate different actions based on the value of an object variable containing
  * which references a UIScreenObject.  Automatically generates a unique OutputLink for each widget value added by the designer.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UICond_SwitchWidget extends SeqCond_SwitchObject;
 

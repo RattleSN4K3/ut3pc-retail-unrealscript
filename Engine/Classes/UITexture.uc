@@ -1,7 +1,7 @@
 ﻿/**
  * Acts as the raw interface for providing a texture or material to the UI.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UITexture extends UIRoot
 	native(UIPrivate)

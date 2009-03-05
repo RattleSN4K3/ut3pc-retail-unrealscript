@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for data providers which provide data for static game resources.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIResourceDataProvider extends UIPropertyDataProvider
 	native(inherit)

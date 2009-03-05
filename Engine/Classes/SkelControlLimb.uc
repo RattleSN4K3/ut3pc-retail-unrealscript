@@ -49,6 +49,19 @@ var(Limb)		bool					bMaintainEffectorRelRot;
 /** If true, rotation of effector bone is copied from the bone specified by EffectorSpaceBoneName. */
 var(Limb)		bool					bTakeRotationFromEffectorSpace;
 
+/** Is Limb allowed to stretch to reach its target? */
+var()	bool		bAllowStretching;
+/** 
+ * Stretching limits. 
+ * X represents the relative length of the limb at which it will start stretching.
+ * Y represents the maximum stretch factor allowed.
+ * For example (X=0.5,Y=2.f) will mean that the limb is allowed to stretch up to twice its length.
+ * And it will start stretching when shoulder to effector distance is half of the full arm length. 
+ */
+var()	Vector2D	StretchLimits;
+/** Name of Roll Bone to stretch as well. */
+var()	Name		StretchRollBoneName;
+
 defaultproperties
 {
 	EffectorLocationSpace=BCS_WorldSpace
@@ -56,4 +69,6 @@ defaultproperties
 	
 	BoneAxis=AXIS_X
 	JointAxis=AXIS_Y
+
+	StretchLimits=(X=0.71f,Y=1.2f)
 }

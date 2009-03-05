@@ -179,4 +179,6 @@ defaultproperties
 	End Object
 	PickupMesh=ArmorPickUpComp
 	Components.Add(ArmorPickUpComp)
+
+	bTrackPickup=true
 }

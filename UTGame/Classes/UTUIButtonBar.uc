@@ -13,6 +13,10 @@ const UTUIBUTTONBAR_BUTTON_SPACING = -20;
 
 /** Array of actual label buttons for the button bar. */
 var instanced UTUIButtonBarButton		Buttons[UTUIBUTTONBAR_MAX_BUTTONS];
+/** Scaling factor to be applied to all buttons */
+var Vector2D ButtonStringScale;
+/** Flag indicating that the button scales require a reset */
+var bool bResetButtonScale;
 
 `include(Core/Globals.uci)
 
@@ -94,6 +98,11 @@ function SetButton(int ButtonIndex, string ButtonTextMarkup, delegate<UIObject.O
 {
 	`assert(ButtonIndex >= 0 && ButtonIndex<UTUIBUTTONBAR_MAX_BUTTONS);
 
+	// Reset button scaling, since our set of buttons has changed
+	ButtonStringScale.X = 1.0f;
+	ButtonStringScale.Y = 1.0f;
+	bResetButtonScale = true;
+
 	Buttons[ButtonIndex].SetVisibility(true);
 	Buttons[ButtonIndex].SetEnabled(true);
 	Buttons[ButtonIndex].SetDatastoreBinding(ButtonTextMarkup);
@@ -147,6 +156,9 @@ native function bool CanAcceptFocus( optional int PlayerIndex=0 ) const;
 defaultproperties
 {
 	DefaultStates.Add(class'Engine.UIState_Focused')
+	bRequiresTick=true
+
+	ButtonStringScale=(X=1.0,Y=1.0)
 
 	Position={( Value[UIFACE_Left]=0,
 				ScaleType[UIFACE_Left]=EVALPOS_PercentageOwner,

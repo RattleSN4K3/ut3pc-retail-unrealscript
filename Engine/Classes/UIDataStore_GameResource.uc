@@ -3,7 +3,7 @@
  * The data for each type of game resource is provided through a data provider and is specified in the .ini file for that
  * data provider class type using the PerObjectConfig paradigm.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIDataStore_GameResource extends UIDataStore
 	native(inherit)

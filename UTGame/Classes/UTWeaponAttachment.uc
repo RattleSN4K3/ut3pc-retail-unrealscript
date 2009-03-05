@@ -127,6 +127,8 @@ simulated function CreateOverlayMesh()
 		OverlayMesh = new(self) Mesh.Class;
 		OverlayMesh.SetScale(1.00);
 		OverlayMesh.SetSkeletalMesh(Mesh.SkeletalMesh);
+		OverlayMesh.SetOwnerNoSee(true);
+		OverlayMesh.SetOnlyOwnerSee(false);
 		OverlayMesh.AnimSets = Mesh.AnimSets;
 		OverlayMesh.SetParentAnimComponent(Mesh);
 		OverlayMesh.bUpdateSkelWhenNotRendered = false;
@@ -391,7 +393,6 @@ simulated function StopFirstPersonFireEffects(Weapon PawnWeapon)	// Should be su
 	}
 }
 
-
 simulated function bool EffectIsRelevant(vector SpawnLocation, bool bForceDedicated, optional float CullDistance )
 {
 	if ( Instigator != None )
@@ -439,6 +440,21 @@ simulated function ThirdPersonFireEffects(vector HitLocation)
 simulated event StopThirdPersonFireEffects()
 {
 	StopMuzzleFlash();
+}
+
+/** 
+*   Optimized equivalent of calling ThirdPersonFireEffects while in splitscreen
+*/
+simulated function SplitScreenEffects(vector HitLocation)
+{
+	if (Instigator.FiringMode == 1 && AltFireAnim != 'None')
+	{
+		Mesh.PlayAnim(AltFireAnim,,, false);
+	}
+	else if (FireAnim != 'None')
+	{
+		Mesh.PlayAnim(FireAnim,,, false);
+	}
 }
 
 /** returns the impact sound that should be used for hits on the given physical material */
@@ -551,7 +567,7 @@ simulated function PlayImpactEffects(vector HitLocation)
 			if ( !WorldInfo.bDropDetail
 				&& (Pawn(HitActor) == None)
 				&& (VSizeSQ(Owner.Location - HitLocation) < MaxDecalRangeSq)
-				&& ((WorldInfo.GetDetailMode() != DM_Low) || (P.IsLocallyControlled() && P.IsHumanControlled())) )
+				&& (((WorldInfo.GetDetailMode() != DM_Low) && !class'Engine'.static.IsSplitScreen()) || (P.IsLocallyControlled() && P.IsHumanControlled())) )
 			{
 				// if we have a decal to spawn on impact
 				DecalMaterialsLength = ImpactEffect.DecalMaterials.length;

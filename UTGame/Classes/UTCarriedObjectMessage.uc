@@ -285,6 +285,7 @@ static function bool PartiallyDuplicates(INT Switch1, INT Switch2, object Option
 
 defaultproperties
 {
+	bIsConsoleMessage=true
 	bIsUnique=True
 	FontSize=1
 	MessageArea=1

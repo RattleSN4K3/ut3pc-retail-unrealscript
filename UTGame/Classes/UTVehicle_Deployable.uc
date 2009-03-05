@@ -63,6 +63,9 @@ var UIRoot.TextureCoordinates ToolTipIconCoords;
 
 var float DeployIconOffset;
 
+/** Set if no acceptable artillery target found */
+var bool bNotGoodArtilleryPosition;
+
 
 
 replication
@@ -126,6 +129,16 @@ simulated function OnAnimEnd(AnimNodeSequence SeqNode, float PlayedTime, float E
 	}
 }
 
+function bool ShouldDeployToAttack()
+{
+	return true;
+}
+
+function bool CanDeployedAttack(Actor Other)
+{
+	return CanAttack(Other);
+}
+
 simulated function DisplayHud(UTHud Hud, Canvas Canvas, vector2D HudPOS, optional int SeatIndex)
 {
 	local PlayerController PC;
@@ -142,7 +155,7 @@ simulated function DisplayHud(UTHud Hud, Canvas Canvas, vector2D HudPOS, optiona
 				{
 					if (bHasWeaponBar)
 					{
-						Hud.DrawToolTip(Canvas, PC, "GBA_Jump", Canvas.ClipX * 0.5, Canvas.ClipY * 0.85, ToolTipIconCoords.U, ToolTipIconCoords.V, ToolTipIconCoords.UL, ToolTipIconCoords.VL, Canvas.ClipY / 768);
+						Hud.DrawToolTip(Canvas, PC, "GBA_Jump", Canvas.ClipX * 0.5, Canvas.ClipY * 0.82, ToolTipIconCoords.U, ToolTipIconCoords.V, ToolTipIconCoords.UL, ToolTipIconCoords.VL, Canvas.ClipY / 768);
 					}
 					else
 					{
@@ -315,6 +328,10 @@ simulated event ReplicatedEvent(name VarName)
 	}
 }
 
+simulated function bool DeployActivated()
+{
+	return (DeployedState == EDS_Deployed) || (DeployedState == EDS_Deploying);
+}	
 
 simulated function bool IsDeployed()
 {
@@ -571,6 +588,15 @@ simulated function StartEngineSound()
 	ClearTimer('StopEngineSound');
 }
 
+function bool ShouldUndeploy(UTBot B) 
+{
+	return (IsDeployed() && (Pawn(B.Focus) == None || (Pawn(B.Focus).Health <= 0) || WorldInfo.GRI.OnSameTeam(B,B.Focus) || !B.Pawn.CanAttack(B.Focus)));
+}
+
+function bool GoodDefensivePosition()
+{
+	return !bNotGoodArtilleryPosition;
+}
 
 defaultproperties
 {

@@ -20,9 +20,17 @@ var transient	bool		bCampaignMode;
  */
 var	transient	bool		bIssuedInitialQuery, bIssuedInitialHistoryQuery, bIssuedInitialFavoritesQuery;
 
+/** The scene which is opened when the player clicks on the 'Mutator' button */
+var string MutatorScene;
+
+var bool bJoinSpectate;
+
+
 /** PostInitialize event - Sets delegates for the scene. */
 event PostInitialize()
 {
+	local UIList List;
+
 	Super.PostInitialize();
 
 	// Grab a reference to the server filter tab.
@@ -46,6 +54,21 @@ event PostInitialize()
 
 		// this is no longer needed, as we call SaveSubscriberValue on each option as its changed
 		//ServerBrowserTab.OnPrepareToSubmitQuery = PreSubmitQuery;
+
+		List = UIList(ServerBrowserTab.FindChild('lstDetails', true));
+		List.ItemOverlayStyle[1] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[1] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[2] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[2] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[3] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[3] = List.GlobalCellStyle[0];
+
+		List = UIList(ServerBrowserTab.FindChild('lstMutators', true));
+		List.ItemOverlayStyle[1] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[1] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[2] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[2] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[3] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[3] = List.GlobalCellStyle[0];
+
+		List = UIList(ServerBrowserTab.FindChild('lstPlayers', true));
+		List.ItemOverlayStyle[1] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[1] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[2] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[2] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[3] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[3] = List.GlobalCellStyle[0];
 	}
 
 	ServerHistoryTab = UTUITabPage_ServerHistory(FindChild('pnlServerHistory', true));
@@ -57,6 +80,21 @@ event PostInitialize()
 
 		// this is no longer needed, as we call SaveSubscriberValue on each option as its changed
 		//ServerHistoryTab.OnPrepareToSubmitQuery = PreSubmitQuery;
+
+		List = UIList(ServerHistoryTab.FindChild('lstDetails', true));
+		List.ItemOverlayStyle[1] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[1] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[2] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[2] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[3] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[3] = List.GlobalCellStyle[0];
+
+		List = UIList(ServerHistoryTab.FindChild('lstPlayers', true));
+		List.ItemOverlayStyle[1] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[1] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[2] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[2] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[3] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[3] = List.GlobalCellStyle[0];
+
+		List = UIList(ServerHistoryTab.FindChild('lstMutators', true));
+		List.ItemOverlayStyle[1] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[1] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[2] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[2] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[3] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[3] = List.GlobalCellStyle[0];
 	}
 
 	ServerFavoritesTab = UTUITabPage_ServerFavorites(FindChild('pnlServerFavorites',true));
@@ -64,6 +102,21 @@ event PostInitialize()
 	{
 		TabControl.InsertPage(ServerFavoritesTab, GetBestPlayerIndex(), , false);
 		ServerFavoritesTab.OnBack = OnServerBrowser_Back;
+
+		List = UIList(ServerFavoritesTab.FindChild('lstDetails', true));
+		List.ItemOverlayStyle[1] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[1] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[2] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[2] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[3] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[3] = List.GlobalCellStyle[0];
+
+		List = UIList(ServerFavoritesTab.FindChild('lstPlayers', true));
+		List.ItemOverlayStyle[1] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[1] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[2] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[2] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[3] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[3] = List.GlobalCellStyle[0];
+
+		List = UIList(ServerFavoritesTab.FindChild('lstMutators', true));
+		List.ItemOverlayStyle[1] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[1] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[2] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[2] = List.GlobalCellStyle[0];
+		List.ItemOverlayStyle[3] = List.ItemOverlayStyle[0]; List.GlobalCellStyle[3] = List.GlobalCellStyle[0];
 	}
 
 	// Let the currently active page setup the button bar.
@@ -74,6 +127,9 @@ event PostInitialize()
 event SceneDeactivated()
 {
 	Super.SceneDeactivated();
+
+	// If the player is exiting the server browser, unset the 'WasShowingBrowser' registry vaue
+	SetDataStoreStringValue("<Registry:WasShowingBrowser>", "0");
 
 	// if we're leaving the server browser area - clear all stored server query searches
 	if ( ServerBrowserTab != None )
@@ -102,8 +158,11 @@ function OnMainRegion_Show_UIAnimEnd( UIObject AnimTarget, int AnimIndex, UIAnim
 	if ( AnimTarget.AnimStack[AnimIndex].SeqRef.SeqName == 'SceneShowInitial' )
 	{
 		// make sure we can't choose "internet" if we aren't signed in online
-		ServerFilterTab.ValidateServerType();
-
+		if (ServerFilterTab != None)
+		{
+			ServerFilterTab.ValidateServerType();
+		}
+		
 /*
 		if ( bCampaignMode )
 		{
@@ -125,10 +184,12 @@ function OnPageActivated( UITabControl Sender, UITabPage NewlyActivePage, int Pl
 {
 	Super.OnPageActivated(Sender, NewlyActivePage, PlayerIndex);
 
+	// Set the 'WasShowingBrowser' registry value to 1, so that the player can return directly to the browser after joining and exiting a game
+	SetDataStoreStringValue("<Registry:WasShowingBrowser>", "1");
+
 	if ( NewlyActivePage == ServerBrowserTab && !bIssuedInitialQuery )
 	{
 		bIssuedInitialQuery = true;
-
 		ServerBrowserTab.RefreshServerList(PlayerIndex);
 	}
 	else if ( !bIssuedInitialHistoryQuery && NewlyActivePage == ServerHistoryTab )
@@ -152,6 +213,9 @@ function SetupButtonBar()
 
 		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", OnButtonBar_Back);
 		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Search>", OnButtonBar_Search);
+		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.SelectMutators>", OnButtonBar_Mutators);
+		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.JoinIP>", OnButtonBar_JoinIP);
+		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.SpectateIP>", OnButtonBar_SpectateIP);
 
 		if ( TabControl != None && UTTabPage(TabControl.ActivePage) != None )
 		{
@@ -170,6 +234,18 @@ function ServerFilterChangedGameType()
 	{
 		ServerBrowserTab.NotifyGameTypeChanged();
 	}
+
+	//These invisible (unused and undeletable) combo boxes must be updated as well or else they will overwrite 
+	//the true value (from ServerFilter) when you back out of the scene and SaveSubscriberValues is called
+	if (ServerHistoryTab != None)
+	{
+		ServerHistoryTab.GameTypeCombo.RefreshSubscriberValue();
+	}
+
+	if (ServerFavoritesTab != None)
+	{
+		ServerFavoritesTab.GameTypeCombo.RefreshSubscriberValue();
+	}
 }
 
 /**
@@ -181,6 +257,19 @@ function ServerBrowserChangedGameType()
 	if ( ServerFilterTab != None )
 	{
 		ServerFilterTab.MarkOptionsDirty();
+		//ServerFilterTab.OptionList.RefreshSubscriberValue();
+	}
+
+	//These invisible (unused and undeletable) combo boxes must be updated as well or else they will overwrite 
+	//the true value (from ServerFilter) when you back out of the scene and SaveSubscriberValues is called
+	if (ServerHistoryTab != None)
+	{
+		ServerHistoryTab.GameTypeCombo.RefreshSubscriberValue();
+	}
+
+	if (ServerFavoritesTab != None)
+	{
+		ServerFavoritesTab.GameTypeCombo.RefreshSubscriberValue();
 	}
 }
 
@@ -226,6 +315,12 @@ function OnAcceptFilterOptions(int PlayerIndex)
 	}
 }
 
+/** Called when the user clicks on the 'Mutators' button, to open up the mutator filter menu */
+function OnFilterMutators()
+{
+	OpenSceneByName(MutatorScene, false);
+}
+
 /** Called when the user accepts their filter settings and wants to go to the server browser. */
 function OnServerFilter_AcceptOptions(UIScreenObject InObject, int PlayerIndex)
 {
@@ -266,6 +361,58 @@ function bool OnButtonBar_Search(UIScreenObject InButton, int PlayerIndex)
 	return true;
 }
 
+function bool OnButtonBar_Mutators(UIScreenObject InButton, int PlayerIndex)
+{
+	OnFilterMutators();
+
+	return True;
+}
+
+function bool OnButtonBar_JoinIP(UIScreenObject InButton, int PlayerIndex)
+{
+	local UTUIScene_InputBox IPInputScene;
+
+	// Display a dialog box where the player can enter the servers IP and port
+	IPInputScene = GetInputBoxScene();
+
+	if (IPInputScene != none)
+	{
+		bJoinSpectate = False;
+		IPInputScene.DisplayAcceptCancelBox("<Strings:UTGameUI.MessageBox.EnterServerIP_Message>",
+							"<Strings:UTGameUI.MessageBox.EnterServerIP_Title>",
+							OnJoinIPDialog_Closed);
+	}
+	else
+	{
+		`log("Failed to open the input box scene ("$InputBoxScene$")");
+	}
+
+
+	return True;
+}
+
+function bool OnButtonBar_SpectateIP(UIScreenObject InButton, int PlayerIndex)
+{
+	local UTUIScene_InputBox IPInputScene;
+
+	// Display a dialog box where the player can enter the servers IP and port
+	IPInputScene = GetInputBoxScene();
+
+	if (IPInputScene != none)
+	{
+		bJoinSpectate = True;
+		IPInputScene.DisplayAcceptCancelBox("<Strings:UTGameUI.MessageBox.EnterServerIP_Message>",
+							"<Strings:UTGameUI.MessageBox.EnterServerIP_Title>",
+							OnJoinIPDialog_Closed);
+	}
+	else
+	{
+		`log("Failed to open the input box scene ("$InputBoxScene$")");
+	}
+
+
+	return True;
+}
 
 function bool OnButtonBar_Back(UIScreenObject InButton, int PlayerIndex)
 {
@@ -273,6 +420,33 @@ function bool OnButtonBar_Back(UIScreenObject InButton, int PlayerIndex)
 
 	return true;
 }
+
+
+function OnJoinIPDialog_Closed(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
+{
+	local string ServerIP, FallbackURL;
+	local UTQueryHelper QueryHelper;
+
+	if (SelectedOption == 0)
+	{
+		ServerIP = UTUIScene_InputBox(MessageBox).GetValue();
+
+		if (ServerIP != "")
+		{
+			if (QueryHelper == none)
+				QueryHelper = Class'UTQueryHelper'.static.GetQueryHelper(Self);
+
+
+			FallbackURL = ServerIP$"?Name="$GetPlayerName();
+
+			if (bJoinSpectate)
+				FallbackURL $= "?SpectatorOnly=1";
+
+			QueryHelper.JoinServerByIP(ServerIP,, bJoinSpectate, FallbackURL);
+		}
+	}
+}
+
 
 /**
  * Provides a hook for unrealscript to respond to input using actual input key names (i.e. Left, Tab, etc.)
@@ -330,9 +504,38 @@ function UseCampaignMode()
 		ServerFilterChangedGameType();
 	}
 
-	TabControl.ActivateTabByTag('pnlServerFilter');
+	TabControl.ActivatePage(ServerBrowserTab, GetBestPlayerIndex());
+	TabControl.RemovePage(ServerFilterTab, GetBestPlayerIndex());
 	TabControl.RemovePage(ServerHistoryTab, GetBestPlayerIndex());
 	TabControl.RemovePage(ServerFavoritesTab, GetBestPlayerIndex());
+	ServerFilterTab = None;
+	ServerHistoryTab = None;
+	ServerFavoritesTab = None;
+}
+
+/**
+ * Setup the server filter/browser for LAN mode
+ */
+function UseLANMode()
+{
+	local int ValueIndex;
+	ValueIndex = ServerFilterTab.MenuDataStore.FindValueInProviderSet('GameModeFilter', 'GameSearchClass', "UTGameSearchDM");
+
+	//Force DM search mode (prevents campaign filtering out non-campaign games)
+	if(ValueIndex != -1)
+	{
+		ServerFilterTab.MenuDataStore.GameModeFilter = ValueIndex;
+		ServerFilterTab.MarkOptionsDirty();
+		ServerFilterTab.SearchDataStore.SetCurrentByName('UTGameSearchDM', false);
+
+		ServerFilterChangedGameType();
+	}
+
+	TabControl.ActivatePage(ServerBrowserTab, GetBestPlayerIndex());
+	TabControl.RemovePage(ServerFilterTab, GetBestPlayerIndex());
+	TabControl.RemovePage(ServerHistoryTab, GetBestPlayerIndex());
+	TabControl.RemovePage(ServerFavoritesTab, GetBestPlayerIndex());
+	ServerFilterTab = None;
 	ServerHistoryTab = None;
 	ServerFavoritesTab = None;
 }
@@ -369,4 +572,6 @@ defaultproperties
 {
 	bMenuLevelRestoresScene=true
 	bRequiresNetwork=true
+
+	MutatorScene="UI_Scenes_FrontEnd.Scenes.BrowserMutatorFilters"
 }

@@ -155,6 +155,11 @@ native function UpdateGamePlayersArray();
 /** Checks to see if a frontend error message was set by the game before returning to the main menu, if so, we skip to the main menu and display the message. */
 function CheckTitleSkip()
 {
+	// Skip the title every time now
+	OpenSceneByName(MainMenuScene, true);
+	UpdateProfileLabels();
+
+/*
 	local string OutValue;
 	local bool bShouldAutologin;
 	local string Username, UserPassword;
@@ -180,6 +185,7 @@ function CheckTitleSkip()
 
 	// Clear the display flag.
 	SetDataStoreStringValue("<Registry:GoStraightToMainMenu>", "1");
+*/
 }
 
 /** Sets PlayerIndex 0's controller id to be the specified controller id, this makes it so that the specified controller can control all of the menus. */

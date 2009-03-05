@@ -18,10 +18,10 @@ enum CommunityOptions
 
 	COMMUNITY_OPTION_FRIENDS,
 	COMMUNITY_OPTION_MESSAGES,
+	COMMUNITY_OPTION_ACHIEVEMENTS,
 	COMMUNITY_OPTION_STATS,
 	COMMUNITY_OPTION_DEMOPLAYBACK,
 	COMMUNITY_OPTION_CREDITS,
-	COMMUNITY_OPTION_ACHIEVEMENTS,
 };
 
 /** Scene references. */
@@ -43,7 +43,7 @@ event PostInitialize( )
 function OnSelectItem(int PlayerIndex=0)
 {
 	local int SelectedItem;
-	SelectedItem = MenuList.GetCurrentItem();
+	SelectedItem = MenuList.Selection;
 
 	switch(SelectedItem)
 	{
@@ -67,10 +67,10 @@ function OnSelectItem(int PlayerIndex=0)
 
 */
 	case COMMUNITY_OPTION_ACHIEVEMENTS:
-		if(CheckLoginAndError(INDEX_NONE,true))
-		{
+		//if(!IsConsole(CONSOLE_Xbox360) || CheckLoginAndError(INDEX_NONE,true))
+		//{
 			OnShowAchievements(PlayerIndex);
-		}
+		//}
 		break;
 	case COMMUNITY_OPTION_FRIENDS:
 		if(CheckLinkConnectionAndError() && CheckLoginAndError(INDEX_NONE,true) && CheckCommunicationPrivilegeAndError())
@@ -196,23 +196,7 @@ function OnShowDemoPlayback()
 /** Achievements option selected, displays the achievements blade for the specified PlayerIndex. */
 function OnShowAchievements(int PlayerIndex)
 {
-	local OnlineSubsystem OnlineSub;
-	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
-	if (OnlineSub != None)
-	{
-		if (OnlineSub.PlayerInterfaceEx != None)
-		{
-			// Show them for the requesting player
-			if (OnlineSub.PlayerInterfaceEx.ShowAchievementsUI(class'UIInteraction'.static.GetPlayerControllerId(PlayerIndex)) == false)
-			{
-				`Log("Failed to show the achievements UI");
-			}
-		}
-		else
-		{
-			`Log("OnlineSubsystem does not support the extended player interface");
-		}
-	}
+	OpenSceneByName(FriendsScene, false, OnAchievementsScene_Opened);
 }
 
 /** Shows the friends screen. */
@@ -236,6 +220,19 @@ function OnMessagesScene_Opened(UIScene OpenedScene, bool bInitialActivation)
 	{
 		FriendsSceneInst = UTUIFrontEnd_Friends(OpenedScene);
 		FriendsSceneInst.TabControl.ActivatePage(FriendsSceneInst.MessagesTab, GetPlayerIndex());
+	}
+}
+
+
+/** Callback for when the messages scene has opened. */
+function OnAchievementsScene_Opened(UIScene OpenedScene, bool bInitialActivation)
+{
+	local UTUIFrontEnd_Friends FriendsSceneInst;
+
+	if ( bInitialActivation )
+	{
+		FriendsSceneInst = UTUIFrontEnd_Friends(OpenedScene);
+		FriendsSceneInst.TabControl.ActivatePage(FriendsSceneInst.AchievementsTab, GetPlayerIndex());
 	}
 }
 

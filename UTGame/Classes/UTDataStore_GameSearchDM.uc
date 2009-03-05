@@ -4,12 +4,49 @@
  * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UTDataStore_GameSearchDM extends UTDataStore_GameSearchBase
+	dependson(UTUIFrontEnd_BrowserMutatorFilters)
 	config(UI);
+
+`include(UTOnlineConstants.uci)
+
+/** Struct for defining a mutator filter setting */
+struct MutatorFilter
+{
+	var string MutatorClass;	// Classname of the mutator (must not include package name)
+	var bool bMutatorName;		// If true, MutatorClass represents a mutator name instead of class
+	var int OfficialMutValue;	// If this is non-zero, then MutatorClass is ignored and this is treated as an official mutator
+
+	var bool bMustBeOn;		// If true, the mutator must be enabled on the server, otherwise it must be disabled
+};
+
 
 var			class<UTDataStore_GameSearchHistory>	HistoryGameSearchDataStoreClass;
 
 /** Reference to the search data store that handles the player's list of most recently visited servers */
 var	transient	UTDataStore_GameSearchHistory		HistoryGameSearchDataStore;
+
+/** Reference to the data store which handles the 'Find IP' and 'Add IP' IP search queries */
+var transient UTDataStore_GameSearchFind FindGameSearchDataStore;
+
+
+/** Can be set to ML_NoMutators (no mutators must be running), ML_AnyMutators (doesn't matter what mutators are running) and ML_Custom (checks MutatorFilters) */
+var EMutatorList MutatorFilterSetting;
+
+/** If 'MutatorFilterSetting' is set to ML_Custom, then servers must match the list of mutator filter settings defined here */
+var array<MutatorFilter> MutatorFilters;
+
+
+/** These lists are cached here for use by the mutator filter menu */
+var array<EMutFilterList> InstalledMutFilters;
+var array<EMutFilterList> AdditionalMutClassFilters;
+var array<EMutFilterList> AdditionalMutNameFilters;
+var bool bMutatorFilterSet;
+
+
+/** When a custom gametype is selected in the server browser, this value is set to the gametypes class, and is used to properly filter that gametype */
+var transient string CustomGameTypeClass;
+
+
 
 /**
  * A simple mapping of localized setting ID to a localized setting value ID.
@@ -59,6 +96,15 @@ event Registered( LocalPlayer PlayerOwner )
 
 		// and register it
 		DSClient.RegisterDataStore(HistoryGameSearchDataStore, PlayerOwner);
+
+
+		// Create the game find data store
+		FindGameSearchDataStore = DSClient.CreateDataStore(Class'UTGame.UTDataStore_GameSearchFind');
+		FindGameSearchDataStore.PrimaryGameSearchDataStore = Self;
+		FindGameSearchDataStore.HistoryGameSearchDataStore = HistoryGameSearchDataStore;
+
+		// Register it
+		DSClient.RegisterDataStore(FindGameSearchDataStore, PlayerOwner);
 	}
 
 	LoadGameSearchParameters();
@@ -66,7 +112,7 @@ event Registered( LocalPlayer PlayerOwner )
 
 /**
  * Called to kick off an online game search and set up all of the delegates needed; this version saved the search parameters
- * to persistent storage.
+ * to persistent storage and sets up extra filters.
  *
  * @param ControllerIndex the ControllerId for the player to perform the search for
  * @param bInvalidateExistingSearchResults	specify FALSE to keep previous searches (i.e. for other gametypes) in memory; default
@@ -76,6 +122,165 @@ event Registered( LocalPlayer PlayerOwner )
  */
 event bool SubmitGameSearch(byte ControllerIndex, optional bool bInvalidateExistingSearchResults=true)
 {
+	local int i, OfficialMutsOn, OfficialMutsOff;
+	local OnlineGameSearch GS;
+	local ClientOnlineGameSearchOrClause CurClientFilter;
+	local RawOnlineGameSearchOrClause CurRawFilter;
+	local array<string> CustomMutClassesOn, CustomMutClassesOff, CustomMutNamesOn, CustomMutNamesOff;
+
+	// Setup the filters
+	GS = GetCurrentGameSearch();
+	GS.ResetFilters();
+
+	if (MutatorFilterSetting == ML_NoMutators)
+	{
+		// Setup the clientside filter to remove all servers running any official mutators
+		CurClientFilter.OrParams.Length = 1;
+		CurClientFilter.OrParams[0].EntryId = PROPERTY_EPICMUTATORS;
+		CurClientFilter.OrParams[0].EntryType = OGSET_Property;
+		CurClientFilter.OrParams[0].ComparisonDelegate = NoOfficialMuts;
+		CurClientFilter.OrParams[0].ComparedValue = "0";
+
+		GS.ClientsideFilters.AddItem(CurClientFilter);
+
+
+		// Setup the 'raw' master server query to removal all servers running custom mutators
+		CurRawFilter.OrParams.Length = 1;
+		CurRawFilter.OrParams[0].EntryId = PROPERTY_CUSTOMMUTCLASSES;
+		CurRawFilter.OrParams[0].EntryType = OGSET_Property;
+		CurRawFilter.OrParams[0].ComparisonOperator = "=";
+		CurRawFilter.OrParams[0].ComparedValue = "''";
+
+		GS.RawFilterQueries.AddItem(CurRawFilter);
+
+
+		// Check the mutator names field as well as the mutator classes field
+		CurRawFilter.OrParams[0].EntryId = PROPERTY_CUSTOMMUTATORS;
+		GS.RawFilterQueries.AddItem(CurRawFilter);
+	}
+	else if (MutatorFilterSetting == ML_Custom)
+	{
+		// First generate the official mutator bitmasks and custom mutator lists
+		for (i=0; i<MutatorFilters.Length; ++i)
+		{
+			if (MutatorFilters[i].OfficialMutValue != 0)
+			{
+				if (MutatorFilters[i].bMustBeOn)
+					OfficialMutsOn = OfficialMutsOn | MutatorFilters[i].OfficialMutValue;
+				else
+					OfficialMutsOff = OfficialMutsOff | MutatorFilters[i].OfficialMutValue;
+			}
+			else if (MutatorFilters[i].MutatorClass != "")
+			{
+				if (MutatorFilters[i].bMutatorName)
+				{
+					if (MutatorFilters[i].bMustBeOn)
+						CustomMutNamesOn.AddItem(MutatorFilters[i].MutatorClass);
+					else
+						CustomMutNamesOff.AddItem(MutatorFilters[i].MutatorClass);
+				}
+				else
+				{
+					if (MutatorFilters[i].bMustBeOn)
+						CustomMutClassesOn.AddItem(MutatorFilters[i].MutatorClass);
+					else
+						CustomMutClassesOff.AddItem(MutatorFilters[i].MutatorClass);
+				}
+			}
+		}
+
+
+		// Now setup the clientside filters for the official mutator bitmask filters (must be done clientside since Gamespy can't do bitmask operations)
+		CurClientFilter.OrParams.Length = 1;
+		CurClientFilter.OrParams[0].EntryId = PROPERTY_EPICMUTATORS;
+		CurClientFilter.OrParams[0].EntryType = OGSET_Property;
+
+		if (OfficialMutsOn != 0)
+		{
+			CurClientFilter.OrParams[0].ComparisonDelegate = OfficialMutEnabled;
+			CurClientFilter.OrParams[0].ComparedValue = string(OfficialMutsOn);
+
+			GS.ClientsideFilters.AddItem(CurClientFilter);
+		}
+
+		if (OfficialMutsOff != 0)
+		{
+			CurClientFilter.OrParams[0].ComparisonDelegate = OfficialMutDisabled;
+			CurClientFilter.OrParams[0].ComparedValue = string(OfficialMutsOff);
+
+			GS.ClientsideFilters.AddItem(CurClientFilter);
+		}
+
+
+		// Setup the 'raw' master server filters for the custom mutator class filters
+		CurRawFilter.OrParams.Length = 1;
+		CurRawFilter.OrParams[0].EntryId = PROPERTY_CUSTOMMUTCLASSES;
+		CurRawFilter.OrParams[0].EntryType = OGSET_Property;
+
+		if (CustomMutClassesOn.Length != 0)
+		{
+			CurRawFilter.OrParams[0].ComparisonOperator = " LIKE";
+
+			for (i=0; i<CustomMutClassesOn.Length; ++i)
+			{
+				// N.B. All mutator class entries are encased with a special character, Chr(28)
+				CurRawFilter.OrParams[0].ComparedValue = "'%"$Chr(28)$CustomMutClassesOn[i]$Chr(28)$"%'";
+				GS.RawFilterQueries.AddItem(CurRawFilter);
+			}
+		}
+
+		if (CustomMutClassesOff.Length != 0)
+		{
+			CurRawFilter.OrParams[0].ComparisonOperator = " NOT LIKE";
+
+			for (i=0; i<CustomMutClassesOff.Length; ++i)
+			{
+				CurRawFilter.OrParams[0].ComparedValue = "'%"$Chr(28)$CustomMutClassesOff[i]$Chr(28)$"%'";
+				GS.RawFilterQueries.AddItem(CurRawFilter);
+			}
+		}
+
+
+		// Finally, setup the raw filters for the custom mutator name filters
+		CurRawFilter.OrParams[0].EntryId = PROPERTY_CUSTOMMUTATORS;
+
+		if (CustomMutNamesOn.Length != 0)
+		{
+			CurRawFilter.OrParams[0].ComparisonOperator = " LIKE";
+
+			for (i=0; i<CustomMutNamesOn.Length; ++i)
+			{
+				// N.B. It can't be guaranteed that the Chr(28) delimiter will be present in the names list, so don't include it in the query
+				CurRawFilter.OrParams[0].ComparedValue = "'%"$CustomMutNamesOn[i]$"%'";
+				GS.RawFilterQueries.AddItem(CurRawFilter);
+			}
+		}
+
+		if (CustomMutNamesOff.Length != 0)
+		{
+			CurRawFilter.OrParams[0].ComparisonOperator = " NOT LIKE";
+
+			for (i=0; i<CustomMutNamesOff.Length; ++i)
+			{
+				CurRawFilter.OrParams[0].ComparedValue = "'%"$CustomMutNamesOff[i]$"%'";
+				GS.RawFilterQueries.AddItem(CurRawFilter);
+			}
+		}
+	}
+
+	// If the current search is a custom gametype search, then add a filter for that gametypes classname
+	if (CustomGameTypeClass != "" && GameSearchCfgList[SelectedIndex].SearchName == 'UTGameSearchCustom')
+	{
+		CurRawFilter.OrParams.Length = 1;
+		CurRawFilter.OrParams[0].EntryId = PROPERTY_CUSTOMGAMEMODE;
+		CurRawFilter.OrParams[0].EntryType = OGSET_Property;
+		CurRawFilter.OrParams[0].ComparisonOperator = "=";
+		CurRawFilter.OrParams[0].ComparedValue = "'"$CustomGameTypeClass$"'";
+
+		GS.RawFilterQueries.AddItem(CurRawFilter);
+	}
+
+
 	if ( bInvalidateExistingSearchResults || !HasExistingSearchResults() )
 	{
 		SaveGameSearchParameters();
@@ -83,6 +288,28 @@ event bool SubmitGameSearch(byte ControllerIndex, optional bool bInvalidateExist
 
 	return Super.SubmitGameSearch(ControllerIndex, bInvalidateExistingSearchResults);
 }
+
+
+// Clientside mutator filter operators
+
+// For official mutators which must be on
+final function bool OfficialMutEnabled(string PropertyValue, string ComparedValue)
+{
+	return !bool(~int(PropertyValue) & int(ComparedValue));
+}
+
+// For official muts which must be off
+final function bool OfficialMutDisabled(string PropertyValue, string ComparedValue)
+{
+	return !bool(int(PropertyValue) & int(ComparedValue));
+}
+
+// No official muts at all
+final function bool NoOfficialMuts(string PropertyValue, string ComparedValue)
+{
+	return int(PropertyValue) == 0;
+}
+
 
 /**
  * @param	bRestrictCheckToSelf	if TRUE, will not check related game search data stores for outstanding queries.
@@ -115,6 +342,8 @@ function bool HasExistingSearchResults()
 {
 	return Super.HasExistingSearchResults();
 }
+
+
 
 /**
  * Finds the index of the saved parameters for the specified game search.
@@ -272,10 +501,29 @@ function SaveGameSearchParameters()
 	}
 }
 
+function SetCurrentByIndex(int NewIndex, optional bool bInvalidateExistingSearchResults=True)
+{
+	// Reset 'CustomGameTypeClass' if the current search index isn't set to the custom search index
+	if (NewIndex == INDEX_None || NewIndex >= GameSearchCfgList.Length || GameSearchCfgList[NewIndex].SearchName != 'UTGameSearchCustom')
+		CustomGameTypeClass = "";
+
+	Super.SetCurrentByIndex(NewIndex, bInvalidateExistingSearchResults);
+}
+
+function SetCurrentByName(name SearchName, optional bool bInvalidateExistingSearchResults=True)
+{
+	if (SearchName != 'UTGameSearchCustom')
+		CustomGameTypeClass = "";
+
+	Super.SetCurrentByName(SearchName, bInvalidateExistingSearchResults);
+}
+
 DefaultProperties
 {
 	Tag=UTGameSearch
 	HistoryGameSearchDataStoreClass=class'UTGame.UTDataStore_GameSearchHistory'
+
+	MutatorFilterSetting=ML_AnyMutators
 
 	GameSearchCfgList.Empty
 	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchDM',DefaultGameSettingsClass=class'UTGame.UTGameSettingsDM',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchDM"))
@@ -286,4 +534,6 @@ DefaultProperties
 	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchDUEL',DefaultGameSettingsClass=class'UTGame.UTGameSettingsDUEL',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchDUEL"))
 	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchCampaign',DefaultGameSettingsClass=class'UTGame.UTGameSettingsCampaign',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchCampaign"))
 	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchCustom',DefaultGameSettingsClass=class'UTGame.UTGameSettingsDM',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchCustom"))
+	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchGreed',DefaultGameSettingsClass=class'UTGame.UTGameSettingsGreed',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchGreed"))
+	GameSearchCfgList.Add((GameSearchClass=class'UTGame.UTGameSearchBetrayal',DefaultGameSettingsClass=class'UTGame.UTGameSettingsBetrayal',SearchResultsProviderClass=class'UTGame.UTUIDataProvider_SearchResult',SearchName="UTGameSearchBetrayal"))
 }

@@ -39,6 +39,9 @@ var array<float> MinReloadPct;
 /** camera anim to play when firing (for camera shakes) */
 var array<CameraAnim> FireCameraAnim;
 
+/** controller rumble to play when firing. */
+var ForceFeedbackWaveform WeaponFireWaveForm;
+
 var array<name> EffectSockets;
 
 var int IconX, IconY, IconWidth, IconHeight;
@@ -344,6 +347,18 @@ var bool bUsingAimingHelp;
 /** whether to allow this weapon to fire by uncontrolled pawns */
 var bool bAllowFiringWithoutController;
 
+/** If true, weapon auto recharges ammo */
+var bool bAutoCharge;
+
+/** recharge rate in ammo per second */
+var float AmmoRechargeRate;
+
+/** partial (less than 1) ammo charge */
+var float PartialCharge;
+
+/** timeseconds when last fired */
+var float LastWeaponFireTime;
+
 enum AmmoWidgetDisplayStyle
 {
 	EAWDS_Numeric,
@@ -548,6 +563,7 @@ simulated function CreateOverlayMesh()
 		{
 			OverlayMesh.SetScale(1.00);
 			OverlayMesh.SetOwnerNoSee(Mesh.bOwnerNoSee);
+			OverlayMesh.SetOnlyOwnerSee(true);
 			OverlayMesh.SetDepthPriorityGroup(SDPG_Foreground);
 			OverlayMesh.CastShadow = false;
 
@@ -622,7 +638,7 @@ simulated function CalcInventoryWeight()
  * used to determine whether to switch to InWeapon
  * this is the server check, so don't check clientside settings (like weapon priority) here
  */
-function bool ShouldSwitchTo(UTWeapon InWeapon)
+simulated function bool ShouldSwitchTo(UTWeapon InWeapon)
 {
 	// if we should, but can't right now, tell InventoryManager to try again later
 	if (IsFiring() || DenyClientWeaponSet())
@@ -736,7 +752,7 @@ simulated function DrawWeaponCrosshair( Hud HUD )
 	PC = UTPlayerController(Instigator.Controller);
 	if ( PC.bSimpleCrosshair )
 	{
- 		CrosshairSize.Y = FMax(0.5,H.ConfiguredCrosshairScaling) * CrosshairScaling * CrossHairCoordinates.VL * PickupScale * H.Canvas.ClipY/768;
+ 		CrosshairSize.Y = H.ConfiguredCrosshairScaling * CrosshairScaling * CrossHairCoordinates.VL * PickupScale * H.Canvas.ClipY/768;
   		CrosshairSize.X = CrosshairSize.Y * ( CrossHairCoordinates.UL / CrossHairCoordinates.VL ) * H.Canvas.ClipX/1024;
 	}
 	else
@@ -936,6 +952,13 @@ simulated function ShakeView()
 	if (PC != None && LocalPlayer(PC.Player) != None && CurrentFireMode < FireCameraAnim.length && FireCameraAnim[CurrentFireMode] != None)
 	{
 		PC.PlayCameraAnim(FireCameraAnim[CurrentFireMode], (GetZoomedState() > ZST_ZoomingOut) ? PC.FOVAngle / PC.DefaultFOV : 1.0);
+	}
+
+	// Play controller vibration
+	if( PC != None && LocalPlayer(PC.Player) != None )
+	{
+		// only do rumble if we are a player controller
+		UTPlayerController(Instigator.Controller).ClientPlayForceFeedbackWaveform( WeaponFireWaveForm );
 	}
 }
 
@@ -1339,6 +1362,26 @@ simulated function ChangeVisibility(bool bIsVisible)
 	}
 }
 
+/**
+* Called when the pawn is changing weapons
+*/
+simulated function PerformWeaponChange()
+{
+	if ( UTPawn(Instigator) != None )
+	{
+		if ( Instigator.IsLocallyControlled() )
+		{
+			UTPawn(Instigator).WeaponChanged(self);
+		}
+
+		// If the controller has not been replicated, try again later
+		else if ( Instigator.Controller == None )
+		{
+			SetTimer(0.01, false, 'PerformWeaponChange');
+		}
+	}
+}
+
 /*********************************************************************************************
  * Pawn/Controller/View functions
  *********************************************************************************************/
@@ -1401,7 +1444,7 @@ simulated event SetPosition(UTPawn Holder)
 	local rotator NewRotation, FinalRotation, SpecRotation;
 	local PlayerController PC;
 	local vector2D ViewportSize;
-	local bool bIsWideScreen;
+	local bool bIsWideScreen, bIsClientDemo;
 	local vector SpecViewLoc;
 
 	if ( !Holder.IsFirstPerson() )
@@ -1500,14 +1543,16 @@ simulated event SetPosition(UTPawn Holder)
 		ViewOffset += FinalSmallWeaponsOffset;
 	}
 
+	bIsClientDemo = WorldInfo.bWithinDemoPlayback && PlayerController(Holder.Controller) != None;
+
 	// Calculate the draw offset
-	if ( Holder.Controller == None )
+	if ( (Holder.Controller == None) || bIsClientDemo )
 	{
-		if ( DemoRecSpectator(PC) != None )
+		if ( bIsClientDemo || (DemoRecSpectator(PC) != None) )
 		{
 			PC.GetPlayerViewPoint(SpecViewLoc, SpecRotation);
 			DrawOffset = ViewOffset >> SpecRotation;
-			DrawOffset += Holder.WeaponBob(BobDamping, JumpDamping);
+			DrawOffset += 0.1 * Holder.WeaponBob(BobDamping, JumpDamping);
 			FinalLocation = SpecViewLoc + DrawOffset;
 			SetLocation(FinalLocation);
 			SetBase(Holder);
@@ -1725,7 +1770,22 @@ function bool CanAttack(Actor Other)
 
 	// check that can see target
 	B = UTBot(Instigator.Controller);
-	if (Instigator.Controller.LineOfSightTo(Other, projStart))
+	if ( UTOnslaughtPowerNode(Other) != None )
+	{
+		if ( FastTrace(Other.GetTargetLocation(B.Pawn, false), projStart) )
+		{
+			B.bTargetAlternateLoc = false;
+		}
+		else if ( Instigator.Controller.LineOfSightTo(Other, projStart) )
+		{
+			B.bTargetAlternateLoc = true;
+		}	
+		else
+		{
+			return false;
+		}		
+	}
+	else if (Instigator.Controller.LineOfSightTo(Other, projStart))
 	{
 		if (B != None && B.Focus == Other)
 		{
@@ -1841,7 +1901,7 @@ static function float BotDesireability(Actor PickupHolder, Pawn P, Controller C)
 			return 0;
 
 		// can't pick it up if weapon stay is on
-		if ( (UTWeaponPickupFactory(PickupHolder) != None) && !UTWeaponPickupFactory(PickupHolder).AllowRepeatPickup() )
+		if ( (UTWeaponPickupFactory(PickupHolder) != None) && !UTWeaponPickupFactory(PickupHolder).AllowPickup(Bot) )
 			return 0;
 
 		if ( AlreadyHas.AmmoMaxed(0) )
@@ -1972,6 +2032,8 @@ simulated function bool StillFiring(byte FireMode)
  */
 function ConsumeAmmo( byte FireModeNum )
 {
+	LastWeaponFireTime = WorldInfo.TimeSeconds;
+
 	// Subtract the Ammo
 	AddAmmo(-ShotCost[FireModeNum]);
 }
@@ -2071,7 +2133,7 @@ function bool DenyPickupQuery(class<Inventory> ItemClass, Actor Pickup)
 			DP.PickedUpBy(Instigator);
 			AnnouncePickup(Instigator);
 		}
-		else if (bSuperWeapon || !UTGame(WorldInfo.Game).bWeaponStay)
+		else
 		{
 			// add the ammo that the pickup should give us, then tell it to respawn
 			AddAmmo(default.AmmoCount);
@@ -2205,12 +2267,21 @@ simulated function ImpactInfo InstantAimHelp(vector StartTrace, vector EndTrace,
 	local UTPlayerController UTPC;
 	local float AimHelpDist;
 	local vector ClosestPoint;
+	local bool bProvidedAimingHelp;
+	local UTPawn UTP;
+	local int i;
+	local UTProj_SpiderMineBase Spider;
 
 	NearImpact.HitActor = None;
 	UTPC = (Instigator != None) ? UTPlayerController(Instigator.Controller) : None;
-	if ( (UTPC != None) && (UTPC.ShotTarget != None) && UTPC.AimingHelp(true) && (AimingHelpRadius[Min(CurrentFireMode,1)] > 0.0) )
+	if ( (UTPC != None) && UTPC.AimingHelp(true) && (AimingHelpRadius[Min(CurrentFireMode,1)] > 0.0) )
+	{
+		if ( UTPC.ShotTarget != None ) 
 	{
 		ShotTarget = UTPC.ShotTarget;
+			// no aiming help shooting at giants
+			if ( (UTPawn(ShotTarget) == None) || !UTPawn(ShotTarget).IsHero() )
+			{
 		if ( RealImpact.HitActor != None )
 		{
 			EndTrace = RealImpact.HitLocation;
@@ -2231,6 +2302,42 @@ simulated function ImpactInfo InstantAimHelp(vector StartTrace, vector EndTrace,
 				NearImpact.HitActor = ShotTarget;
 				NearImpact.HitLocation = ClosestPoint;
 				NearImpact.HitNormal = Normal(EndTrace - StartTrace);
+						bProvidedAimingHelp = true;
+					}
+				}
+			}
+		}
+		if ( !bProvidedAimingHelp )
+		{
+			UTP = UTPawn(Instigator);
+			if ( (UTP != None) && (UTP.SpiderChasers.Length > 0) )
+			{
+				for ( i=0; i<UTP.SpiderChasers.Length; i++ )
+				{
+					Spider = UTP.SpiderChasers[i];
+					if ( (Spider != None) && !Spider.bDeleteMe && (Spider.TargetPawn == UTP) )
+					{
+						if ( RealImpact.HitActor != None )
+						{
+							EndTrace = RealImpact.HitLocation;
+						}
+						if ( ((EndTrace - Spider.Location) Dot (Spider.Location - StartTrace)) > 0 )
+						{
+							PointDistToLine(Spider.Location, EndTrace - StartTrace, StartTrace, ClosestPoint);
+							AimHelpDist = UTPC.AimHelpModifier() * AimingHelpRadius[Min(CurrentFireMode,1)];
+
+							// accept near miss if within AimHelpDist
+							if ( (abs(ClosestPoint.Z - Spider.Location.Z) < Spider.CylinderComponent.CollisionHeight + AimHelpDist)
+								&& (VSize2D(ClosestPoint - Spider.Location) < Spider.CylinderComponent.CollisionRadius + AimHelpDist) )
+							{
+								NearImpact.HitActor = Spider;
+								NearImpact.HitLocation = ClosestPoint;
+								NearImpact.HitNormal = Normal(EndTrace - StartTrace);
+								break;
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -2337,6 +2444,7 @@ simulated function bool CheckZoom(byte FireModeNum)
 		{
 			EndZoom(PC);
 			EndFire(FireModeNum);		// Kill this fire command
+			DemoEndFire(FireModeNum);
 			return true;
 		}
 		else if ( GetZoomedState() == ZST_NotZoomed )
@@ -2374,6 +2482,10 @@ client reliable simulated function ClientEndFire(byte FireModeNum)
 	{
 		ClearPendingFire(FireModeNum);
 		EndFire(FireModeNum);
+
+		// If this function was called locally, instead of replicated, then the demorec driver needs to record it
+		if (GetNetFuncName() != 'ClientEndFire')
+			DemoEndFire(FireModeNum);
 	}
 }
 
@@ -2597,10 +2709,7 @@ simulated state WeaponEquipping
 		// Notify the pawn that it's weapon has changed.
 		//SetupArmsAnim();
 
-		if (Instigator.IsLocallyControlled() && UTPawn(Instigator)!=None)
-		{
-			UTPawn(Instigator).WeaponChanged(self);
-		}
+		PerformWeaponChange();
 	}
 
 	simulated function bool TryPutDown()
@@ -3067,6 +3176,17 @@ simulated state Active
 			`log("---"@self@"has entered the Active State"@PreviousStateName);
 		}
 
+		if ( UTBot(Instigator.Controller) != None )
+		{
+			if ( PendingFire(0) )
+			{
+				StillFiring(0);
+			}
+			else if ( PendingFire(1) )
+			{
+				StillFiring(1);
+			}
+		}
 		Super.BeginState(PreviousStateName);
 
 		if (InvManager != none && InvManager.LastAttemptedSwitchToWeapon != none)
@@ -3158,7 +3278,6 @@ simulated function ThrottleLook(out float aTurn, out float aLookup);
 
 simulated function Activate()
 {
-//	`log("###"@self$"."$GetOwnerName()@".Activate() I="$Instigator@"M="$Mesh, bDebugWeapon);
 	SetupArmsAnim();
 	super.Activate();
 }
@@ -3181,33 +3300,22 @@ simulated event float GetPowerPerc()
 
 function DropFrom(vector StartLocation, vector StartVelocity)
 {
-//	local name StartState;
-
 	if (Instigator != None && Instigator.IsHumanControlled() && Instigator.IsLocallyControlled())
 	{
 		PreloadTextures(false);
 	}
-//	StartState = GetStateName();
 
 	Super.DropFrom(StartLocation, StartVelocity);
-
-	//`log("---"@self$".DropFrom() SS:"@StartState@" ES:"@GetStateName());
 }
 
 reliable client function ClientWeaponThrown()
 {
-//	local name StartState;
-
-//	StartState = GetStateName();
-
 	if ( Instigator != none && UTPlayerController(Instigator.Controller) != none )
 	{
 		UTPlayerController(Instigator.Controller).EndZoom();
 	}
 
 	Super.ClientWeaponThrown();
-
-	//`log("---"@self$".ClientWeaponThrown() SS:"@StartState@" ES:"@GetStateName());
 }
 
 
@@ -3401,4 +3509,12 @@ defaultproperties
 	SmallWeaponsOffset=(X=16.0,Y=6.0,Z=-6.0)
 	WideScreenOffsetScaling=0.8
 	SimpleCrossHairCoordinates=(U=276,V=84,UL=22,VL=25)
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=30,RightAmplitude=20,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.100)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
+
+	AmmoRechargeRate=1.2
+
 }

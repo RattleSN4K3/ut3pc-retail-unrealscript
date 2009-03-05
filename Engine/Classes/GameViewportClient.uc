@@ -135,6 +135,18 @@ var const ESplitScreenType Default3PSplitType;
 /** set to disable world rendering */
 var bool bDisableWorldRendering;
 
+/** debug property display functionality
+ * to interact with this, use "display", "displayall", "displayclear"
+ */
+struct native DebugDisplayProperty
+{
+	/** the object whose property to display. If this is a class, all objects of that class are drawn. */
+	var Object Obj;
+	/** name of the property to display */
+	var name PropertyName;
+};
+var array<DebugDisplayProperty> DebugProperties;
+
 
 
 /**

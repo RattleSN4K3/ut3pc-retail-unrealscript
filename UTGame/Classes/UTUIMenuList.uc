@@ -183,5 +183,5 @@ native function NotifyDataStoreValueUpdated( UIDataStore SourceDataStore, bool b
 defaultproperties
 {
 	DataSource=(RequiredFieldType=DATATYPE_Collection)
-	bHotTracking=true
+	bHotTracking=false
 }

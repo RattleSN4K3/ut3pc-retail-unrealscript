@@ -1,7 +1,7 @@
 ﻿/**
  * Activated when a new UITabPage becomes the ActivePage of a tab control.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIEvent_TabPageActivated extends UIEvent_TabControl;
 

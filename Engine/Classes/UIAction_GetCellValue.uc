@@ -6,7 +6,7 @@
  * assigned to CollectionIndex and CellFieldName, and writes both the resulting markup string and the actual
  * value to the output varable links.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_GetCellValue extends UIAction_DataStore
 	native(inherit);

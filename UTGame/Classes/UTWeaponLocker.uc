@@ -38,6 +38,7 @@ var array<PawnToucher> Customers;
 
 /** clientside flag - whether the locker should be displayed as active and having weapons available */
 var bool bIsActive;
+
 /** clientside flag - whether or not a local player is near this locker */
 var bool bPlayerNearby;
 
@@ -398,6 +399,8 @@ simulated function ShowHidden()
 	SetPlayerNearby(false, false);
 }
 
+function GiveLockerWeapons(Actor Other, bool bHideWeapons);
+
 auto state LockerPickup
 {
 	function bool ReadyToPickup(float MaxWait)
@@ -466,26 +469,43 @@ auto state LockerPickup
 	// When touched by an actor.
 	simulated event Touch( actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
 	{
-		local int		i;
-		local UTWeapon Copy;
-		local Pawn Recipient;
-
 		// If touched by a player pawn, let him pick this up.
 		if( ValidTouch(Other) )
 		{
+			GiveLockerWeapons(Other, true);
+		}
+	}
+
+	simulated function GiveLockerWeapons(Actor Other, bool bHideWeapons)
+	{
+		local int		i;
+		local UTWeapon Copy;
+		local Pawn Recipient;
+		local UTConsolePlayerController UTPC;
+
 			Recipient = Pawn(Other);
 			if ( (Recipient.Controller != None && Recipient.Controller.IsLocalPlayerController()) ||
 				(Recipient.DrivenVehicle != None && Recipient.DrivenVehicle.Controller != None && Recipient.DrivenVehicle.Controller.IsLocalPlayerController()) )
 			{
 				if ( bIsActive )
 				{
-					ShowHidden();
-					SetTimer(30,false,'ShowActive');
+				//Play some rumble when we pick up the weapons
+				UTPC = UTConsolePlayerController(Recipient.Controller);
+				if(UTPC != None)
+				{
+					UTPC.ClientPlayForceFeedbackWaveform(PickUpWaveForm);
+				}
+
+					if ( bHideWeapons )
+					{
+						ShowHidden();
+						SetTimer(30,false,'ShowActive');
+					}
 				}
 			}
 			if ( Role < ROLE_Authority )
 				return;
-			if ( !AddCustomer(Recipient) )
+			if ( bHideWeapons && !AddCustomer(Recipient) )
 				return;
 
 			for ( i=0; i<Weapons.Length; i++ )
@@ -496,7 +516,10 @@ auto state LockerPickup
 				{
 					if ( Copy.LockerAmmoCount - Copy.AmmoCount > 0 )
 						Copy.AddAmmo(Copy.LockerAmmoCount - Copy.AmmoCount);
-					Copy.AnnouncePickup(Recipient);
+				if ( Copy.PickupSound != None )
+				{
+					Recipient.PlaySound(Copy.PickupSound);
+				}
 				}
 				else if (WorldInfo.Game.PickupQuery(Recipient, InventoryType, self))
 				{
@@ -504,7 +527,10 @@ auto state LockerPickup
 					if ( Copy != None )
 					{
 						Copy.GiveTo(Recipient);
-						Copy.AnnouncePickup(Recipient);
+						if ( bHideWeapons )
+						{
+							Copy.AnnouncePickup(Recipient);
+						}
 						if ( Copy.LockerAmmoCount - Copy.Default.AmmoCount > 0 )
 							Copy.AddAmmo(Copy.LockerAmmoCount - Copy.Default.AmmoCount);
 					}
@@ -513,7 +539,6 @@ auto state LockerPickup
 				}
 			}
 		}
-	}
 
 	simulated event BeginState(name PreviousStateName)
 	{

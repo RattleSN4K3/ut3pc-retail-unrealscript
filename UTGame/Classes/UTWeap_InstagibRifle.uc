@@ -7,6 +7,8 @@ class UTWeap_InstagibRifle extends UTWeapon
 var array<MaterialInterface> TeamSkins;
 var array<ParticleSystem> TeamMuzzleFlashes;
 
+var bool bBetrayalMode;
+
 //-----------------------------------------------------------------
 // AI Interface
 
@@ -54,6 +56,64 @@ simulated function AttachWeaponTo(SkeletalMeshComponent MeshCpnt, optional name 
 	MuzzleFlashPSCTemplate = TeamMuzzleFlashes[TeamIndex];
 
 	Super.AttachWeaponTo(MeshCpnt, SocketName);
+}
+
+simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact )
+{
+	local Pawn HitPawn;
+	local UTBetrayalPRI HitPRI, InstigatorPRI;
+
+	if ( bBetrayalMode && (Instigator != None) && (Role == ROLE_Authority) )
+	{
+		InstigatorPRI = UTBetrayalPRI(Instigator.PlayerReplicationInfo);
+		if ( InstigatorPRI != None )
+		{
+			HitPawn = Pawn(Impact.HitActor);
+			if ( HitPawn != None )
+			{
+				HitPRI = UTBetrayalPRI(HitPawn.PlayerReplicationInfo);
+				if ( HitPRI != None )
+				{
+					if ( WorldInfo.GRI.OnSameTeam(InstigatorPRI, HitPRI) )
+					{
+						if ( FiringMode == 1 )
+						{
+							if ( UTGame(WorldInfo.Game) != None )
+							{
+								UTGame(WorldInfo.Game).ShotTeammate(InstigatorPRI, HitPRI, Instigator, HitPawn);
+							}
+							super.ProcessInstantHit(0, Impact);
+						}
+					}
+					else if ( FiringMode == 0 )
+					{
+						super.ProcessInstantHit(0, Impact);
+					}
+				}
+				return;
+			}
+			else
+			{
+				// bots don't like being shot at by teammates
+				if ( (PlayerController(Instigator.Controller) != None) 
+					&& (Instigator.Controller.ShotTarget != None)
+					&& (UTBot(Instigator.Controller.ShotTarget.Controller) != None)
+					&& WorldInfo.GRI.OnSameTeam(Instigator, Instigator.Controller.ShotTarget) 
+					&& (UTBetrayalPRI(Instigator.PlayerReplicationInfo).CurrentTeam.TeamPot >= Min(6, WorldInfo.Game.GoalScore - Max(Instigator.PlayerReplicationInfo.Score, Instigator.Controller.ShotTarget.PlayerReplicationInfo.Score))) )
+				{
+					//`log(Instigator.Controller.ShotTarget.Controller.PlayerReplicationInfo.PlayerName$" betray shooter");
+					UTBot(Instigator.Controller.ShotTarget.Controller).bBetrayTeam = true;
+				}
+			}
+		}
+	}
+	super.ProcessInstantHit(FiringMode, Impact);
+}
+
+function byte BestMode()
+{
+	// if ( WorldInfo.GRI.OnSameTeam(Instigator.Controller.Enemy, Instigator) && !UTBot(Instigator.Controller).bBetrayTeam ) `log("Shooting teammate without betrayal");
+	return WorldInfo.GRI.OnSameTeam(Instigator.Controller.Enemy, Instigator) ? 1 : 0;
 }
 
 defaultproperties
@@ -124,5 +184,6 @@ defaultproperties
 	TeamSkins[1]=MaterialInterface'WP_ShockRifle.Materials.M_WP_ShockRifle_Instagib_Blue'
 	TeamMuzzleFlashes[0]=ParticleSystem'WP_Shockrifle.Particles.P_Shockrifle_Instagib_MF_Red'
 	TeamMuzzleFlashes[1]=ParticleSystem'WP_Shockrifle.Particles.P_Shockrifle_Instagib_MF_Blue'
-	CrossHairCoordinates=(U=320,V=0,UL=64,VL=64)
+	CrossHairCoordinates=(U=256,V=0,UL=64,VL=64)
+	AmmoDisplayType=EAWDS_None
 }

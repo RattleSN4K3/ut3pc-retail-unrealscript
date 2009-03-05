@@ -348,7 +348,7 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact )
 								CameraEffect = UTDT.static.GetDeathCameraEffectInstigator(P);
 								if (CameraEffect != None)
 								{
-									UTPlayerController(Instigator.Controller).ClientSpawnCameraEffect(CameraEffect);
+								UTPlayerController(Instigator.Controller).ClientSpawnGoreCameraEffect(CameraEffect);
 								}
 							}
 						}
@@ -360,7 +360,7 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact )
 				{
 					SelfDamage = MinSelfDamage + (SelfDamageScale * Damage);
 					Impact.HitActor.TakeDamage(0, Instigator.Controller, Impact.HitLocation, Force * Impact.RayDir, InstantHitDamageTypes[0], Impact.HitInfo, self);
-					Instigator.TakeDamage(SelfDamage, Instigator.Controller, Location, SelfForceScale * Force * Impact.RayDir, InstantHitDamageTypes[0], Impact.HitInfo, self);
+					Instigator.TakeDamage(SelfDamage, Instigator.Controller, Instigator.Location, SelfForceScale * Force * Impact.RayDir, InstantHitDamageTypes[0], Impact.HitInfo, self);
 					WeaponPlaySound(ImpactJumpSound);
 				}
 			}
@@ -618,6 +618,13 @@ simulated state WeaponRecharge
 }
 
 simulated function StopFireEffects(byte FireModeNum);
+
+
+/** You always run around with the impact hammer hammering! **/
+simulated function bool CanViewAccelerationWhenFiring()
+{
+	return TRUE;
+}
 
 defaultproperties
 {

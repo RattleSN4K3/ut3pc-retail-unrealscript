@@ -153,7 +153,8 @@ function InitPRIList()
 	for (i=0;i<GRI.PRIArray.Length;i++)
 	{
 		if ( GRI.PRIArray[i] != none && !GRI.PRIArray[i].bOnlySpectator && GRI.PRIArray[i] != MyPlayerOwner.PlayerReplicationInfo &&
-			GRI.OnSameTeam(GRI.PRIArray[i], MyPlayerOwner) )
+			GRI.OnSameTeam(GRI.PRIArray[i], MyPlayerOwner) 
+			&& (!GRI.PRIArray[i].bBot || !(GRI.PRIArray[i].GetPlayerAlias() ~= "Player")) )
 		{
 			MyLists[2].Values.Length = Cnt+1;
 			MyLists[2].Values[Cnt].Caption = GRI.PRIArray[i].GetPlayerAlias();
@@ -264,7 +265,6 @@ function float DrawList(float XPos, float PercX, float Alpha, bool bShowSelectio
 	}
 
 	// Size the list
-
 	for (i=0;i<Cnt;i++)
 	{
 
@@ -283,9 +283,7 @@ function float DrawList(float XPos, float PercX, float Alpha, bool bShowSelectio
 	Canvas.SetPos(XPos - (Width * PercX), YPos);
 	Canvas.DrawTile(BkgTexture,Width,Height,BkgTexCoords.U,BkgTexCoords.V,BkgTexCoords.UL,BkgTexCoords.VL);
 
-
 	// Draw it.
-
 	for (i=0;i<Cnt;i++)
 	{
 		s = (i<10 ? string(i+1) : "0")$". "$MyLists[Idx].Values[MyLists[Idx].Top+i].Caption;
@@ -342,7 +340,7 @@ event DrawPanel()
 	}
 
 	Canvas.Font = class'UTHud'.default.HudFonts[1];
-	XPos = 0;
+	XPos = 0.02*Canvas.ClipX;
 
 	if ( MyHud != none )
 	{
@@ -366,7 +364,7 @@ event DrawPanel()
 				if (LastFocusedList < FocusedList)
 				{
 					MaxWidth = DrawList(XPos, Perc, 255 * (1.0 - Perc), false, FocusedList - 1);
-					XPos = MaxWidth * (1.0 - Perc);
+					XPos += MaxWidth * (1.0 - Perc);
 				}
 			}
 		}

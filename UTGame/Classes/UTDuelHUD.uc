@@ -14,10 +14,13 @@ function DrawLivingHUD()
 {
 	local int i, TeamIndex;
 	local float XL, YL;
+	local float TextOffsetScale;
+
+	TextOffsetScale = bIsSplitScreen ? 0.04 : 0.10;
 
 	Super.DrawLivingHUD();
 
-	if (bShowHUD && bShowScoring && !bShowScores && WorldInfo.GRI != None && (!bIsSplitScreen || bIsFirstPlayer) )
+	if (bShowHUD && bShowScoring && !bShowScores && WorldInfo.GRI != None && !bIsSplitScreen )
 	{
 		TeamIndex = UTPlayerOwner.GetTeamNum();
 		if (TeamIndex == 255 || bIsSplitScreen)
@@ -33,7 +36,7 @@ function DrawLivingHUD()
 				Canvas.DrawColor = WorldInfo.GRI.PRIArray[i].Team.GetTextColor();
 				Canvas.StrLen(WorldInfo.GRI.PRIArray[i].GetPlayerAlias(), XL, YL);
 				Canvas.SetPos( (WorldInfo.GRI.PRIArray[i].Team.TeamIndex == TeamIndex) ? (Canvas.ClipX * 0.45 - XL) : (Canvas.ClipX * 0.55),
-						Canvas.ClipY * 0.10 );
+						Canvas.ClipY * TextOffsetScale );
 				Canvas.DrawText(WorldInfo.GRI.PRIArray[i].GetPlayerAlias());
 			}
 		}

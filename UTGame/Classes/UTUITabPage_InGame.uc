@@ -14,6 +14,8 @@ var transient UILabel MOTD;
 var transient UILabel ConText;
 var transient UILabel Servername;
 
+var transient UILabel AllPickupsLabel;
+
 var transient bool bShowingRules;
 var transient int ConsoleTextCnt;
 
@@ -120,7 +122,7 @@ function SetMessageOfTheDay()
 			}
 			else
 			{
-				MOTDText = GRI.MessageOfTheDay;
+				MOTDText = Repl(GRI.MessageOfTheDay,"`n","\n");
 				ServerName.SetDatastoreBinding(GRI.ServerName);
 			}
 
@@ -179,6 +181,10 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 	}
 
 	RulesButtonIndex = ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.Rules>",RulesButtonClicked);
+
+	if (WI.NetMode == NM_Client)
+		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.AddToFavorite>", FavouriteButtonClicked);
+
 	MyButtonBar = ButtonBar;
 
 }
@@ -224,6 +230,13 @@ function bool RulesButtonClicked(UIScreenObject EventObject, int PlayerIndex)
 	return true;
 }
 
+function bool FavouriteButtonClicked(UIScreenObject EventObject, int PlayerIndex)
+{
+	UTUIScene(GetScene()).ConsoleCommand("AddToFavourites");
+
+	return True;
+}
+
 function string ParseMutatorList(string t)
 {
 	local int p,i;
@@ -262,8 +275,58 @@ function string ParseMutatorList(string t)
 
 event bool ActivatePage( int PlayerIndex, bool bActivate, optional bool bTakeFocus=true )
 {
+	local UTPlayerController UTPC;
+	local LinearColor WhiteColor;
+	local string PickupStr;
 	local bool b;
 	b =  Super.ActivatePage( PlayerIndex, bActivate, bTakeFocus);
+
+	if (bActivate)
+	{
+		// create a description widget to show all pickups taken
+		if (AllPickupsLabel == None)
+		{
+			WhiteColor.A = 1.0; WhiteColor.R = 1.0;	WhiteColor.G = 1.0;	WhiteColor.B = 1.0;
+
+			AllPickupsLabel = UILabel(CreateWidget(Self, class'Engine.UILabel', None, 'lblAllPickups'));
+			AllPickupsLabel.SetPosition(300.0, UIFACE_Right, EVALPOS_PixelOwner);
+			AllPickupsLabel.SetPosition(64.0, UIFACE_Bottom, EVALPOS_PixelOwner);
+			InsertChild(AllPickupsLabel);
+
+			AllPickupsLabel.SetDockTarget(UIFACE_Top, MOTD, UIFACE_Bottom);
+			AllPickupsLabel.SetDockTarget(UIFACE_Left, MOTD, UIFACE_Left);
+
+			if ( class'Engine'.static.IsSplitScreen() )
+			{
+				AllPickupsLabel.SetDockPadding(UIFACE_Top, -40, UIPADDINGEVAL_Pixels);
+			}
+			else
+			{
+				AllPickupsLabel.SetDockPadding(UIFACE_Top, -20, UIPADDINGEVAL_Pixels);
+			}
+
+			AllPickupsLabel.SetDockPadding(UIFACE_Left, 0, UIPADDINGEVAL_Pixels);
+			AllPickupsLabel.SetDockPadding(UIFACE_Bottom, 0, UIPADDINGEVAL_Pixels);
+			AllPickupsLabel.SetDockPadding(UIFACE_Right, 0, UIPADDINGEVAL_Pixels);
+
+			AllPickupsLabel.StringRenderComponent.SetWidgetStyleByName('String Style', 'DefaultCellStyleNormal');
+			AllPickupsLabel.SetTextAlignment(UIALIGN_Left, UIALIGN_Center);
+			AllPickupsLabel.StringRenderComponent.SetWrapMode(CLIP_Wrap);
+			AllPickupsLabel.StringRenderComponent.SetColor(WhiteColor);
+		}
+
+		UTPC = UTUIScene_MidGameMenu(GetScene()).GetUTPlayerOwner();
+		if (UTPlayerReplicationInfo(UTPC.PlayerReplicationInfo).bAllPickupsFoundThisMap && !bShowingVotes)
+		{
+			PickupStr = Localize("ToastMessages","AllPickupsOneMap","UTGameUI");
+			AllPickupsLabel.SetDatastoreBinding(PickupStr);
+			AllPickupsLabel.SetVisibility(true);
+		}
+		else
+		{
+			AllPickupsLabel.SetVisibility(false);
+		}
+	}
 
 	CheckGameStatus();
 	return b;

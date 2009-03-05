@@ -144,6 +144,11 @@ var class<UTGib> HatchGibClass;
 /** The mesh to spawn when the blades are broken off **/
 var StaticMesh BrokenBladeMesh;
 
+/** Last time bot tried to do blade boost */
+var float LastBladeBoostTime;
+
+var bool bAISelfDestruct;
+
 replication
 {
 	if (bNetDirty)
@@ -184,6 +189,38 @@ simulated function PostBeginPlay()
 	`Warn("Could not find BoosterNode for mesh (" $ Mesh $ ")",BoosterBlend == None);
 }
 
+/**
+ * RanInto() called for encroaching actors which successfully moved the other actor out of the way
+ *
+ * @param	Other 		The pawn that was hit
+ */
+event RanInto(Actor Other)
+{
+	local float BoostRemaining;
+
+	if ( bBoostersActivated && !bAISelfDestruct && (Other == Controller.Enemy) && (UTBot(Controller) != None) )
+	{
+		DeactivateRocketBoosters();
+		bBoostersActivated = FALSE;
+		BoostRemaining = MaxBoostDuration - WorldInfo.TimeSeconds + BoostStartTime;
+		BoostChargeTime = WorldInfo.TimeSeconds - FMin(BoostChargeDuration - 2.f, BoostRemaining * BoostChargeDuration/MaxBoostDuration);
+	}
+	super.RanInto(Other);
+}
+
+function PancakeOther(Pawn Other)
+{
+	local float BoostRemaining;
+
+	if ( bBoostersActivated && !bAISelfDestruct && (Other == Controller.Enemy) && (UTBot(Controller) != None) )
+	{
+		DeactivateRocketBoosters();
+		bBoostersActivated = FALSE;
+		BoostRemaining = MaxBoostDuration - WorldInfo.TimeSeconds + BoostStartTime;
+		BoostChargeTime = WorldInfo.TimeSeconds - FMin(BoostChargeDuration - 2.f, BoostRemaining * BoostChargeDuration/MaxBoostDuration);
+	}
+	super.PancakeOther(Other);
+}
 
 /**
  * Are we allowing this Pawn to be based on us?
@@ -727,6 +764,11 @@ simulated event BladeHit(Actor HitActor, vector HitLocation, bool bLeftBlade)
 		else
 		{
 			P = Pawn(HitActor);
+			if ( UTPawn(P) != None && UTPawn(P).IsHero() )
+			{
+				// heroes break blades
+				P = None;
+			}
 		}
 
 		// if we hit a vehicle or a non-pawn, break off the blade and do no damage
@@ -811,23 +853,67 @@ function bool FindAutoExit(Pawn ExitingDriver)
 
 function byte ChooseFireMode()
 {
+	local UTVehicle V;
+	local float Dist;
+	local vector FacingDir, EnemyDir;
+	
+	if ( bAISelfDestruct )
+	{
+		if ( !bTryToBoost )
+			bAISelfDestruct = false;
+		else
+			return 0;
+	}
+
 	if ( Pawn(Controller.Focus) != None && Controller.MoveTarget == Controller.Focus
 		&& Controller.InLatentExecution(Controller.LATENT_MOVETOWARD) )
 	{
-		if (Vehicle(Controller.Focus) == None && VSize(Controller.FocalPoint - Location) < 1200.0
-			&& Controller.LineOfSightTo(Controller.Focus) )
+		V = UTVehicle(Controller.Focus);
+		if ( V == None )
 		{
+			Dist = VSize(Controller.FocalPoint - Location);
+			if ( Dist < 1200.0 && Controller.LineOfSightTo(Controller.Focus) )
+		{
+				if ( (WorldInfo.TimeSeconds - LastBladeBoostTime > 5) && (Dist > 200.0) )
+				{
+					LastBladeBoostTime = WorldInfo.TimeSeconds;
+					FacingDir = vector(Rotation);
+					FacingDir.Z = 0;
+					EnemyDir = Controller.Focus.Location - Location;
+					EnemyDir.Z = 0;
+					bTryToBoost = (Normal(FacingDir) dot Normal(EnemyDir) > 0.93) && (FRand() < 0.5);
+				}
+
 			return 1;
 		}
-		else if ( Vehicle(Controller.Focus) != None && Vehicle(Controller.Focus).Health > 400 &&
-			Controller.LineOfSightTo(Controller.Focus) )
+		}
+		else if ( (V.Health > 300 || V.ImportantVehicle()) && Controller.LineOfSightTo(Controller.Focus) )
 		{
 			// self destruct to take out highly armored vehicle
 			bTryToBoost = true;
-			SetTimer(0.5, true, 'CheckScriptedSelfDestruct');
+			bAISelfDestruct = true;
+			SetTimer(0.3, true, 'CheckScriptedSelfDestruct');
 		}
 	}
+	else if ( UTOnslaughtNodeObjective(Controller.Focus) != None && Controller.MoveTarget == Controller.Focus
+		&& Controller.InLatentExecution(Controller.LATENT_MOVETOWARD) )
+	{
+		// self destruct to take out highly armored vehicle
+		bTryToBoost = true;
+		bAISelfDestruct = true;
+		SetTimer(0.3, true, 'CheckScriptedSelfDestruct');
+	}
+
 	return 0;
+}
+
+function bool TooCloseToAttack(Actor Other)
+{
+	if (Pawn(Other) != None && Vehicle(Other) == None)
+	{
+		return false;
+	}
+	return Super.TooCloseToAttack(Other);
 }
 
 event Touch(Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal)
@@ -877,6 +963,7 @@ function CheckScriptedSelfDestruct()
 	{
 		DriverLeave(true);
 		ClearTimer('CheckScriptedSelfDestruct');
+		bAISelfDestruct = false;
 	}
 }
 
@@ -947,6 +1034,58 @@ simulated function SetBurnOut()
 function bool IsGoodTowTruck()
 {
 	return true;
+}
+
+function bool RecommendCharge(UTBot B, Pawn Enemy)
+{
+	local UTVehicle V;
+	
+	if ( Enemy.bCanFly )
+	{
+		return false;
+	}
+	V = UTVehicle(Enemy);
+	return (V == None) || V.ImportantVehicle() || (V.Health > 300);
+}	
+
+/** Recommend high priority charge at enemy */
+function bool CriticalChargeAttack(UTBot B)
+{
+	return (UTVehicle(B.Enemy) != None) && RecommendCharge(B, B.Enemy);
+}
+
+/** returns true if vehicle should charge attack this node (also responsible for setting up charge) */
+function bool ChargeAttackObjective(UTBot B, UTGameObjective O)
+{
+	local vector FacingDir, EnemyDir;
+	local float Dist;
+
+	Dist = VSize(O.Location - Location);
+	if ( bAISelfDestruct || (Dist < 200.0) )
+	{
+		if ( !bTryToBoost )
+			bAISelfDestruct = false;
+	}
+
+	if ( !bAISelfDestruct )
+	{
+		// only charge if already facing right if close
+		FacingDir = vector(Rotation);
+		FacingDir.Z = 0;
+		EnemyDir = O.Location - Location;
+		EnemyDir.Z = 0;
+		bTryToBoost = (Normal(FacingDir) dot Normal(EnemyDir) > 0.9);
+		if ( bTryToBoost )
+		{
+			bAISelfDestruct = true;
+			SetTimer(0.3, true, 'CheckScriptedSelfDestruct');
+		}
+		if ( !bTryToBoost && (Dist < 600) )
+			return false;
+	}
+
+	B.GoalString = "Charge Objective";
+	return B.Squad.FindPathToObjective(B, O);
 }
 
 defaultproperties
@@ -1102,4 +1241,5 @@ defaultproperties
 	NonPreferredVehiclePathMultiplier=1.5
 
 	HornIndex=0
+	VehicleIndex=10
 }

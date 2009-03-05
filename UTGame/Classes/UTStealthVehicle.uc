@@ -69,7 +69,7 @@ var MeshComponent DeployPreviewMesh;
 /** Used for Either a skeletalmesh or staticmesh, common parent is Object */
 var repnotify Object DeployMesh;
 /** Offsets for the deployables*/
-var array<vector> DeployablePositionOffsets;
+var(Deploy) array<vector> DeployablePositionOffsets;
 
 /** Trigger for hiding/unhiding the deployable */
 var repnotify bool bIsDeployableHidden;
@@ -104,6 +104,11 @@ var protected AudioComponent BeamAmbientSound;
 var soundcue BeamFireSound;
 var soundcue BeamStartSound;
 var soundcue BeamStopSound;
+
+/** Texture for HUD icons new to UT3G */
+var Texture2d HUDIconsUT3G;
+/** Coordinates for the fire tooltip textures */
+var UIRoot.TextureCoordinates FireToolTipIconCoords;
 
 /** team based colors for beam when targeting a teammate */
 var color LinkBeamColors[3];
@@ -142,13 +147,16 @@ var bool bReleasedADeployable;
 /** last time bot tried to drop a deployable */
 var float LastDropAttemptTime;
 
+/** Last time bot succeeded in dropping a deployable */
+var float LastDropSuccessTime;
+
 
 
 replication
 {
 	if (bNetDirty)
 		ReleaseAnimCount, bIsDeployableHidden;
-	if (bNetDirty && !bNetOwner)
+	if (bNetDirty && (!bNetOwner || bDemoRecording))
 		ArmDeltaYaw, DeployMesh, bIsVehicleCloaked;
 	if (bNetDirty && bNetOwner)
 		bShouldImmediatelyRedeploy;
@@ -359,6 +367,8 @@ simulated state UnDeploying
 	}
 };
 
+function BotUndeploy() {}
+
 simulated state Deployed
 {
 	//Overridden to transition the arm back
@@ -372,7 +382,53 @@ simulated state Deployed
 			GotoState('UnDeploying');
 		}
 	}
+
+	function BotUndeploy() 
+	{
+		ServerToggleDeploy();
+	}
+
+	function BeginState(name PreviousStateName)
+	{
+		super.BeginState(PreviousStateName);
+		
+		if ( UTBot(Controller) != None )
+		{
+			BotFire(true);
+			SetTimer(0.25, false, 'BotUndeploy');
+			LastDropSuccessTime = WorldInfo.TimeSeconds;
+		}
+	}
 };
+
+simulated function DisplayHud(UTHud Hud, Canvas Canvas, vector2D HudPOS, optional int SeatIndex)
+{
+	local PlayerController PC;
+	local int i;
+
+	Super.DisplayHud(HUD, Canvas, HudPOS, SeatIndex);
+	if (DeployedState == EDS_Deployed)
+	{
+		for (i=0; i<Seats.length; i++)
+		{
+			if (Seats[i].SeatPawn != None)
+			{
+				PC = PlayerController(Seats[i].SeatPawn.Controller);
+				if (PC != none)
+				{
+					if (bHasWeaponBar)
+					{
+						Hud.DrawToolTip(Canvas, PC, "GBA_Fire", Canvas.ClipX * 0.5, Canvas.ClipY * 0.82, FireToolTipIconCoords.U, FireToolTipIconCoords.V, FireToolTipIconCoords.UL, FireToolTipIconCoords.VL, Canvas.ClipY / 768, HUDIconsUT3G);
+					}
+					else
+					{
+						Hud.DrawToolTip(Canvas, PC, "GBA_Fire", Canvas.ClipX * 0.5, Canvas.ClipY * DeployIconOffset, FireToolTipIconCoords.U, FireToolTipIconCoords.V, FireToolTipIconCoords.UL, FireToolTipIconCoords.VL, Canvas.ClipY / 768, HUDIconsUT3G);
+					}
+				}
+			}
+		}
+	}
+}
 
 
 /**
@@ -464,6 +520,9 @@ simulated function ToggleCloak()
  */
 simulated function Cloak(bool bIsEnabled, optional bool bForce=FALSE)
 {
+	if (bIsEnabled && Role == ROLE_Authority && DeployedState != EDS_Undeployed)
+		return;
+
     if (bForce || (bIsVehicleCloaked != bIsEnabled))
     {
 		//This will switch the materials to the appropriate thing at the right time
@@ -780,6 +839,7 @@ simulated function DeployedStateChanged()
 			if (Seats[0].Gun != None)
 			{
 				Seats[0].Gun.EndFire(0); // stop the link beam while deployed
+				Seats[0].Gun.DemoEndFire(0);
 			}
 			break;
 		case EDS_Deployed:
@@ -790,7 +850,8 @@ simulated function DeployedStateChanged()
 		case EDS_Undeployed:
 			AimYawOffset=0.0f;
 		    SetDeployMeshHidden(TRUE);
-		    ServerSetDeployMesh(None, 0);
+		    SetDeployMesh(None, 0);
+			DeployMesh = none;
 			break;
 	}
 }
@@ -806,10 +867,11 @@ simulated function SetDeployVisual()
 	local StaticMeshComponent StMC;
 	local class<Actor> DepActor;
 	local class<UTSlowVolume> SlowActor;
+	local class<UTXRayVolume> XRayActor;
 	local class<UTDeployable> DeployableClass;
 
 	NSG = UTVWeap_NightShadeGun(Seats[0].Gun);
-	if(NSG != none && WorldInfo.NetMode != NM_DedicatedServer)
+	if(NSG != none /*&& WorldInfo.NetMode != NM_DedicatedServer*/)
 	{
 		DeployableClass = NSG.DeployableList[NSG.DeployableIndex].DeployableClass;
 		DepActor = DeployableClass.static.GetTeamDeployable(Instigator.GetTeamNum());
@@ -817,9 +879,14 @@ simulated function SetDeployVisual()
 		{
 			// HACK: slow volume weird case
 			SlowActor = class<UTSlowVolume>(DepActor);
+			XRayActor = class<UTXRayVolume>(DepActor);
 			if(SlowActor != none)
 			{
 				SkMC = SlowActor.default.GeneratorMesh;
+			}
+			else if (XRayActor != none)
+			{
+				SkMC = XRayActor.default.GeneratorMesh;
 			}
 			else
 			{
@@ -843,26 +910,53 @@ simulated function SetDeployVisual()
 		{
 			//Setup the deployable for myself
 			SetDeployMesh(SkMC.SkeletalMesh, NSG.DeployableIndex);
+
 			//Tell everyone else about it
-			ServerSetDeployMesh(SkMC.SkeletalMesh, NSG.DeployableIndex);
+			if (WorldInfo.NetMode == NM_Client)
+			{
+				ServerSetDeployMesh(SkMC.SkeletalMesh, NSG.DeployableIndex);
+			}
+			else
+			{
+				DeployMesh = SkMC.SkeletalMesh;
+				SetDeployMesh(SkMC.SkeletalMesh, NSG.DeployableIndex);
+			}
 		}
 		else if (StMC != none)
 		{
 			//Setup the deployable for myself
 			SetDeployMesh(StMC.StaticMesh, NSG.DeployableIndex);
+
 			//Tell everyone else about it
-			ServerSetDeployMesh(StMC.StaticMesh, NSG.DeployableIndex);
+			if (WorldInfo.NetMode == NM_Client)
+			{
+				ServerSetDeployMesh(StMC.StaticMesh, NSG.DeployableIndex);
+			}
+			else
+			{
+				DeployMesh = StMC.StaticMesh;
+				SetDeployMesh(StMC.StaticMesh, NSG.DeployableIndex);
+			}
 		}
 		else
 		{
-			ServerSetDeployMesh(none, NSG.DeployableIndex);
+			if (WorldInfo.NetMode == NM_Client)
+			{
+				ServerSetDeployMesh(none, NSG.DeployableIndex);
+			}
+			else
+			{
+				DeployMesh = none;
+				SetDeployMesh(none, NSG.DeployableIndex);
+			}
 		}
 	}
 }
 
 //Tell the server what deployable mesh we're using so it can tell everyone else
-function reliable server ServerSetDeployMesh(Object InDeployMesh, int DeployableIndex)
+function singular reliable server ServerSetDeployMesh(Object InDeployMesh, int DeployableIndex)
 {
+	/*
 	//Trigger the replication to clients
 	DeployMesh = InDeployMesh;
 	//Handle the server updating its own copy if it was not called locally
@@ -870,6 +964,12 @@ function reliable server ServerSetDeployMesh(Object InDeployMesh, int Deployable
 	{
 		SetDeployMesh(InDeployMesh, DeployableIndex);
 	}
+	*/
+
+	// Let the server decide the deploy mesh instead, to prevent exploits
+	SetDeployVisual();
+
+	
 }
 
 //Replicated version of code to set the deployable mesh
@@ -906,7 +1006,7 @@ function simulated SetDeployMesh(Object InDeployMesh, int DeployableIndex)
 		{
 			DeployPreviewMesh.SetShadowParent(Mesh);
 			DeployPreviewMesh.SetLightEnvironment(LightEnvironment);
-			if (DeployableIndex < DeployablePositionOffsets.length)
+			if (DeployableIndex >= 0 && DeployableIndex < DeployablePositionOffsets.Length)
 				DeployPreviewMesh.SetTranslation(DeployablePositionOffsets[DeployableIndex]);
 			else
 				DeployPreviewMesh.SetTranslation(vect(0,0,0));
@@ -1268,6 +1368,11 @@ function DisplayWeaponBar(Canvas canvas, UTHUD HUD)
 		HUD.PlayerOwner.ReceiveLocalizedMessage( class'UTWeaponSwitchMessage',,,, Gun );
 	}
 
+	if ( class'Engine'.static.IsSplitScreen() )
+	{
+		 return;
+	}
+
 	// calculate offsets
 	for ( i=0; i<Gun.NUMDEPLOYABLETYPES; i++ )
 	{
@@ -1370,7 +1475,8 @@ function DisplayWeaponBar(Canvas canvas, UTHUD HUD)
 			Canvas.SetDrawColor(48,48,48,128);
 		}
 		Canvas.SetPos(OffsetX, OffsetY - OffsetSizeY*CurrentWeaponScale[i]);
-		Canvas.DrawTile(HUDIcons, CurrentWeaponScale[i]*OffsetSizeX, CurrentWeaponScale[i]*OffsetSizeY, Gun.IconCoords[i].U, Gun.IconCoords[i].V, Gun.IconCoords[i].UL, Gun.IconCoords[i].VL);
+		//Canvas.DrawTile(HUDIcons, CurrentWeaponScale[i]*OffsetSizeX, CurrentWeaponScale[i]*OffsetSizeY, Gun.IconCoords[i].U, Gun.IconCoords[i].V, Gun.IconCoords[i].UL, Gun.IconCoords[i].VL);
+		DrawWeaponTile(Canvas, HUDIcons, Gun, i, OffsetSizeX, OffsetSizeY);
 		OffsetX += CurrentWeaponScale[i] * BoxOffsetSize;
 	}
 
@@ -1411,6 +1517,21 @@ function DisplayWeaponBar(Canvas canvas, UTHUD HUD)
 			OffsetX += CurrentWeaponScale[i] * BoxOffsetSize;
 		}
 	}
+}
+
+/** Draws a single weapon selection tile in the HUD
+ *  Created primarily so Stealthbender could override texture for new UT3G deployables
+ */
+function DrawWeaponTile(Canvas Canvas, Texture2D IconTexture, UTVWeap_NightshadeGun Gun, int WeaponIndex, float OffsetSizeX, float OffsetSizeY)
+{
+	Canvas.DrawTile(IconTexture, CurrentWeaponScale[WeaponIndex]*OffsetSizeX, CurrentWeaponScale[WeaponIndex]*OffsetSizeY, 
+					Gun.IconCoords[WeaponIndex].U, Gun.IconCoords[WeaponIndex].V, 
+					Gun.IconCoords[WeaponIndex].UL, Gun.IconCoords[WeaponIndex].VL);
+}
+
+function bool ShouldDeployToAttack()
+{
+	return false;
 }
 
 /** called on a timer while AI controlled so AI can evaluate cloaking */
@@ -1467,59 +1588,85 @@ function bool BotDropDeployable(UTBot B)
 	}
 }
 
+
+function bool ShouldUndeploy(UTBot B) 
+{
+	return IsDeployed();
+}
+
+
+function bool GoodDefensivePosition()
+{
+	return !class'UTDeployable'.static.DeployablesNearby(self, Location, class'UTDeployable'.default.DeployCheckRadiusSq);
+}
+
 /** AI interface for dropping deployables
  * @return whether bot was given an action and so should exit its decision logic
  */
 function bool ShouldDropDeployable()
 {
 	local UTBot B;
-	local vector EnemyDir;
 	local UTGameObjective O;
 
 	B = UTBot(Controller);
-	if (B != None && WorldInfo.TimeSeconds - LastDropAttemptTime > 7.0)
+	if (B != None && WorldInfo.TimeSeconds - LastDropAttemptTime > 3.0)
 	{
-		if (B.IsDefending() && IsDeployed())
+		LastDropAttemptTime = WorldInfo.TimeSeconds;
+		if ( class'UTDeployable'.static.DeployablesNearby(self, Location, class'UTDeployable'.default.DeployCheckRadiusSq) )
+		{
+			return false;
+		}
+		if ( (Health < FireDamageThreshold*default.Health) || (WorldInfo.TimeSeconds - LastDropSuccessTime > 10) )
 		{
 			B.PerformCustomAction(BotDropDeployable);
 			return true;
 		}
-		else if (B.Enemy != None)
-		{
-			EnemyDir = B.Enemy.Location - Location;
-			if (VSize(EnemyDir) > 3000.0 && Normal(EnemyDir) dot Normal(B.Enemy.Velocity) > 0.5 && B.LineOfSightTo(B.Enemy))
-			{
-				B.PerformCustomAction(BotDropDeployable);
-				return true;
-			}
-		}
 		else
 		{
 			// consider dropping a deployable if near a relevant objective
-			foreach WorldInfo.RadiusNavigationPoints(class'UTGameObjective', O, Location, 1024.0)
+			foreach WorldInfo.RadiusNavigationPoints(class'UTGameObjective', O, Location, 1500.0)
 			{
 				if ((O.IsActive() || O.IsNeutral()) && FastTrace(O.Location, Location))
 				{
-					if (class'UTDeployable'.static.DeployablesNearby(self, Location, class'UTDeployable'.default.DeployCheckRadiusSq))
-					{
-						// would deploy but there is already a deployable here
-						LastDropAttemptTime = WorldInfo.TimeSeconds;
-						return false;
-					}
-					else
-					{
 						B.PerformCustomAction(BotDropDeployable);
 						return true;
 					}
 				}
 			}
 		}
+	return false;
+}
+
+function bool ImportantVehicle()
+{
+	local UTVWeap_NightShadeGun Gun;
+	local int i;
+	
+	Gun = UTVWeap_NightshadeGun(Seats[0].Gun);
+	if ( Gun == None )
+	{
+		return false;
+	}
+	for ( i=0; i<Gun.NUMDEPLOYABLETYPES; i++ )
+	{
+		if ( Gun.Counts[i] > 0 )
+		{
+			return true;
+		}
 	}
 	return false;
 }
 
+function bool DriverEnter(Pawn P)
+{
+	LastDropSuccessTime = WorldInfo.TimeSeconds + 8;
+	return Super.DriverEnter(P);
+}
+
 defaultproperties
 {
+	MaxDesireability=0.75
+
 	CameraLag = 0
 	FastCamTransitionTime=1.3
 	ArmSpeedtune=8000  //25deg
@@ -1531,6 +1678,9 @@ defaultproperties
 	CloakTotalResTime=.6f;
 
 	HitEffectScale=2.0;
+
+	HUDIconsUT3G=Texture2D'UI_GoldHud.HUDIcons'
+	FireToolTipIconCoords=(U=137,V=131,UL=34,VL=41)
 
 	OverlayTeamRezColor[0]=(R=7.f,G=.45f,B=.05f) //red team
 	OverlayTeamRezColor[1]=(R=1.f,G=6.f,B=50.f)  //blue team

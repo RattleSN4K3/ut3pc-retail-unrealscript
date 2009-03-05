@@ -190,7 +190,7 @@ simulated function ActiveRenderOverlays( HUD H )
 	local color c;
 	local float width;
 
-	if ( PotentialTowTruck != none && PotentialTowTruck.Health > 0 && !IsLinked() )
+	if ( PotentialTowTruck != none && PotentialTowTruck.Health > 0 && !IsLinked() && (MyVehicle != None) )
 	{
 		PointName = PotentialTowTruck.GetHoverBoardAttachPoint(MyHoverBoard.Location);
 

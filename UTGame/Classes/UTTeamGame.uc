@@ -3,12 +3,15 @@
  */
 class UTTeamGame extends UTDeathmatch;
 
-var globalconfig	bool		bPlayersBalanceTeams;	// players balance teams
+var globalconfig	bool		bPlayersBalanceTeams;		// Players balance teams
+var globalconfig	bool		bRebalanceAfterTravel;		// Forces the teams to be rebalanced after seamless travel
+var globalconfig	bool		bRebalanceOnceAfterTravel;	// As above, but used by the vote code when going from DM to team games
 var config			bool		bAllowNonTeamChat;
 var 				bool		bScoreTeamKills;
 var 				bool		bSpawnInTeamArea;		// players spawn in marked team playerstarts
 var					bool		bScoreVictimsTarget;	// Should we check a victims target for bonuses
 var					bool		bForceAllRed;			// for AI testing
+var					bool		bNoTeamChangePenalty;	// if true, no score penalty for changing teams
 
 var					float		FriendlyFireScale;		//scale friendly fire damage by this value
 var					float		TeammateBoost;
@@ -48,6 +51,22 @@ event PostLogin ( playerController NewPlayer )
 	// if local player, notify level actors
 	ForEach AllActors(class'Actor', A)
 		A.NotifyLocalPlayerTeamReceived();
+}
+
+event PostSeamlessTravel()
+{
+	Super.PostSeamlessTravel();
+
+	if (bRebalanceAfterTravel || bRebalanceOnceAfterTravel)
+	{
+		BalanceTeams(True);
+
+		if (bRebalanceOnceAfterTravel)
+		{
+			bRebalanceOnceAfterTravel = False;
+			SaveConfig();
+		}
+	}
 }
 
 /** ForceRespawn()
@@ -224,6 +243,7 @@ function UTTeamInfo GetBotTeam(optional int TeamBots,optional bool bUseTeamIndex
 			break;
 		}
 	}
+
 	if ( Teams[first].Size < Teams[second].Size )
 	{
 		return Teams[first];
@@ -486,12 +506,18 @@ function bool CanSpectate( PlayerController Viewer, PlayerReplicationInfo ViewTa
   */
 function RestartGame()
 {
+	BalanceTeams();
+	Super.RestartGame();
+}
+
+function BalanceTeams(optional bool bForceBalance)
+{
 	local PlayerController PC;
 	local int RedCount, BlueCount, MoveCount, i;
 	local array<PlayerController> RedPlayers, BluePlayers;
+	local UniqueNetId ZeroNetId;
 
-	if ( !bPlayersVsBots && bPlayersBalanceTeams && (SinglePlayerMissionID == INDEX_NONE)
-			&& (WorldInfo.NetMode != NM_Standalone) )
+	if (!bPlayersVsBots && (bPlayersBalanceTeams || bForceBalance) && SinglePlayerMissionID == INDEX_NONE && (WorldInfo.NetMode != NM_Standalone) )
 	{
 		// re-balance teams
 		// first - count humans on each team
@@ -514,28 +540,43 @@ function RestartGame()
 
 		if ( Abs(RedCount - BlueCount) > 1 )
 		{
-			// need to move some players
+			// need to move some players - but don't move players with friends
 			if ( RedCount > BlueCount )
 			{
 				MoveCount = (RedCount - BlueCount)/2;
-				
-				for ( i=0; i<MoveCount; i++ )
+				for ( i=RedPlayers.Length-1; i>=0; i-- )
 				{
-					SetTeam( RedPlayers[RedPlayers.Length - i - 1], Teams[1], false);
+					if ( (RedPlayers[i].PlayerReplicationInfo.FriendFollowedId == ZeroNetId)
+						|| (GetFriendTeam(RedPlayers[i].PlayerReplicationInfo.FriendFollowedId) != 0) )
+				{
+						SetTeam( RedPlayers[i], Teams[1], false);
+						MoveCount--;
+						if ( MoveCount <= 0 )
+						{
+							break;
+						}
+					}
 				}
 			}
 			else
 			{
 				MoveCount = (BlueCount - RedCount)/2;
-				for ( i=0; i<MoveCount; i++ )
+				for ( i=BluePlayers.Length-1; i>=0; i-- )
 				{
-					SetTeam( BluePlayers[BluePlayers.Length - i - 1], Teams[0], false);
+					if ( (BluePlayers[i].PlayerReplicationInfo.FriendFollowedId == ZeroNetId)
+						|| (GetFriendTeam(BluePlayers[i].PlayerReplicationInfo.FriendFollowedId) != 1) )
+				{
+						SetTeam( BluePlayers[i], Teams[0], false);
+						MoveCount--;
+						if ( MoveCount <= 0 )
+						{
+							break;
+						}
+					}
 				}
 			}
 		}
 	}
-
-	super.RestartGame();
 }
 
 /* Return a picked team number if none was specified
@@ -619,6 +660,93 @@ function byte PickTeam(byte num, Controller C)
 	return NewTeam.TeamIndex;
 }
 
+function byte GetFriendTeam(UniqueNetId FriendNetId)
+{
+	local PlayerController PC;
+
+	foreach WorldInfo.AllControllers(class'PlayerController', PC)
+	{
+		if ( (PC.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo.UniqueId == FriendNetId) )
+		{
+			return PC.PlayerReplicationInfo.Team.TeamIndex; 
+		}
+	}
+	return 255;
+}
+
+function byte PickFriendTeam(byte Num, Controller C, UniqueNetId FriendNetId)
+{
+	local byte PickedTeam, FriendTeam;
+	local bool bFoundFriend;
+	local UTBot B;
+	local PlayerController PC;
+	local UniqueNetId ZeroNetId;
+
+	//Store this variable for later
+    if (C != None)
+    {
+    	C.PlayerReplicationInfo.FriendFollowedId = FriendNetId;
+    }
+
+	if ( FriendNetId != ZeroNetId )
+	{
+		FriendTeam = GetFriendTeam(FriendNetId);
+		bFoundFriend = (FriendTeam != 255);
+		if ( bFoundFriend )
+		{
+			Num = FriendTeam;
+		}
+	}
+	PickedTeam = PickTeam(Num, C);
+
+	if ( !bFoundFriend || (PickedTeam == FriendTeam) || bMustJoinBeforeStart )
+	{
+		// already put on friend team
+		return PickedTeam;
+	}
+
+	// Can I override this team selection?
+	// First check if there are bots on the friend's team
+	foreach WorldInfo.AllControllers(class'UTBot', B)
+	{
+		if ( (B.PlayerReplicationInfo != None) && (B.PlayerReplicationInfo.Team.TeamIndex == FriendTeam) )
+		{
+			// move the bot, and I've got a slot
+			if ( B.Pawn != None )
+			{
+				bNoTeamChangePenalty = true;
+				B.Pawn.PlayerChangedTeam();
+				bNoTeamChangePenalty = false;
+			}
+			SetTeam( B, Teams[1 - FriendTeam], false);
+			return FriendTeam;
+		}
+	}
+
+	// Otherwise, force non-friended player to switch if match hasn't started
+	if ( !GameReplicationInfo.bMatchHasBegun )
+	{
+		foreach WorldInfo.AllControllers(class'PlayerController', PC)
+		{
+			if ( (PC.PlayerReplicationInfo != None) 
+				&& (PC.PlayerReplicationInfo.Team.TeamIndex == FriendTeam) 
+				&& ((PC.PlayerReplicationInfo.FriendFollowedId == ZeroNetId) || (GetFriendTeam(PC.PlayerReplicationInfo.FriendFollowedId) != FriendTeam)) )
+			{
+				// move the player, and I've got a slot
+				if ( PC.Pawn != None )
+				{
+					bNoTeamChangePenalty = true;
+					PC.Pawn.PlayerChangedTeam();
+					bNoTeamChangePenalty = false;
+				}
+				SetTeam( PC, Teams[1 - FriendTeam], false);
+				return FriendTeam;
+			}
+		}
+	}
+	return PickedTeam;
+}
+
 /** ChangeTeam()
 * verify whether controller Other is allowed to change team, and if so change his team by calling SetTeam().
 * @param Other:  the controller which wants to change teams
@@ -628,6 +756,7 @@ function byte PickTeam(byte num, Controller C)
 function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 {
 	local UTTeamInfo NewTeam, PendingTeam;
+	local UniqueNetId ZeroNetId;
 
 	// no team changes after initial change if single player campaign
 	if ( (SinglePlayerMissionID != -1) && (Other.PlayerReplicationInfo.Team != None) )
@@ -646,7 +775,15 @@ function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 		return true;
 	}
 
-	NewTeam = (num < 255) ? Teams[PickTeam(num,Other)] : None;
+	//workaround for friend following
+	if (CurrentFriendId != ZeroNetId)
+	{
+		NewTeam = (num < 255) ? Teams[PickFriendTeam(num, Other, CurrentFriendId)] : None;
+	}
+	else
+	{
+		NewTeam = (num < 255) ? Teams[PickTeam(num,Other)] : None;
+	}
 
 	// check if already on this team
 	if ( Other.PlayerReplicationInfo.Team == NewTeam )
@@ -671,7 +808,11 @@ function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 					{
 						SetTeam(PendingTeamSwap, UTTeamInfo(Other.PlayerReplicationInfo.Team), true);
 						if ( PendingTeamSwap.Pawn != None )
+						{
+							bNoTeamChangePenalty = true;
 							PendingTeamSwap.Pawn.PlayerChangedTeam();
+							bNoTeamChangePenalty = false;
+						}
 						PendingTeamSwap = None;
 						SetTeam(Other, PendingTeam, bNewTeam);
 						return true;
@@ -684,7 +825,8 @@ function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 			SwapRequestTime = WorldInfo.TimeSeconds;
 
 			// broadcast swap request
-			BroadcastLocalizedMessage(class'UTTeamGameMessage', 0, PendingTeamSwap.PlayerReplicationInfo);
+			if (!bBlockTeamChangeMessages)
+				BroadcastLocalizedMessage(class'UTTeamGameMessage', 0, PendingTeamSwap.PlayerReplicationInfo);
 		}
 		return false;
 	}
@@ -705,11 +847,15 @@ function SetTeam(Controller Other, UTTeamInfo NewTeam, bool bNewTeam)
 	local Actor A;
 	local UTGameReplicationInfo GRI;
 	local UTPlayerReplicationInfo PRI;
+	local TeamInfo OldTeam;
 	
 	if ( Other.PlayerReplicationInfo == None )
 	{
 		return;
 	}
+
+	OldTeam = Other.PlayerReplicationInfo.Team;
+
 	if (Other.PlayerReplicationInfo.Team != None || !ShouldSpawnAtStartSpot(Other))
 	{
 		// clear the StartSpot, which was a valid start for his old team
@@ -733,9 +879,15 @@ function SetTeam(Controller Other, UTTeamInfo NewTeam, bool bNewTeam)
 
 	if ( NewTeam==None || (NewTeam!= none && NewTeam.AddToTeam(Other)) )
 	{
-		if ( (NewTeam!=None) && ((WorldInfo.NetMode != NM_Standalone) || (PlayerController(Other) == None) || (PlayerController(Other).Player != None)) )
+		if (!bBlockTeamChangeMessages && NewTeam != None &&
+			(WorldInfo.NetMode != NM_Standalone || PlayerController(Other) == None || PlayerController(Other).Player != None))
+		{
 			BroadcastLocalizedMessage( GameMessageClass, 3, Other.PlayerReplicationInfo, None, NewTeam );
+		}
 	}
+
+	if (BaseMutator != none)
+		BaseMutator.NotifySetTeam(Other, OldTeam, NewTeam, bNewTeam);
 
 	if ( (PlayerController(Other) != None) && (LocalPlayer(PlayerController(Other).Player) != None) )
 	{
@@ -788,16 +940,16 @@ function bool CheckScore(PlayerReplicationInfo Scorer)
 	{
 		return false;
 	}
-	else if (!bOverTime && GoalScore == 0)
+	else if ( (!bOverTime && GoalScore == 0) || (Scorer == None) )
 	{
 		return false;
 	}
-	else if (Scorer != None && Scorer.Team != None && Scorer.Team.Score >= GoalScore)
+	else if (Scorer.Team != None && Scorer.Team.Score >= GoalScore)
 	{
 		EndGame(Scorer,"teamscorelimit");
 		return true;
 	}
-	else if (Scorer != None && bOverTime)
+	else if ( bOverTime )
 	{
 		EndGame(Scorer,"timelimit");
 		return true;
@@ -871,7 +1023,7 @@ function bool NearGoal(Controller C)
 function ScoreKill(Controller Killer, Controller Other)
 {
 	local Pawn Target;
-	local UTPlayerReplicationInfo KillerPRI;
+	local UTPlayerReplicationInfo KillerPRI, OtherPRI;
 	local UTBot B;
 
 	if ( !Other.bIsPlayer || ((Killer != None) && (!Killer.bIsPlayer || (Killer.PlayerReplicationInfo == None))) )
@@ -888,18 +1040,31 @@ function ScoreKill(Controller Killer, Controller Other)
 		if ( Killer != None )
 		{
 			KillerPRI = UTPlayerReplicationInfo(Killer.PlayerReplicationInfo);
-			if ( KillerPRI.Team != Other.PlayerReplicationInfo.Team )
+			OtherPRI = UTPlayerReplicationInfo(Other.PlayerReplicationInfo);
+			if ( KillerPRI.Team != OtherPRI.Team )
 			{
-				if ( Other.PlayerReplicationInfo.bHasFlag )
+				if ( OtherPRI.bHasFlag )
 				{
-					UTPlayerReplicationInfo(Other.PlayerReplicationInfo).GetFlag().bLastSecondSave = NearGoal(Other);
+					OtherPRI.GetFlag().bLastSecondSave = NearGoal(Other);
+				}
+				
+				if ( OtherPRI.bHasFlag )
+				{
+					if ( NearGoal(Other) )
+			{
+						OtherPRI.GetFlag().bLastSecondSave = true;
+						KillerPRI.IncrementHeroMeter(2.0);
+					}
+					else
+				{
+						KillerPRI.IncrementHeroMeter(1.0);
 				}
 
 				// Kill Bonuses work as follows (in additional to the default 1 point
 				//	+1 Point for killing an enemy targetting an important player on your team
 				//	+2 Points for killing an enemy important player
 
-				if ( (Other.PlayerReplicationInfo != None) && Other.PlayerReplicationInfo.bHasFlag )
+					if ( (OtherPRI != None) )
 				{
 					KillerPRI.Score+= 2;
 					KillerPRI.bForceNetUpdate = TRUE;
@@ -921,6 +1086,7 @@ function ScoreKill(Controller Killer, Controller Other)
 						}
 					}
 					SendFlagKillMessage(Killer, KillerPRI);
+				}
 				}
 
 				if ( bScoreVictimsTarget )
@@ -958,8 +1124,11 @@ function ScoreKill(Controller Killer, Controller Other)
 	{
 		if ( (Killer == None) || (Killer == Other) )
 		{
+			if ( !bNoTeamChangePenalty )
+			{
 			Other.PlayerReplicationInfo.Team.Score -= 1;
 			Other.PlayerReplicationInfo.Team.bForceNetUpdate = TRUE;
+		}
 		}
 		else if ( Killer.PlayerReplicationInfo.Team != Other.PlayerReplicationInfo.Team )
 		{
@@ -1092,7 +1261,12 @@ function ReduceDamage( out int Damage, pawn injured, Controller instigatedBy, ve
 				if ( InstigatedBy.PlayerReplicationInfo != None )
 				{
 					PC = UTPlayerController(InstigatedBy);
-					if ( (PC != None) && (WorldInfo.TimeSeconds - PC.LastFriendlyFireTime > 5) )
+					if ( (PC != None) && (PC.Pawn != None) && (WorldInfo.TimeSeconds - PC.LastFriendlyFireTime > 5) )
+					{
+						// make sure PC is looking at injured guy, and no enemies around
+						if ( (vector(PC.Rotation) dot Normal(Injured.Location - PC.Pawn.Location)) > 0.9 )
+						{
+							if ( (PC.ShotTarget == Injured) || (PC.ShotTarget == None) || WorldInfo.GRI.OnSameTeam(PC.ShotTarget, PC) )
 					{
 						UTDamageType = class<UTDamageType>(DamageType);
 						if ( (UTDamageType != None) && UTDamageType.default.bComplainFriendlyFire )
@@ -1106,6 +1280,8 @@ function ReduceDamage( out int Damage, pawn injured, Controller instigatedBy, ve
 								Injured.Controller.SendMessage(instigatedBy.PlayerReplicationInfo, 'FRIENDLYFIRE', 12);
 							}
 						}
+					}
+				}
 					}
 				}
 				if ( FriendlyFireScale==0.0 )
@@ -1207,7 +1383,22 @@ function OverridePRI(PlayerController PC, PlayerReplicationInfo OldPRI)
 	// try to use old team
 	if (DesiredTeam != PC.PlayerReplicationInfo.Team && DesiredTeam != None)
 	{
-		ActualTeamIndex = PickTeam(DesiredTeam.TeamIndex, PC);
+		// keep desired (previous) player's team if split screen
+		if ( class'Engine'.static.IsSplitScreen() && (LocalPlayer(PC.Player) != None) )
+		{
+			if ( bForceAllRed || (SinglePlayerMissionID != INDEX_NONE) || bPlayersVsBots )
+			{
+				ActualTeamIndex = 0;
+			}
+			else 
+			{
+				ActualTeamIndex = DesiredTeam.TeamIndex;
+			}
+		}
+		else
+		{
+			ActualTeamIndex = PickFriendTeam(DesiredTeam.TeamIndex, PC, PC.PlayerReplicationInfo.FriendFollowedId);
+		}
 		if ( PC.PlayerReplicationInfo.Team != Teams[ActualTeamIndex] )
 		{
 			SetTeam(PC, Teams[ActualTeamIndex], true);
@@ -1317,7 +1508,7 @@ event HandleSeamlessTravelPlayer(out Controller C)
 				UTTeamInfo(NewTeam).SetBotOrders(UTBot(C));
 			}
 		}
-		else if (!C.PlayerReplicationInfo.bOnlySpectator)
+		else if (!C.PlayerReplicationInfo.bOnlySpectator && AIController(C) == none)
 		{
 			//@FIXME: get team preference from somewhere?
 			ChangeTeam(C, 0, false);
@@ -1444,6 +1635,61 @@ function ProcessSpeechRecognition(UTPlayerController Speaker, const out array<Sp
 	ProcessSpeechOrders(Speaker, Words, Recipients);
 }
 
+function CheckTeamBasedAchievements()
+{
+	local int GameScore;
+	local int AchievementIndex;
+	local UTPlayerController PC;
+
+	if (IsMPOrHardBotsGame())
+	{
+		GameScore = Teams[0].Score + Teams[1].Score;
+
+		if ( UTDuelGame(WorldInfo.Game) != None && GameScore >= 20)
+		{
+			AchievementIndex = 1;
+		}
+		else if (UTOnslaughtGame(WorldInfo.Game) != None && GameScore >= 3)
+		{
+			AchievementIndex = 2;
+		}
+		else if (UTVehicleCTFGame(WorldInfo.Game) != None && GameScore >= 3)
+		{
+			AchievementIndex = 3;
+		}
+		else if (UTCTFGame(WorldInfo.Game) != None && GameScore >= 3)
+		{
+			AchievementIndex = 4;
+		}
+
+		foreach WorldInfo.AllControllers(class'UTPlayerController',PC)
+		{
+			switch (AchievementIndex)
+			{
+			case 1:
+				PC.ClientUpdateAchievement(EUTA_GAME_PaintTownRed,1);
+				break;
+			case 2:
+				PC.ClientUpdateAchievement(EUTA_GAME_ConnectTheDots,1);
+				break;
+			case 3:
+				PC.ClientUpdateAchievement(EUTA_GAME_30MinOrLess,1);
+				break;
+			case 4:
+				PC.ClientUpdateAchievement(EUTA_GAME_FlagWaver,1);
+				break;
+			}
+		}
+	}
+}
+
+function WriteOnlineStats()
+{
+	super.WriteOnlineStats();
+
+	CheckTeamBasedAchievements();
+}
+
 defaultproperties
 {
 	bScoreTeamKills=true
@@ -1457,6 +1703,7 @@ defaultproperties
 	bMustHaveMultiplePlayers=true
 	DefaultEnemyRosterClass="UTGame.UTTeamInfo"
 	FlagKillMessageName=TAUNT
+	bShouldPostRenderEnemyPawns=false
 
 	Acronym="TDM"
 	MapPrefixes[0]="DM"

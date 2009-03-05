@@ -9,6 +9,9 @@ class UTSeqEvent_TouchStatus extends SeqEvent_Touch
 /** internal - set when checking activation; indicates whether it's a touch check or untouch check */
 var const private transient bool bCheckingTouch;
 
+/** TRUE if this trigger only works for heroes */
+var() bool bIsHeroOnly;
+
 
 
 defaultproperties

@@ -1,7 +1,7 @@
 ﻿/**
  * Sequence variable for holding a name value.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class SeqVar_Name extends SequenceVariable
 	native(inherit);

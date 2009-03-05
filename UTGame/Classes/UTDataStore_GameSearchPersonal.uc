@@ -54,7 +54,8 @@ function OnSearchComplete(bool bWasSuccessful)
 	local GameSearchCfg Cfg;
 	local OnlineGameSearchResult Result;
 	local int i, Index;
-	local string ServerId;
+	local string ServerId, ServerIP;
+	local bool bSaveConfig;
 
 	local ServerEntry AServer;
 	local array<ServerEntry> OfflineServers;
@@ -68,7 +69,7 @@ function OnSearchComplete(bool bWasSuccessful)
 		//Copy the list so we can work on it
 		for (i=0; i<MAX_PERSONALSERVERS; i++)
 		{
-			if (ServerList[i].ServerUniqueId != "")
+			if (GetServerUID(ServerList[i].ServerUniqueId) != "")
 			{
 				AServer.ServerUniqueId = ServerList[i].ServerUniqueId;
 				AServer.ServerName = ServerList[i].ServerName;
@@ -85,31 +86,48 @@ function OnSearchComplete(bool bWasSuccessful)
 			ServerId = class'Engine.OnlineSubsystem'.static.UniqueNetIdToString(Result.GameSettings.OwningPlayerId);
 			for (i = 0; i<OfflineServers.length; i++)
 			{
-				if (OfflineServers[i].ServerUniqueId == ServerId)
+				if (GetServerUID(OfflineServers[i].ServerUniqueId) == ServerId)
 				{
 					OfflineServers.Remove(i,1);
 					break;
 				}
 			}
 
-			//Update the server name (maybe it changed)
+			// Update the server name (maybe it changed)
 			for (i=0; i<MAX_PERSONALSERVERS; i++)
 			{
-				if (ServerList[i].ServerUniqueId == ServerId)
+				if (GetServerUID(ServerList[i].ServerUniqueId) == ServerId)
 				{
+					// If the server doesn't have an associated IP in the config file, then add it
+					if (GetServerIP(ServerList[i].ServerUniqueID) == "")
+					{
+						ServerList[i].ServerUniqueID $= "-"$Result.GameSettings.ServerIP;
+						bSaveConfig = True;
+					}
+
 					ServerList[i].ServerName = Result.GameSettings.OwningPlayerName;
 					break;
 				}
 			}
 		}
 
+		if (bSaveConfig)
+			SaveConfig();
+
 		for (i = 0; i<OfflineServers.length; i++)
 		{
-			AddOfflineServer(OfflineServers[i].ServerUniqueId, OfflineServers[i].ServerName);
+			ServerIP = GetServerIP(OfflineServers[i].ServerUniqueID);
+
+			if (ServerIP == "")
+				AddOfflineServer(OfflineServers[i].ServerUniqueId, OfflineServers[i].ServerName);
+			else
+				AddJoinableOfflineServer(OfflineServers[i].ServerUniqueID, OfflineServers[i].ServerName, ServerIP);
 		}
 	}
 
-	Super.OnSearchComplete(bWasSuccessful);
+
+	// Always return true, so that offline servers are always listed
+	Super.OnSearchComplete(True);
 }
 
 /**
@@ -213,7 +231,7 @@ function int FindServerIndexByString( int ControllerId, string IdToFind )
 	Result = INDEX_NONE;
 	for ( i = 0; i < MAX_PERSONALSERVERS; i++ )
 	{
-		if ( ServerList[i].ServerUniqueId == IdToFind )
+		if ( GetServerUID(ServerList[i].ServerUniqueId) == IdToFind )
 		{
 			Result = i;
 			break;
@@ -277,6 +295,44 @@ function bool AddServer( int ControllerId, UniqueNetId IdToAdd, const string Ser
 	return bResult;
 }
 
+function bool AddServerPlusIP(int ControllerID, UniqueNetID IDToAdd, string ServerNameToAdd, string IPToAdd)
+{
+	local int i, CurrentIndex;
+	local string UniqueIDString;
+	local bool bResult;
+
+	// First, determine whether the server is already in our list
+	UniqueIDString = Class'Engine.OnlineSubsystem'.static.UniqueNetIDToString(IDToAdd);
+	CurrentIndex = FindServerIndexByString(ControllerID, UniqueIDString);
+
+	if (CurrentIndex == INDEX_None)
+		CurrentIndex = MAX_PERSONALSERVERS - 1;
+
+	// If this server is already at position 0, leave it there
+	if (CurrentIndex != 0)
+	{
+		for (i=CurrentIndex; i>0; --i)
+		{
+			ServerList[i].ServerUniqueID = ServerList[i-1].ServerUniqueID;
+			ServerList[i].ServerName = ServerList[i-1].ServerName;
+		}
+
+		if (IPToAdd == "")
+			ServerList[0].ServerUniqueID = UniqueIDString;
+		else
+			ServerList[0].ServerUniqueID = UniqueIDString$"-"$IPToAdd;
+
+		ServerList[0].ServerName = ServerNameToAdd;
+
+		SaveConfig();
+		bResult = True;
+
+		InvalidateCurrentSearchResults();
+	}
+
+	return bResult;
+}
+
 /**
  * Removes the specified server from the server history list.
  *
@@ -325,7 +381,7 @@ function GetServerIdList( out array<UniqueNetId> out_ServerList )
 	for ( i = 0; i < MAX_PERSONALSERVERS; i++ )
 	{
 		if ( ServerList[i].ServerUniqueId == ""
-		||	!class'Engine.OnlineSubsystem'.static.StringToUniqueNetId(ServerList[i].ServerUniqueId, ServerNetId) )
+		||	!class'Engine.OnlineSubsystem'.static.StringToUniqueNetId(GetServerUID(ServerList[i].ServerUniqueId), ServerNetId) )
 		{
 			out_ServerList.Length = i;
 			break;
@@ -347,8 +403,37 @@ function GetServerStringList( out array<string> out_ServerList )
 			break;
 		}
 
-		out_ServerList[i] = ServerList[i].ServerUniqueId;
+		out_ServerList[i] = GetServerUID(ServerList[i].ServerUniqueId);
 	}
+}
+
+
+// This data store was updated to store the IP along with the UID, so these now have to be separately parsed from the UID string
+
+function string GetServerUID(out const string IDString)
+{
+	local int i;
+
+	i = InStr(IDString, "-");
+
+	if (i == INDEX_None)
+		return IDString;
+
+
+	return Left(IDString, i);
+}
+
+function string GetServerIP(out const string IDString)
+{
+	local int i;
+
+	i = InStr(IDString, "-");
+
+	if (i == INDEX_None)
+		return "";
+
+
+	return Mid(IDString, i+1);
 }
 
 

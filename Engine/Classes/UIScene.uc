@@ -18,6 +18,16 @@ class UIScene extends UIScreenObject
  */
 var()								name					SceneTag<ToolTip=Human-friendly name for this scene>;
 
+/**
+ * The boundaries with which to restrict mouse movement in this scene
+ */
+var() UIMouseBounds MouseBounds<ToolTip=Boundary values for restricting mouse movement in this scene>;
+
+/**
+ * Used to determine whether or not the mouse boundaries have been set
+ */
+var const bool bMouseBoundsSet;
+
 /** the client for this scene - provides all global state information the scene requires for operation */
 var const transient					UISceneClient			SceneClient;
 
@@ -432,6 +442,22 @@ native final function UIContextMenu GetActiveContextMenu() const;
  * @return	TRUE if the scene's ActiveContextMenu was successfully changed to the new value.
  */
 native final function bool SetActiveContextMenu( UIContextMenu NewContextMenu, int PlayerIndex );
+
+/**
+ * Modifies the scenes mouse boundaries during runtime.
+ *
+ * @param	Face		the side of the scene which the boundary will be applied to
+ * @param	Value		the value (in either pixels or percentage) of the current boundary
+ * @param	bPixelValue	if true, 'Value' will be interpreted as a raw pixel value
+ * @param	BoundaryObject	if set, Value/bPixelValue will be ignored and the mouse boundaries will be set based upon the input object
+ */
+native final function SetMouseBounds(EUIWidgetFace Face, optional float Value, optional bool bPixelValue, optional UIObject BoundaryObject);
+
+/**
+ * Reset the 'MouseBounds' struct to its default values
+ */
+native final function ResetMouseBounds();
+
 
 /* == Events == */
 

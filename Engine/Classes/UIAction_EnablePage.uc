@@ -1,7 +1,7 @@
 ﻿/**
  * Enables or disables a tab button and tab page in a tab control.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_EnablePage extends UIAction_TabControl;
 

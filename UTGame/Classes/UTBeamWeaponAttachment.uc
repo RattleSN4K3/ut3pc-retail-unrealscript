@@ -39,6 +39,7 @@ simulated function AddBeamEmitter()
 			BeamEmitter[i].SetHidden(true);
 			BeamEmitter[i].SetTickGroup(TG_PostAsyncWork);
 			BeamEmitter[i].bUpdateComponentInTick = true;
+			BeamEmitter[i].SetOwnerNoSee(true);
 			Mesh.AttachComponentToSocket(BeamEmitter[i], BeamSockets[i]);
 		}
 	}
@@ -81,7 +82,8 @@ state CurrentlyAttached
 
 	simulated function Tick(float DeltaTime)
 	{
-		if  ( (PawnOwner == None) || PawnOwner.IsFirstPerson() || PawnOwner.FlashLocation==vect(0,0,0) )
+		//If we aren't firing or the owner and its not splitscreen, hide the emitter
+		if  ( (PawnOwner == None) || (PawnOwner.IsFirstPerson() && !class'Engine'.static.IsSplitScreen()) || PawnOwner.FlashLocation==vect(0,0,0) )
 		{
 			HideEmitter(0,true);
 			HideEmitter(1,true);

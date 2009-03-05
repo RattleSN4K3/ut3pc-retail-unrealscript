@@ -2,7 +2,7 @@
  * Changes the ControllerId for the player that owns the widgets in the targets array.  This action's logic is executed
  * by a handler function.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_SetControllerId extends UIAction;
 

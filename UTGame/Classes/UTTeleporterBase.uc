@@ -62,7 +62,11 @@ simulated function InitializePortalEffect(Actor Dest)
 		{
 			// only get realtime capture in high detail mode
 			bStaticCapture = (WorldInfo.GetDetailMode() < DM_High);
-
+			if ( !class'UTOnslaughtNodeTeleporter'.default.bRealtimeCapture )
+			{
+				PortalCaptureComponent.MaxUpdateDist = 500;
+				PortalCaptureComponent.MaxStreamingUpdateDist = 500;
+			}
 			PortalViewTarget = Dest;
 			// set up the portal effect
 			PortalMaterialInstance = new(self) class'MaterialInstanceConstant';

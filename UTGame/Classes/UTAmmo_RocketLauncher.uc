@@ -5,7 +5,7 @@ class UTAmmo_RocketLauncher extends UTAmmoPickupFactory;
 
 defaultproperties
 {
-	AmmoAmount=9
+	AmmoAmount=6
 	TargetWeapon=class'UTWeap_RocketLauncher'
 	PickupSound=SoundCue'A_Pickups.Ammo.Cue.A_Pickup_Ammo_Rocket_Cue'
 	MaxDesireability=0.3

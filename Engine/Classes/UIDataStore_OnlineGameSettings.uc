@@ -77,6 +77,41 @@ event OnlineGameSettings GetCurrentGameSettings()
 	return GameSettingsCfgList[SelectedIndex].GameSettings;
 }
 
+// Stores the current game settings object values to the specified settings profile
+function StoreCurrentSettings(string ProfileName)
+{
+	local OnlineGameSettings CurSettings;
+	local SettingsProfile ProfileObj;
+
+	CurSettings = GameSettingsCfgList[SelectedIndex].GameSettings;
+
+	if (CurSettings == none)
+		return;
+
+
+	ProfileObj = new(none, string(GameSettingsCfgList[SelectedIndex].SettingsName)$"_"$ProfileName) Class'SettingsProfile';
+
+	ProfileObj.SaveSettings(CurSettings);
+}
+
+// Loads values from the specified settings profile to the current game settings object
+function LoadToCurrentSettings(string ProfileName)
+{
+	local OnlineGameSettings CurSettings;
+	local SettingsProfile ProfileObj;
+
+	CurSettings = GameSettingsCfgList[SelectedIndex].GameSettings;
+
+	if (CurSettings == none)
+		return;
+
+
+	ProfileObj = new(none, string(GameSettingsCfgList[SelectedIndex].SettingsName)$"_"$ProfileName) Class'SettingsProfile';
+
+	ProfileObj.TransferSettings(CurSettings);
+}
+
+
 /** Returns the provider object that is currently selected */
 event UIDataProvider_Settings GetCurrentProvider()
 {

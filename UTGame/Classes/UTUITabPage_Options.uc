@@ -11,6 +11,7 @@ class UTUITabPage_Options extends UTTabPage
 var transient UTUIOptionList			OptionList;
 var transient UTUIDataStore_StringList	StringListDataStore;
 var transient UILabel					DescriptionLabel;
+var transient UIScreenObject			SafeRegionPanel;
 
 /** Target editbox for the onscreen keyboard, if any. */
 var transient UIEditBox KeyboardTargetEditBox;
@@ -49,6 +50,16 @@ event PostInitialize()
 	OptionList.OnAcceptOptions = OnOptionList_AcceptOptions;
 	OptionList.OnOptionChanged = OnOptionList_OptionChanged;
 	OptionList.OnOptionFocused = OnOptionList_OptionFocused;
+
+	SafeRegionPanel = FindChild('pnlSafeRegion', true);
+	if (SafeRegionPanel != None)
+	{
+		OptionList.SetDockTarget(UIFACE_Left, SafeRegionPanel, UIFACE_Left);
+		OptionList.SetDockPadding(UIFACE_Left, 20, UIPADDINGEVAL_Pixels);
+
+		OptionList.SetDockTarget(UIFACE_Right, SafeRegionPanel, UIFACE_Right);
+		OptionList.SetDockPadding(UIFACE_Right, -20, UIPADDINGEVAL_Pixels);
+	}
 
 	// Set the button tab caption.
 	SetDataStoreBinding("<Strings:UTGameUI.FrontEnd.TabCaption_GameSettings>");

@@ -113,7 +113,8 @@ function Actor GetActorUnderMouse(UTPlayerController PlayerOwner)
 			D = VSize(MI.Objectives[i].HUDLocation - CursorVector);
 			if ( !MI.Objectives[i].bIsDisabled && UTOnslaughtNodeObjective(MI.Objectives[i]) != none && D < 20 * MI.MapScale )
 			{
-				if ( PlayerOwner.WorldInfo.GRI.OnSameTeam(PlayerOwner,MI.Objectives[i]) )
+				if ( PlayerOwner.WorldInfo.GRI.OnSameTeam(PlayerOwner,MI.Objectives[i]) 
+					&& (!bAllowTeleport || (UTOnslaughtNodeObjective(MI.Objectives[i]).bIsTeleportDestination  && MI.Objectives[i].IsActive())) )
 				{
 					return MI.Objectives[i];
 				}
@@ -157,7 +158,8 @@ function FindBestActor()
 				{
 
 					Dist = VSize(PlayerOwner.Pawn.Location - MI.Objectives[i].Location);
-					if ( BestObj == none || Dist < BestDist && PlayerOwner.WorldInfo.GRI.OnSameTeam(PlayerOwner,MI.Objectives[i]) )
+					if ( BestObj == none || Dist < BestDist && PlayerOwner.WorldInfo.GRI.OnSameTeam(PlayerOwner,MI.Objectives[i]) 
+						&& (!bAllowTeleport || (UTOnslaughtNodeObjective(MI.Objectives[i]).bIsTeleportDestination && MI.Objectives[i].IsActive())) )
 					{
 						BestDist = Dist;
 						BestObj = MI.Objectives[i];
@@ -207,7 +209,8 @@ function ChangeCurrentActor(Vector V, int PlayerIndex)
 		for (i=0;i<MI.Objectives.Length;i++)
 		{
 			if ( !MI.Objectives[i].bIsDisabled && UTOnslaughtNodeObjective(MI.Objectives[i]) != none
-					&& MI.Objectives[i] != MI.CurrentActor && PC.WorldInfo.GRI.OnSameTeam(PC,MI.Objectives[i])  )
+					&& MI.Objectives[i] != MI.CurrentActor && PC.WorldInfo.GRI.OnSameTeam(PC,MI.Objectives[i])  
+					&& (!bAllowTeleport || (UTOnslaughtNodeObjective(MI.Objectives[i]).bIsTeleportDestination && MI.Objectives[i].IsActive())) )
 			{
 	    		Dist = abs( VSize( MI.GetActorHudLocation(MI.CurrentActor) - MI.Objectives[i].HUDLocation ));
 			    if (BestActor == none || BestDist > Dist)

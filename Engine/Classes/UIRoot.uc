@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for all classes that handle interacting with the user.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIRoot extends Object
 	native(UserInterface)
@@ -659,6 +659,49 @@ structdefaultproperties
 	AspectRatioMode=UIASPECTRATIO_AdjustNone;
 }
 
+};
+
+/**
+ * Used by UIScene's for setting the boundaries which the mouse pointer can move within
+ */
+struct native UIMouseBounds
+{
+	/**
+	 * If true, the mouse bounds are only applied when in fullscreen mode (default)
+	 */
+	var() bool			bFullscreenOnly;
+
+
+	/**
+	 * The value for each boundary face (setup much like UIScreenValue_Bounds, above)
+	 */
+	var() const float		Value[EUIWidgetFace.UIFACE_MAX];
+
+	/**
+	 * Determines how 'Value' is interpreted; when false, Value is interpreted as a percentage
+	 */
+	var() const byte		bPixelValue[EUIWidgetFace.UIFACE_MAX];
+
+
+	/**
+	 * If set, the specified objects position and extent are used to automatically determine the scene boundaries (overrides Value and bPixelValue)
+	 * Set this using the UIEditor context menu
+	 */
+	var() const UIObject		BoundaryObject[EUIWidgetFace.UIFACE_MAX];
+
+
+	
+
+
+	structdefaultproperties
+	{
+		bFullscreenOnly			= True;
+
+		Value[UIFACE_Left]		= 0.0;
+		Value[UIFACE_Top]		= 0.0;
+		Value[UIFACE_Right]		= 1.0;
+		Value[UIFACE_Bottom]		= 1.0;
+	}
 };
 
 

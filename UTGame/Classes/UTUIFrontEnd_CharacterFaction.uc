@@ -43,6 +43,18 @@ event PostInitialize( )
 	ActivateLevelEvent('CharacterFactionEnter');
 }
 
+/** Scene activated event, sets up the title for the scene. */
+event SceneActivated(bool bInitialActivation)
+{
+	Super.SceneActivated(bInitialActivation);
+
+	//Default to the list for focus (after returning from unlock message box, etc)
+	if (FactionList != None && FactionList.CanAcceptFocus())
+	{
+		FactionList.SetFocus(none);
+	}
+}
+
 /** Setup the scene's button bar. */
 function SetupButtonBar()
 {

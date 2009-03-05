@@ -193,6 +193,8 @@ var class<OnlineStatsWrite> OnlineStatsWriteClass;
  */
 var bool bUseSeamlessTravel;
 
+var globalconfig bool bForceNoSeamlessTravel;
+
 /** Base copy of cover changes that need to be replicated to clients on join */
 var protected CoverReplicator CoverReplicatorBase;
 
@@ -208,6 +210,9 @@ var const class<OnlineGameSettings> OnlineGameSettingsClass;
 /** The options to apply for dedicated server when it starts to register */
 var string ServerOptions;
 
+/** Contains the friend id of the currently logging in player as a workaround for ChangeTeams function prototype */
+var UniqueNetId CurrentFriendId;
+
 /** Current adjusted net speed - Used for dynamically managing netspeed for listen servers*/
 var int AdjustedNetSpeed;	
 
@@ -222,6 +227,16 @@ var globalconfig int MinDynamicBandwidth;
 
 /** Maximum bandwidth dynamically set per connection */
 var globalconfig int MaxDynamicBandwidth;
+
+/** Prevents excessive log spam from the Gamespy auto-reconnect code */
+var float LastAutoReconnectMessageTime;
+var bool bDisableGamespyLogs;
+
+/** Whether or not to accept additional splitscreen players */
+var globalconfig bool bAllowSplitscreenPlayers;
+
+/** The maximum numer of additional splitscreen connections per-player */
+var globalconfig int MaxChildConnections;
 
 
 
@@ -254,6 +269,12 @@ event PreBeginPlay()
 	{
 		DialogueManager = Spawn( class<DialogueManager>(DynamicLoadObject( DialogueManagerClass, class'Class' )) );
 	}
+}
+
+function BeginPlay()
+{
+	// Save modified URL values as defaults
+	SaveConfig();
 }
 
 function string FindPlayerByID( int PlayerID )
@@ -433,6 +454,8 @@ function int GetNumPlayers()
 {
 	return NumPlayers + NumTravellingPlayers;
 }
+
+native function int CurrentPlayerCount();
 
 //------------------------------------------------------------------------------
 // Misc.
@@ -889,7 +912,7 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 	bLevelChange = true;
 
 	// force an old style load screen if the server has been up for a long time so that TimeSeconds doesn't overflow and break everything
-	bSeamless = (bUseSeamlessTravel && WorldInfo.TimeSeconds < 172800.0f); // 172800 seconds == 48 hours
+	bSeamless = (!bForceNoSeamlessTravel && bUseSeamlessTravel && WorldInfo.TimeSeconds < 172800.0f); // 172800 seconds == 48 hours
 
 	if (InStr(Caps(URL), "?RESTART") != INDEX_NONE)
 	{
@@ -917,7 +940,11 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 		if (NetConnection(P.Player) != None)
 		{
 			P.ClientSetTravelGuid(NextMapGuid);
-			P.ClientTravel(URL, TRAVEL_Relative, bSeamless);
+
+			if (bSeamless)
+				P.ClientSeamlessTravel(NextMap);
+			else
+				P.ClientTravel(NextMap, TRAVEL_Relative, False);
 		}
 		else
 		{
@@ -946,6 +973,11 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 		WorldInfo.NextSwitchCountdown = 0.0;
 	}
 }
+
+/**
+ * Called from the WorldInfo when travelling fails
+ */
+function TravelFailed(string TravelURL, string Error, optional string ErrorCode);
 
 function bool RequiresPassword()
 {
@@ -1012,12 +1044,15 @@ event PlayerController Login
     local bool bSpectator, bAdmin, bPerfTesting;
 	local rotator SpawnRotation;
 
+	local string FriendOptStr;
+	local UniqueNetId FriendNetId, ZeroNetId;
+
 	bAdmin = false;
 
 	// Kick the player if they joined during the handshake process
 	if (bUsingArbitration && bHasArbitratedHandshakeBegun)
 	{
-		ErrorMessage = GameMessageClass.Default.MaxedOutMessage;
+		ErrorMessage = "Engine.GameMessage.MaxedOutMessage";
 		return None;
 	}
 
@@ -1042,7 +1077,7 @@ event PlayerController Login
 	// Make sure there is capacity except for admins. (This might have changed since the PreLogin call).
     if ( !bAdmin && AtCapacity(bSpectator) )
 	{
-		ErrorMessage = GameMessageClass.Default.MaxedOutMessage;
+		ErrorMessage = "Engine.GameMessage.MaxedOutMessage";
 		return None;
 	}
 
@@ -1052,8 +1087,26 @@ event PlayerController Login
 		bSpectator = true;
 	}
 
-	// Pick a team (if need teams)
-    InTeam = PickTeam(InTeam,None);
+	//UT3G - Friend Following, put a friend on the same team if specified
+	FriendOptStr = ParseOption( Options, "Friend" );
+	if (FriendOptStr != "")
+	{
+		class'OnlineSubsystem'.static.StringToUniqueNetId(FriendOptStr, FriendNetId);
+		if (FriendNetId != ZeroNetId)
+		{
+			InTeam = PickFriendTeam(InTeam,None,FriendNetId);
+			CurrentFriendId = FriendNetId;
+		}
+		else
+		{
+			InTeam = PickTeam(InTeam,None);
+		}	
+	}
+	else
+	{
+		// Pick a team (if need teams)
+		InTeam = PickTeam(InTeam,None);
+	}
 
 	// Find a start spot.
 	StartSpot = FindPlayerStart( None, InTeam, Portal );
@@ -1080,6 +1133,12 @@ event PlayerController Login
 	// Set the player's ID.
 	NewPlayer.PlayerReplicationInfo.PlayerID = GetNextPlayerID();
 
+	// Store the friend net id, if around
+	if (FriendNetId != ZeroNetId)
+	{
+		NewPlayer.PlayerReplicationInfo.FriendFollowedId = FriendNetId;
+	}
+
 	// Init player's name
 	if( InName=="" )
 	{
@@ -1100,12 +1159,14 @@ event PlayerController Login
 		return NewPlayer;
 	}
 
+	//always reset this back to zero
+	CurrentFriendId = ZeroNetId;
+
 	// perform auto-login if admin password/name was passed on the url
 	if ( AccessControl != None && AccessControl.AdminLogin(NewPlayer, InPassword) )
 	{
 		AccessControl.AdminEntered(NewPlayer);
 	}
-
 
 	// if delayed start, don't give a pawn to the player yet
 	// Normal for multiplayer games
@@ -1469,7 +1530,7 @@ event PostLogin( PlayerController NewPlayer )
 	}
 
 	// tell client what hud and scoreboard to use
-	NewPlayer.ClientSetHUD( HudType, ScoreboardType );
+	NewPlayer.SetHUD( HudType, ScoreboardType );
 
 	if ( NewPlayer.Pawn != None )
 		NewPlayer.Pawn.ClientSetRotation(NewPlayer.Pawn.Rotation);
@@ -1548,7 +1609,7 @@ function UpdateNetSpeeds()
 		AdjustedNetSpeed = NewNetSpeed;
 		ForEach WorldInfo.AllControllers(class'PlayerController', PC)
 		{
-			PC.SetNetSpeed(AdjustedNetSpeed);
+			PC.SetNetSpeed(Min(AdjustedNetSpeed, PC.MaxClientNetSpeed));
 		}
 	}
 }
@@ -1751,6 +1812,12 @@ function KickBan( string S )
 		AccessControl.KickBan(S);
 }
 
+function SessionBan(string S)
+{
+	if (AccessControl != none)
+		AccessControl.SessionBan(S);
+}
+
 //-------------------------------------------------------------------------------------
 // Level gameplay modification.
 
@@ -1860,6 +1927,11 @@ function bool ChangeTeam(Controller Other, int N, bool bNewTeam)
 /* Return a picked team number if none was specified
 */
 function byte PickTeam(byte Current, Controller C)
+{
+	return Current;
+}
+
+function byte PickFriendTeam(byte Current, Controller C, UniqueNetId FriendNetId)
 {
 	return Current;
 }
@@ -2519,6 +2591,7 @@ event HandleSeamlessTravelPlayer(out Controller C)
 			}
 			else
 			{
+				PC.CleanUpAudioComponents();
 				PC.SeamlessTravelTo(NewPC);
 				NewPC.SeamlessTravelFrom(PC);
 				SwapPlayerControllers(PC, NewPC);
@@ -2533,6 +2606,9 @@ event HandleSeamlessTravelPlayer(out Controller C)
 	}
 	else
 	{
+		if (PC != none)
+			PC.bPendingNotifyLoadedWorld = False;
+
 		C.ClearTimer('ClientTravelTimeExpired');
 		// clear out data that was only for the previous game
 		C.PlayerReplicationInfo.Reset();
@@ -2570,6 +2646,8 @@ event HandleSeamlessTravelPlayer(out Controller C)
 
 	if (PC != None)
 	{
+		PC.CleanUpAudioComponents();
+
 		// tell the player controller to register its data stores again
 		PC.ClientInitializeDataStores();
 
@@ -2590,7 +2668,7 @@ event HandleSeamlessTravelPlayer(out Controller C)
 		}
 
 		// tell client what hud and scoreboard to use
-		PC.ClientSetHUD(HudType, ScoreboardType);
+		PC.SetHUD(HudType, ScoreboardType);
 
 		ReplicateStreamingStatus(PC);
 
@@ -3066,6 +3144,7 @@ function ClearAutoLoginDelegates()
 function OnLoginFailed(byte LocalUserNum,EOnlineServerConnectionStatus ErrorCode)
 {
 	ClearAutoLoginDelegates();
+	EnableAutoReconnect();
 }
 
 /**
@@ -3097,7 +3176,7 @@ function RegisterServer()
 			OnlineSub.GameInterface.ClearCreateOnlineGameCompleteDelegate(OnServerCreateComplete);
 		}
 	}
-	else
+	else if (!bDisableGamespyLogs)
 	{
 		`Warn("No game settings to register with the online service. Game won't be advertised");
 	}
@@ -3113,6 +3192,7 @@ function OnServerCreateComplete(bool bWasSuccessful)
 	OnlineSub.GameInterface.ClearCreateOnlineGameCompleteDelegate(OnServerCreateComplete);
 	if (bWasSuccessful == false)
 	{
+		/*
 		if (GameSettings.bIsLanMatch == false)
 		{
 			`Warn("Failed to register game with online service. Registering as a LAN match");
@@ -3130,6 +3210,12 @@ function OnServerCreateComplete(bool bWasSuccessful)
 		{
 			`Warn("Failed to register game with online service. Game won't be advertised");
 		}
+		*/
+
+		if (!bDisableGamespyLogs)
+			`log("Failed to register game with online service");
+
+		EnableAutoReconnect();
 	}
 	else
 	{
@@ -3145,12 +3231,15 @@ function OnServerCreateComplete(bool bWasSuccessful)
 function OnConnectionStatusChange(EOnlineServerConnectionStatus ConnectionStatus)
 {
 	// Any error other than we are connected means destroy the game
-	if (ConnectionStatus != OSCS_Connected)
+	if (ConnectionStatus != OSCS_Connected && GameSettings != none)
 	{
 		// Set the destroy delegate so we can know when that is complete
 		OnlineSub.GameInterface.AddDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
+
 		// Now we can destroy the game
-		`Log("GameInfo::OnConnectionStatusChange() - Destroying Online Game");
+		if (!bDisableGamespyLogs)
+			`Log("GameInfo::OnConnectionStatusChange() - Destroying Online Game");
+
 		if ( !OnlineSub.GameInterface.DestroyOnlineGame() )
 		{
 			OnDestroyOnlineGameComplete(true);
@@ -3160,15 +3249,66 @@ function OnConnectionStatusChange(EOnlineServerConnectionStatus ConnectionStatus
 
 function OnDestroyOnlineGameComplete(bool bWasSuccessful)
 {
-	`Log("GameInfo::OnDestroyOnlineGameComplete() bWasSuccesful:"@bWasSuccessful);
+	if (!bDisableGamespyLogs)
+		`Log("GameInfo::OnDestroyOnlineGameComplete() bWasSuccesful:"@bWasSuccessful);
+
 	if (OnlineSub != None && OnlineSub.GameInterface != None)
-	{
 		OnlineSub.GameInterface.ClearDestroyOnlineGameCompleteDelegate(OnDestroyOnlineGameComplete);
-	}
 
 	//Clear the cache
 	GameSettings = None;
+
+	// Automatically reconnect in the event of an unwanted disconnect (this is ignored if the current game is over)
+	EnableAutoReconnect();
 }
+
+function EnableAutoReconnect()
+{
+	if (WorldInfo.NetMode == NM_DedicatedServer && OnlineSub.CanAutoLogin())
+		SetTimer(30.0,, 'AttemptReconnect');
+}
+
+function AttemptReconnect()
+{
+	local ELoginStatus LoginStatus;
+
+	if (WorldInfo.NetMode != NM_DedicatedServer || OnlineSub == none || OnlineSub.PlayerInterface == none || bGameEnded)
+		return;
+
+
+	LoginStatus = OnlineSub.PlayerInterface.GetLoginStatus(0);
+
+	if (LoginStatus == LS_UsingLocalProfile)
+		return;
+
+
+	// Log messages are delayed in order to prevent log spam
+	if (WorldInfo.RealTimeSeconds > LastAutoReconnectMessageTime)
+	{
+		LastAutoReconnectMessageTime = WorldInfo.RealTimeSeconds + 300;
+		`log("Attempting to re-register the game with the online service");
+	}
+	else
+	{
+		bDisableGamespyLogs = True;
+	}
+
+
+	// First check that the server is logged in to Gamespy, and attempt to autologin if not; otherwise, attempt to directly register the server
+	if (LoginStatus == LS_NotLoggedIn)
+		ProcessServerLogin();
+	else
+		RegisterServer();
+
+
+	SetTimer(5.0,, 'ResetLog');
+}
+
+function ResetLog()
+{
+	bDisableGamespyLogs = False;
+}
+
 
 defaultproperties
 {

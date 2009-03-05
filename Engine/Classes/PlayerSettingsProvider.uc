@@ -3,7 +3,7 @@
  * per-player, such as input, display, audio, and general preferences.  Each local player in the game receives its own
  * set of unique PlayerSettingsProviders.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class PlayerSettingsProvider extends UISettingsProvider
 	within UIDataStore_PlayerSettings

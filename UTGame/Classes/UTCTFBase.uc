@@ -35,6 +35,9 @@ var Array<SoundNodeWave> NearLocationSpeech;
 var Array<SoundNodeWave> MidfieldHighSpeech;
 var Array<SoundNodeWave> MidfieldLowSpeech;
 
+var AudioComponent AmbientSound;
+var SoundCue GreedAmbientSound;
+
 simulated function PostBeginPlay()
 {
 //	local UTDefensePoint W;
@@ -191,7 +194,7 @@ simulated function SetAlarm(bool bNowOn)
 			{
 				TakenSound.Stop();
 			}
-			if(FlagEmptyParticles != none)
+			if(FlagEmptyParticles != none && !ClassIsChildOf(WorldInfo.GRI.GameClass, class'UTGreedGame'))
 			{
 				FlagEmptyParticles.DeactivateSystem();
 			}
@@ -219,6 +222,16 @@ simulated event bool IsActive()
 
 defaultproperties
 {
+
+	Begin Object Class=AudioComponent Name=AmbientSoundComponent
+		bShouldRemainActiveIfDropped=true
+		bStopWhenOwnerDestroyed=true
+	End Object
+	AmbientSound=AmbientSoundComponent
+	Components.Add(AmbientSoundComponent)
+
+	GreedAmbientSound=SoundCue'A_Gameplay.ONS.A_Gameplay_ONS_ConduitAmbient';
+
 	NearBaseRadius=+4000.0
 	MidFieldHighZOffset=250.0
 	MidFieldLowZOffset=-250.0

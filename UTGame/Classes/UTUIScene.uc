@@ -101,6 +101,12 @@ native function UTPlayerReplicationInfo GetPRIOwner();
  */
 native function bool IsGame();
 
+/**
+ * Sets the value of GIsLanPlay, which controls LAN server bandwidth optimizations;
+ * True means faster downloads, but higher bandwidth usage
+ */
+native static final function SetLanPlay(bool bValue);
+
 /** Starts a dedicated server and kills the current process. */
 native function StartDedicatedServer(string TravelURL);
 
@@ -282,7 +288,7 @@ function UIScene OpenSceneByName(string SceneToOpen, bool bSkipAnimation=false, 
 {
 	local UIScene SceneToOpenReference;
 	SceneToOpenReference = UIScene(DynamicLoadObject(SceneToOpen, class'UIScene'));
-
+ 
 	if(SceneToOpenReference != None)
 	{
 		return OpenScene(SceneToOpenReference, bSkipAnimation, SceneDelegate);
@@ -664,14 +670,14 @@ event OnAnimationFinished(UIObject AnimTarget, name AnimName, name SeqName);
  * @Param	SoundLocation	Where in the world to play it.  Defaults at the Player's position
  */
 
-function PlaySound( SoundCue InSoundCue)
+function PlaySound( SoundCue InSoundCue, optional bool bIsUISound)
 {
 	local UTPlayerController PC;
 
 	PC = GetUTPlayerOwner();
 	if ( PC != none )
 	{
-		PC.ClientPlaySound(InSoundCue);
+		PC.ClientPlaySound(InSoundCue, bIsUISound);
 	}
 }
 
@@ -1206,12 +1212,9 @@ function UTUIScene_PlayerCard ShowPlayerCard(UniqueNetId InPlayerId, optional st
 }
 
 /** Shows a toast message. */
-static function ShowOnlineToast(string InMessage, optional float ToastTime=3.0f)
+static function ShowOnlineToast(string InMessage, optional float ToastTime=3.0f, optional int Priority=0)
 {
-	if(!IsConsole(CONSOLE_Xbox360))
-	{
-		UTGameUISceneClient(GetSceneClient()).SetToastMessage(InMessage, ToastTime);
-	}
+	UTGameUISceneClient(GetSceneClient()).SetToastMessage(InMessage, ToastTime, Priority);
 }
 
 /** Hides the toast message. */
@@ -1332,4 +1335,6 @@ defaultproperties
 	InputBoxScene=UIScene'UI_Scenes_Common.InputBox'
 	PlayerCardScene=UIScene'UI_Scenes_Common.PlayerCard'
 	OnlineToastScene=UIScene'UI_Scenes_Common.OnlineToast'
+
+	DefaultContextMenuClass=Class'UTGame.UTUI_ContextMenu'
 }

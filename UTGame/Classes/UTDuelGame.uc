@@ -26,7 +26,39 @@ static function bool AllowMutator( string MutatorClassName )
 		// survival mutator only for Duel
 		return false;
 	}
+	if ( MutatorClassName ~= "UTGame.UTMutator_Hero")
+	{
+		// Do not allow heroes in Duel
+		return false;
+	}
 	return Super.AllowMutator(MutatorClassName);
+}
+
+/**
+ * @Returns a string that describes how to win the match
+ *
+ */
+static function string GetEndOfMatchRules(int InGoalScore, int InTimeLimit)
+{
+	local string Work;
+	if ( InGoalScore > 0 )
+	{
+		Work = (InGoalScore == 1) ? class'UTDeathmatch'.default.EndOfMatchRulesTemplateStr_ScoringSingle : class'UTDeathmatch'.default.EndOfMatchRulesTemplateStr_Scoring;
+	}
+	else
+	{
+		Work = class'UTDeathmatch'.default.EndOfMatchRulesTemplateStr_Time;
+	}
+
+	Work = Repl(Work,"`g",string(InGoalScore));
+	Work = Repl(Work,"`t",string(InTimeLimit));
+
+	return Work;
+}
+
+function byte PickFriendTeam(byte Current, Controller C, UniqueNetId FriendNetId)
+{
+	return PickTeam(Current, C);
 }
 
 function bool AllowBecomeActivePlayer(PlayerController P)
@@ -58,7 +90,7 @@ event InitGame(string Options, out string ErrorMessage)
 	}
 	else
 	{
-		DesiredPlayerCount = Max(DesiredPlayerCount, 2);
+		DesiredPlayerCount = 2;
 	}
 	bTempForceRespawn = true;
 	bPlayersVsBots = false;
@@ -92,6 +124,14 @@ event PostLogin(PlayerController NewPlayer)
 			AddToQueue(PRI);
 		}
 	}
+}
+
+/**
+  *  Skip UTTeamGame team rebalancing
+  */
+function RestartGame()
+{
+	super(UTDeathmatch).RestartGame();
 }
 
 /**
@@ -168,7 +208,7 @@ function Logout(Controller Exiting)
 		{
 			foreach WorldInfo.AllControllers(class'Controller', C)
 			{
-				if (C != Exiting && C.bIsPlayer && C.Pawn != None && UTDuelPRI(C.PlayerReplicationInfo) != None)
+				if ( C != Exiting && C.bIsPlayer && (UTDuelPRI(C.PlayerReplicationInfo) != None) && (UTDuelPRI(C.PlayerReplicationInfo).QueuePosition < 0) )
 				{
 					Winner = C.PlayerReplicationInfo;
 					break;
@@ -186,10 +226,10 @@ function Logout(Controller Exiting)
 			// if it's not the host that's leaving
 			if (!HostExiting)
 			{
-			EndGame(Winner, "LastMan");
+				EndGame(Winner, "LastMan");
+			}
 		}
 	}
-}
 }
 
 function AddToQueue(UTDuelPRI Who)
@@ -513,7 +553,8 @@ function WriteOnlineStats()
 
 	if ((SinglePlayerMissionID > INDEX_None) || (WorldInfo.NetMode == NM_Standalone))
 	{
-		//We don't record single player stats
+		//We don't record single player stats, but still call super to make sure achievements go through
+		Super.WriteOnlineStats();
 		return;
 	}
 
@@ -529,6 +570,10 @@ function WriteOnlineStats()
 		}
 		else
 		{
+			//Special case achievement checking (already handled in super.WriteOnlineStats())
+			CheckTeamBasedAchievements();
+			CheckAchievements();
+
 			//Pure DUEL 1v1
 			foreach WorldInfo.AllControllers(class'UTPlayerController', PC)
 			{
@@ -569,7 +614,8 @@ function WriteOnlinePlayerScores()
 
 	if ((SinglePlayerMissionID > INDEX_None) || (WorldInfo.NetMode == NM_Standalone))
 	{
-		//We don't record single player stats
+		//We don't record single player stats, but call super anyway (save profile, etc)
+		Super.WriteOnlinePlayerScores();
 		return;
 	}
 
@@ -580,10 +626,17 @@ function WriteOnlinePlayerScores()
 
 		if (!bIsPureGame || bRotateQueueEachKill)
 		{
-			Super.WriteOnlineStats();
+			Super.WriteOnlinePlayerScores();
 		}
 		else
 		{
+			// PBD:SR - HACK - remove me later, find the correct place to do this
+			foreach WorldInfo.AllControllers(class'UTPlayerController',PC)
+			{
+				if (PC.bPendingDelete==false)
+					PC.SaveProfile();
+			}
+
 			//Pure DUEL 1v1
 			foreach WorldInfo.AllControllers(class'UTPlayerController', PC)
 			{

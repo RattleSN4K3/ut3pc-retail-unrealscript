@@ -17,6 +17,12 @@ var transient UTUITabPage_Options HUDTab;
 /** Whether or not we have been fully initialized. */
 var transient bool bFullyInitialized;
 
+/** Set if this menu was loaded from the mid game menu */
+var transient bool bFromMidGameMenu;
+
+/** The scene to load when the 'Mod Settings' button is clicked (differs depending upon whether this is the main menu settings or midgame settings) */
+var string ModSettingsScene;
+
 /**
  * Delegate for when the profile has been modified by something other than the user changing the value of an option.
  */
@@ -88,6 +94,15 @@ event PostInitialize()
 	}
 }
 
+// Notification that the settings have been opened from the mid game menu
+function MidGameMenuSetup()
+{
+	bFromMidGameMenu = True;
+
+	// Redo the button bar
+	SetupButtonBar();
+}
+
 /**
  * Handler for the tab control's OnPageActivated delegate.  Sets the flag indicating that the player has viewed the network page
  * when the network tab is activated.
@@ -139,6 +154,9 @@ event SceneActivated(bool bInitialActivation)
 /** Setup the scene's button bar. */
 function SetupButtonBar()
 {
+	local LocalPlayer LP;
+	local UTGameReplicationInfo UTGRI;
+
 	if(ButtonBar != None)
 	{
 		ButtonBar.Clear();
@@ -148,6 +166,29 @@ function SetupButtonBar()
 		{
 			// Let the current tab page append buttons.
 			UTTabPage(TabControl.ActivePage).SetupButtonBar(ButtonBar);
+		}
+
+
+		if (bFromMidGameMenu)
+		{
+			LP = GetPlayerOwner();
+
+			ModSettingsScene = "";
+
+			if (LP != none && LP.Actor != none)
+			{
+				UTGRI = UTGameReplicationInfo(LP.Actor.WorldInfo.GRI);
+
+				if (UTGRI != none)
+					ModSettingsScene = UTGRI.ModClientSettingsScene;
+			}
+
+			if (ModSettingsScene != "")
+				ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ModSettings>", OnButtonBar_ModSettings);
+		}
+		else
+		{
+			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ModSettings>", OnButtonBar_ModSettings);
 		}
 	}
 }
@@ -164,6 +205,12 @@ function bool OnButtonBar_Back(UIScreenObject InButton, int PlayerIndex)
 {
 	OnBack();
 	return true;
+}
+
+function bool OnButtonBar_ModSettings(UIScreenObject InButton, int PlayerIndex)
+{
+	OpenSceneByName(ModSettingsScene, false);
+	return True;
 }
 
 
@@ -208,4 +255,6 @@ defaultproperties
 {
 	// actually, we do save scene values on close, but only if we're marked dirty
 	bSaveSceneValuesOnClose=false
+
+	ModSettingsScene="UI_Scenes_ChrisBLayout.Scenes.ModSettingsScene"
 }

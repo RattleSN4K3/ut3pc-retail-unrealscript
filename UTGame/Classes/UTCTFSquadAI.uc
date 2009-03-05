@@ -11,6 +11,16 @@ var NavigationPoint HidePath;
 var array<AlternateRoute> EnemyFlagRoutes;
 var array<AlternateRoute> FriendlyFlagRoutes;
 
+function PostBeginPlay()
+{
+	Super.PostBeginPlay();
+	
+	if ( (UTGame(WorldInfo.Game) != None) && UTGame(WorldInfo.Game).bAllowHoverboard )
+	{
+		bShouldUseGatherPoints = false;
+	}
+}
+	
 function bool AllowDetourTo(UTBot B,NavigationPoint N)
 {
 	if ( !B.PlayerReplicationInfo.bHasFlag )
@@ -184,6 +194,11 @@ function NavigationPoint FindHidePathFor(UTBot B)
 
 function bool CheckVehicle(UTBot B)
 {
+	local UTVehicle DeployableVehicle;
+	local Pawn FocusEnemy;
+	local int i;
+	local UTVehicle V;
+
 	if (B.RouteGoal != B.MoveTarget || Vehicle(B.RouteGoal) == None) // so bot will get in obstructing vehicle to drive it out of the way
 	{
 		if ( (EnemyFlag.Holder == None) && (VSize(B.Pawn.Location - EnemyFlag.Position().Location) < 1600) )
@@ -192,6 +207,72 @@ function bool CheckVehicle(UTBot B)
 			return false;
 	}
 
+	DeployableVehicle = B.GetDeployableVehicle();
+	if ( (DeployableVehicle == None) && (UTVehicle(B.Pawn) != None) && UTVehicle(B.Pawn).IsArtillery() )
+	{
+		DeployableVehicle = UTVehicle(B.Pawn);
+	}
+	if ( DeployableVehicle != None )
+	{
+		if ( DeployableVehicle.IsArtillery() )
+		{
+			// if possible, just target and fire at nodes or important enemies
+			if ( (B.Enemy != None) && DeployableVehicle.CanDeployedAttack(B.Enemy) )
+			{
+				B.DoRangedAttackOn(B.Enemy);
+				B.GoalString = "Artillery Attack Enemy";
+				return true;
+			}
+			if ( DeployableVehicle.IsDeployed() )
+			{
+				// check if already focused on valid target
+				FocusEnemy = Pawn(B.Focus);
+				if ( (FocusEnemy != None) && (FocusEnemy.Health > 0) && !WorldInfo.GRI.OnSameTeam(B,FocusEnemy) && DeployableVehicle.CanDeployedAttack(FocusEnemy) )
+				{
+					B.DoRangedAttackOn(FocusEnemy);
+					B.GoalString = "Artillery Focus Enemy";
+					return true;
+				}
+			}			
+				
+			// check squad enemies
+			for ( i=0; i<8; i++ )
+			{
+				if ( (Enemies[i] != None) && (Enemies[i] != B.Enemy) && (Enemies[i] != FocusEnemy) && DeployableVehicle.CanDeployedAttack(Enemies[i]) )
+				{
+					B.DoRangedAttackOn(Enemies[i]);
+					B.GoalString = "Artillery Attack Squad Enemy";
+					return true;
+				}
+			}
+
+			// check important enemies
+			for ( V=UTGame(WorldInfo.Game).VehicleList; V!=None; V=V.NextVehicle )
+			{
+				if ( (V.Controller != None) && !V.bCanFly && (V != FocusEnemy) && (V.ImportantVehicle() || V.IsArtillery()) && !WorldInfo.GRI.OnSameTeam(V,B) && DeployableVehicle.CanDeployedAttack(V) )
+				{
+					B.DoRangedAttackOn(V);
+					B.GoalString = "Artillery Attack important vehicle";
+					return true;
+				}
+			}
+			if ( DeployableVehicle.CanDeployedAttack(EnemyFlag.HomeBase) )
+			{
+				B.DoRangedAttackOn(EnemyFlag.HomeBase);
+				B.GoalString = "Artillery Attack Objective";
+				return true;
+			}
+			if ( UTVehicle_Deployable(DeployableVehicle) != None )
+			{
+				UTVehicle_Deployable(DeployableVehicle).bNotGoodArtilleryPosition = true;
+			}
+		}
+		// check deployables
+		else if ( UTStealthVehicle(DeployableVehicle) != None && UTStealthVehicle(DeployableVehicle).ShouldDropDeployable() )
+		{
+			return true;
+		}
+	}
 	return Super.CheckVehicle(B);
 }
 
@@ -359,6 +440,34 @@ function bool CheckSquadObjectives(UTBot B)
 	if ( B.PlayerReplicationInfo.bHasFlag )
 		return OrdersForFlagCarrier(B);
 
+	// Heroes can't pick up flags
+	if ( !B.Pawn.bCanPickupInventory  && (UTPawn(B.Pawn) != None) && UTPawn(B.Pawn).IsHero() )
+	{
+		if ( FriendlyFlag.Holder != None )
+		{
+			if ( B.bPursuingFlag )
+			{
+				return ( TryToIntercept(B,FriendlyFlag.Holder,EnemyFlag.Homebase) );
+			}
+			bSeeFlag = B.LineOfSightTo(FriendlyFlag.Position());
+			if ( bSeeFlag )
+			{
+				if ( (B.Enemy == None) || ((B.Enemy.PlayerReplicationInfo != None) && !B.Enemy.PlayerReplicationInfo.bHasFlag) )
+					FindNewEnemyFor(B,(B.Enemy != None) && B.LineOfSightTo(B.Enemy));
+				if ( WorldInfo.TimeSeconds - LastSeeFlagCarrier > 6 )
+				{
+					LastSeeFlagCarrier = WorldInfo.TimeSeconds;
+					B.SendMessage(None, 'ENEMYFLAGCARRIERHERE', 14);
+				}
+				B.GoalString = "Attack enemy flag carrier";
+				B.bPursuingFlag = true;
+				return ( TryToIntercept(B,FriendlyFlag.Holder,EnemyFlag.Homebase) );
+			}
+		}
+		if ( VSize(B.Pawn.Location - EnemyFlag.Position().Location) > 1000 )
+			return FindPathToObjective(B,EnemyFlag.Position());
+		return false;
+	}
 	AddTransientCosts(B,1);
 
 	if (EnemyFlag.Holder != None)
@@ -468,7 +577,7 @@ function bool CheckSquadObjectives(UTBot B)
 		return false;
 	}
 
-	if ( EnemyFlag.Holder == None )
+	if ( (EnemyFlag.Holder == None) && (EnemyFlag.bHome || (WorldInfo.TimeSeconds - B.ForcedFlagDropTime > 8)) )
 	{
 		if ( !EnemyFlag.bHome || EnemyFlag.Homebase.BotNearObjective(B) )
 		{
@@ -627,7 +736,7 @@ function float ModifyThreat(float current, Pawn NewThreat, bool bThreatVisible, 
 			return current + 1.5;
 	}
 	else if ( NewThreat.IsHumanControlled() )
-		return current + 0.5;
+		return current + 0.1;
 	else
 		return current;
 }
@@ -639,6 +748,21 @@ function Actor GetTowingDestination(UTVehicle Towed)
 
 function bool AllowContinueOnFoot(UTBot B, UTVehicle V)
 {
+	if ( V.ImportantVehicle() )
+	{
+		// really don't want to get out of important vehicle
+		if ( B.RouteGoal == FriendlyFlag )
+		{
+			if ( VSizeSq(V.Location - FriendlyFlag.Position().Location) > 1000000.0 )
+			{
+				return false;
+			}
+		}
+		else if ( V.Health > 0.2*V.Default.Health )
+		{
+			return false;
+		}
+	}
 	// not if can cover flag carrier from here
 	if ( EnemyFlag.Holder != None && EnemyFlag.Holder != B.Pawn &&
 		(B.Enemy == None || B.Enemy.PlayerReplicationInfo == None || !B.Enemy.PlayerReplicationInfo.bHasFlag) &&

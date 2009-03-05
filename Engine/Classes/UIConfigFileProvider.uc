@@ -4,7 +4,7 @@
  *
  * There is one ConfigFileProvider for each ini/int file, and contains a list of providers for sections in that file.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIConfigFileProvider extends UIConfigProvider
 	native(inherit)

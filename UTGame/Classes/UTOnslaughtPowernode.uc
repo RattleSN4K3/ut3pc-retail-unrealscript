@@ -357,8 +357,12 @@ function DoOrbHealing()
 
 simulated function bool VerifyOrbLock( UTOnslaughtFlag CheckedFlag )
 {
-	if ( VSize(Location - CheckedFlag.Location) < InvulnerableRadius
-			&& FastTrace(Location + (vect(0,0,1) * InvEffectZOffset), CheckedFlag.Position().Location) )
+	local Actor OrbPosition;
+	
+	OrbPosition = CheckedFlag.Position();
+	if ( OrbPosition != None 
+		&& VSize(Location - OrbPosition.Location) < InvulnerableRadius
+		&& FastTrace(Location + (vect(0,0,1) * InvEffectZOffset), OrbPosition.Location) )
 	{
 		CheckedFlag.LockedNode = self;
 		return true;
@@ -493,6 +497,7 @@ function DisableObjective(Controller InstigatedBy)
 		if ( PRI != None )
 		{
 			PRI.IncrementNodeStat('NODE_DESTROYEDNODE');
+			PRI.IncrementHeroMeter(2.0);
 		}
 	}
 	super.DisableObjective(InstigatedBy);
@@ -598,6 +603,7 @@ function BecomeActive()
 		{
 			Constructor.PlayerReplicationInfo.Score += NodeConstructionScore;
 			UTPlayerReplicationInfo(Constructor.PlayerReplicationInfo).IncrementNodeStat('NODE_NODEBUILT');
+			UTPlayerReplicationInfo(Constructor.PlayerReplicationInfo).IncrementHeroMeter(2.0);
 		}
 		B = UTBot(Constructor);
 		if ( B != None )
@@ -806,10 +812,10 @@ simulated state NeutralNode
 
 	event Attach(Actor Other)
 	{
-		local Pawn P;
+		local UTPawn P;
 
-		P = Pawn(Other);
-		if (P != None && P.IsPlayerPawn() && Vehicle(P) == None && !CheckFlag(P))
+		P = UTPawn(Other);
+		if (P != None && P.IsPlayerPawn() && !P.IsHero() && !CheckFlag(P))
 		{
 			if (PoweredBy(P.GetTeamNum()))
 			{
@@ -1334,6 +1340,8 @@ function bool TellBotHowToDisable(UTBot B)
 			// bot can't just shoot us
 			// and other teammate isn't going for orb or we're closer
 			if ( ONSSquadAI.ONSTeamAI.Flag != None && ONSSquadAI.ONSTeamAI.Flag.Holder == None &&
+				((UTPawn(B.Pawn) == None) || !UTPawn(B.Pawn).IsHero()) &&
+				( WorldInfo.TimeSeconds - B.ForcedFlagDropTime > 8) &&
 				(!ONSSquadAI.ONSTeamAI.FinalCore.PoweredBy(ONSSquadAI.ONSTeamAI.EnemyTeam.TeamIndex) || ONSSquadAI.ONSTeamAI.FinalCore.LinkedTo(self)) )
 			{
 				FlagPosition = ONSSquadAI.ONSTeamAI.Flag.Position();
@@ -1521,7 +1529,15 @@ simulated function vector GetHUDOffset(PlayerController PC, Canvas Canvas)
 
 	// if default offset is too high up, don't use it
 	Offset = Super.GetHUDOffset(PC, Canvas);
-	return (Canvas.Project(Location + Offset).Y < 0.1*Canvas.ClipY) ? vect(0,0,210) : Offset;
+	if ( Canvas.Project(Location + Offset).Y < 0.12*Canvas.ClipY )
+	{
+		if ( Canvas.Project(Location + vect(0,0,210)).Y < 0.12*Canvas.ClipY )
+		{
+			return vect(0,0,20);
+		}
+		return vect(0,0,210);
+	}
+	return Offset;
 }
 
 defaultproperties

@@ -1,11 +1,12 @@
 ﻿/**
  * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
- * Single map secreen for UT3.
+ * Single map screen for UT3.
  */
 
 class UTUIPanel_SingleMap extends UTTabPage
-	placeable;
+	placeable
+	dependson(UTMapListManager);
 
 /** Preview image for a map. */
 var transient UIImage	MapPreviewImage;
@@ -57,35 +58,94 @@ event PostInitialize()
 function name GetCurrentGameMode()
 {
 	local string GameMode;
+	local int i;
 
 	GetDataStoreStringValue("<Registry:SelectedGameMode>", GameMode);
 
-	// strip out package so we just have class name
-	return name(Right(GameMode, Len(GameMode) - InStr(GameMode, ".") - 1));
+	// Strip out package so we just have class name
+	i = InStr(GameMode, ".");
+
+	if (i != INDEX_None)
+		GameMode = Mid(GameMode, i+1);
+
+	return name(GameMode);
+}
+
+function name GetCurrentGameModeFull()
+{
+	local string GameMode;
+
+	GetDataStoreStringValue("<Registry:SelectedGameMode>", GameMode);
+	return name(GameMode);
+}
+
+function string StripOptions(coerce string InURL)
+{
+	local int i;
+
+	i = InStr(InURL, "?");
+
+	if (i == -1)
+		return InUrl;
+
+
+	return Left(InURL, i);
+}
+
+function string GrabOptions(string InURL)
+{
+	local int i;
+
+	i = InStr(InURL, "?");
+
+	if (i == -1)
+		return "";
+
+	return Mid(InURL, i);
 }
 
 /** Sets up a map cycle consisting of 1 map. */
 function SetupMapCycle(string SelectedMap)
 {
-	local int CycleIdx;
-	local name GameMode;
-	local GameMapCycle MapCycle;
+	local string FullGameMode, Options;
+	local name GameMode, MapListName;
+	local int i;
+	local GameProfile NewGameProfile;
+	local UTMapList MLObj;
 
-	GameMode = GetCurrentGameMode();
+	// Determine the game profile that will be in use
+	FullGameMode = string(GetCurrentGameModeFull());
+	Options = GrabOptions(FullGameMode);
 
-	MapCycle.GameClassName = GameMode;
-	MapCycle.Maps.length=1;
-	MapCycle.Maps[0]=SelectedMap;
-
-	CycleIdx = class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', GameMode);
-	if (CycleIdx == INDEX_NONE)
+	if (Options != "")
 	{
-		CycleIdx = class'UTGame'.default.GameSpecificMapCycles.length;
+		GameMode = name(StripOptions(GetCurrentGameMode()));
+		FullGameMode = StripOptions(FullGameMode);
 	}
-	class'UTGame'.default.GameSpecificMapCycles[CycleIdx] = MapCycle;
 
-	// Save the config for this class.
-	class'UTGame'.static.StaticSaveConfig();
+	i = Class'UTMapListManager'.static.StaticGetCurrentGameProfileIndex();
+
+	if (i == INDEX_None || !(Class'UTMapListManager'.default.GameProfiles[i].GameClass ~= FullGameMode))
+		i = Class'UTMapListManager'.static.StaticFindGameProfileIndex(FullGameMode);
+
+
+	// Create a new profile if necessary
+	if (i == INDEX_None)
+	{
+		NewGameProfile = Class'UTMapListManager'.static.CreateNewGameProfile(FullGameMode,, GameMode, Options);
+		i = Class'UTMapListManager'.default.GameProfiles.AddItem(NewGameProfile);
+		Class'UTMapListManager'.static.StaticSaveConfig();
+	}
+
+	// Load the profiles maplist (creating it if it doesn't yet exist)
+	MapListName = Class'UTMapListManager'.default.GameProfiles[i].MapListName;
+	MLObj = Class'UTMapListManager'.static.StaticGetMapListByName(MapListName, True);
+
+	MLObj.Maps.Length = 1;
+	MLObj.SetMap(0, SelectedMap);
+
+	// Save the maplist
+	MLObj.SaveConfig();
 }
 
 /** @return Returns the currently selected map. */

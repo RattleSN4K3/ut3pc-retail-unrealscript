@@ -261,7 +261,7 @@ function AdvancedClosed( UIScene DeactivatedScene )
 	TC = UTUITabControl( GetOwnerTabControl() );
 	if ( TC != none )
 	{
-		TC.ActivateTabByTag('GameTab',,true);
+		TC.ActivateTabByTag('ScoreTab',,true);
 	}
 
 }

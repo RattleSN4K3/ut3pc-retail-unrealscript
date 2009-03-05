@@ -28,7 +28,7 @@ replication
 	if (bNetDirty)
 		TurretFlashLocation;
 
-	if (!IsSeatControllerReplicationViewer(1))
+	if (!IsSeatControllerReplicationViewer(1) || bDemoRecording)
 		TurretFlashCount, TurretFiringMode, TurretWeaponRotation;
 }
 
@@ -259,4 +259,5 @@ defaultproperties
 	HUDExtent=140.0
 
 	HornIndex=0
+	VehicleIndex=0
 }

@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for all actions which return a reference to a UITabPage.  Each child class uses a different search mechanism.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_GetPageReference extends UIAction_TabControl
 	abstract;

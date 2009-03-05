@@ -109,7 +109,7 @@ function string GetLeftMisc(UTPlayerReplicationInfo PRI)
 			}
 		}
 	}
-	return "LMisc";
+	return "";
 }
 
 

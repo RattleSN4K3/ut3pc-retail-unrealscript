@@ -23,6 +23,7 @@ defaultproperties
 
 	bAllowHoverboard=true
 	bAllowTranslocator=false
+	bStartWithLockerWeaps=true
 
 	// Class used to write stats to the leaderboard
 	OnlineStatsWriteClass=class'UTGame.UTLeaderboardWriteCTF'

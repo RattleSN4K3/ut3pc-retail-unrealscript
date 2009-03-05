@@ -158,8 +158,8 @@ defaultproperties
 	bDestinationOnly=true
 	bReplicateChildVehicle=true
 	bIgnoreEncroachers=True
-	NetPriority=2.7
-
+	NetPriority=1.5
+	NetUpdateFrequency=15
 	SupportedEvents.Add(class'UTSeqEvent_TurretSpawn')
 	SupportedEvents.Add(class'UTSeqEvent_TurretStatusChanged')
 }

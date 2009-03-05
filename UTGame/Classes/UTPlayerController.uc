@@ -95,6 +95,9 @@ var CameraAnimInst CameraAnimPlayer;
 var bool bCurrentCamAnimIsDamageShake;
 /** set if camera anim modifies FOV - don't do any FOV interpolation while camera anim is playing */
 var bool bCurrentCamAnimAffectsFOV;
+/** Vibration  */
+var ForceFeedbackWaveform CameraShakeShortWaveForm, CameraShakeLongWaveForm;
+
 /** stores post processing settings applied by the camera animation
  * applied additively to the default post processing whenever a camera anim is playing
  */
@@ -184,6 +187,9 @@ struct native ObjectiveAnnouncementInfo
 /** last objective CheckAutoObjective() sent a notification about */
 var Actor LastAutoObjective;
 
+/** last time auto objective was updated */
+var float LastAutoObjectiveTime;
+
 /** true if was defending last autoobjective */
 var bool bWasDefendingObjective;
 
@@ -270,15 +276,6 @@ var config bool bNoCrosshair;
 
 var config bool bSimpleCrosshair;
 
-/** Currently playing text-to-speech generated sounds. */
-var private array<SoundCue> ActiveTTSSoundCues;
-
-var bool bAlreadyReset;
-
-var float NextAdminCmdTime;
-
-var globalconfig float OnFootDefaultFOV;
-
 /** Last time "incoming" message was received by this player */
 var float LastIncomingMessageTime;
 
@@ -287,6 +284,18 @@ var float LastCombatUpdateTime;
 
 /** Used to prevent too frequent team changes */
 var float LastTeamChangeTime;
+
+/** Currently playing text-to-speech generated sounds. */
+var private array<SoundCue> ActiveTTSSoundCues;
+
+var bool bAlreadyReset;
+
+var float NextAdminCmdTime;
+
+/** True if Hero post processing effects are on */
+var bool bHeroPPEffectsOn;
+
+var globalconfig float OnFootDefaultFOV;
 
 /** If true, the server has muted all text chat from this player */
 var bool bServerMutedText;
@@ -301,6 +310,17 @@ var globalconfig bool bHideObjectivePaths;
  * this is the time of the last message so we don't spam too many
  */
 var float LastConsoleDownloadMessageTime;
+
+/** Cached value for achievement unlock */
+var int LastAchievementIDUnlocked;
+
+/** Cached values for the retrieved server ID/Name, set by the history saving code, and utilized by the 'add favourite' code */
+var UniqueNetId SavedServerID;
+var string SavedServerName;
+var string SavedServerIP;
+
+/** If this PC is used in client side demo recordings */
+var bool bSmoothClientDemo;
 
 
 
@@ -317,9 +337,29 @@ exec function Camera( name NewMode )
 	}
 }
 
+`if(`notdefined(FINAL_RELEASE))
+exec function GetSessionInfo()
+{
+	local string StatGuid, PlayerIdString;
+	local UTPlayerController UTPC;
+
+	if ( OnlineSub != None && OnlineSub.GameInterface != None )
+	{
+		StatGuid = OnlineSub.StatsInterface.GetHostStatGuid();
+		`log("SessionID is"@StatGuid);
+
+		foreach WorldInfo.AllControllers(class'UTPlayerController',UTPC)
+		{
+			PlayerIdString = class'Engine.OnlineSubsystem'.static.UniqueNetIdToString(UTPC.PlayerReplicationInfo.UniqueId);
+			`log("PlayerName:"@UTPC.PlayerReplicationInfo.PlayerName@"ID:"@PlayerIdString);
+		}
+	}
+}
+`endif
+
 reliable server function ServerThrowWeapon()
 {
-    if ( Pawn.CanThrowWeapon() && !UTGame(WorldInfo.Game).bWeaponStay )
+    if ( Pawn.CanThrowWeapon() )
     {
 		Pawn.ThrowActiveWeapon();
     }
@@ -360,10 +400,11 @@ event InitInputSystem()
  * Saves the UniqueNetId for the current server to the player's list of recently visited servers (server history).
  */
 function SaveServerToHistory()
-{
+	{
 	local LocalPlayer LP;
 	local OnlineGameSettings CurrentGameSettings;
 	local UTDataStore_GameSearchHistory HistoryDataStore;
+	local UniqueNetID NullID;
 
 	LP = LocalPlayer(Player);
 
@@ -371,12 +412,25 @@ function SaveServerToHistory()
 	if ( WorldInfo.NetMode == NM_Client && LP != None && OnlineSub != None && OnlineSub.GameInterface != None && OnlineSub.PlayerInterface != None )
 	{
 		CurrentGameSettings = OnlineSub.GameInterface.GetGameSettings();
-		if ( CurrentGameSettings != None )
+
+		//Make sure we have valid game settings (OwningPlayerID is zero if you followed a friend)
+		if ( CurrentGameSettings != None && CurrentGameSettings.OwningPlayerID != NullID)
 		{
-			HistoryDataStore = UTDataStore_GameSearchHistory(class'UTUIScene'.static.FindDataStore('UTGameHistory', LP));
-			if ( HistoryDataStore != None )
+			//No history on LAN matches
+			if (!CurrentGameSettings.bIsLanMatch)
 			{
-				HistoryDataStore.AddServer(LP.ControllerId, CurrentGameSettings.OwningPlayerId, CurrentGameSettings.OwningPlayerName);
+				HistoryDataStore = UTDataStore_GameSearchHistory(class'UTUIScene'.static.FindDataStore('UTGameHistory', LP));
+				if ( HistoryDataStore != None )
+				{
+					SavedServerID = CurrentGameSettings.OwningPlayerId;
+					SavedServerName = CurrentGameSettings.OwningPlayerName;
+					SavedServerIP = CurrentGameSettings.ServerIP;
+
+					if (SavedServerIP == "")
+						SavedServerIP = GetServerNetworkAddress();
+
+					HistoryDataStore.AddServerPlusIP(LP.ControllerId, SavedServerID, SavedServerName, SavedServerIP);
+				}
 			}
 		}
 		else
@@ -384,6 +438,36 @@ function SaveServerToHistory()
             //Last ditch attempt to get data needed to save to history
 			ServerGetGameHostNameAndId();
 		}
+	}
+}
+
+/**
+ * Saves the current server info to the favourites
+ */
+exec function AddToFavorites()
+{
+	AddToFavourites();
+}
+
+exec function AddToFavourites()
+{
+	local LocalPlayer LP;
+	local UniqueNetId NullID;
+	local UTDataStore_GameSearchFavorites FavDataStore;
+
+	LP = LocalPlayer(Player);
+
+	// The server id/name should have been cached when the server was added to history; if not, then the info is unavailable
+	if (LP == none || SavedServerID == NullID)
+		return;
+
+
+	FavDataStore = UTDataStore_GameSearchFavorites(Class'UTUIScene'.static.FindDataStore('UTGameFavorites', LP));
+
+	if (FavDataStore != none)
+	{
+//		ClientMessage(Localize("UTPlayerController", "AddedToFavourites", "UTGame"));
+		FavDataStore.AddServerPlusIP(LP.ControllerID, SavedServerID, SavedServerName, SavedServerIP);
 	}
 }
 
@@ -399,7 +483,7 @@ server reliable function ServerGetGameHostNameAndId()
 	if ( OnlineSub != None && OnlineSub.GameInterface != None )
 	{
 		CurrentGameSettings = OnlineSub.GameInterface.GetGameSettings();
-		if (CurrentGameSettings != None)
+		if (CurrentGameSettings != None && !CurrentGameSettings.bIsLanMatch)
 		{
 			OwningPlayerIdString = class'Engine.OnlineSubsystem'.static.UniqueNetIdToString(CurrentGameSettings.OwningPlayerId);
 			ClientSetGameHostNameAndId(OwningPlayerIdString, CurrentGameSettings.OwningPlayerName);
@@ -417,21 +501,22 @@ client reliable function ClientSetGameHostNameAndId(string OwningPlayerIdString,
 	LP = LocalPlayer(Player);
 
 	// we've successfully joined an online match - add this server's unique PlayerId to the list of recently joined matches
-	if ( WorldInfo.NetMode == NM_Client && LP != None && OnlineSub != None && OnlineSub.GameInterface != None && OnlineSub.PlayerInterface != None )
+	if ( WorldInfo.NetMode == NM_Client && LP != None && OnlineSub != None && OnlineSub.GameInterface != None && OnlineSub.PlayerInterface != None
+		&& class'Engine.OnlineSubsystem'.static.StringToUniqueNetId(OwningPlayerIdString, OwningPlayerId))
 	{
+		SavedServerID = OwningPlayerId;
+		SavedServerName = OwningPlayerName;
+		SavedServerIP = GetServerNetworkAddress();
+
 		HistoryDataStore = UTDataStore_GameSearchHistory(class'UTUIScene'.static.FindDataStore('UTGameHistory', LP));
 		if ( HistoryDataStore != None )
-		{
-			if (class'Engine.OnlineSubsystem'.static.StringToUniqueNetId(OwningPlayerIdString, OwningPlayerId))
-			{  
-				HistoryDataStore.AddServer(LP.ControllerId, OwningPlayerId, OwningPlayerName);
-			}
-		}
+			HistoryDataStore.AddServerPlusIP(LP.ControllerId, OwningPlayerId, OwningPlayerName, SavedServerIP);
 	}
 }
 
 event PlayerTick( float DeltaTime )
 {
+	local Pawn P;
 	Super.PlayerTick(DeltaTime);
 
 	// This needs to be done here because it ensures that all datastores have been registered properly
@@ -440,6 +525,37 @@ event PlayerTick( float DeltaTime )
 	{
 		RetrieveSettingsFromProfile();
 		bRetrieveSettingsFromProfileOnNextTick = FALSE;
+	}
+
+	if ( bSmoothClientDemo && WorldInfo.bWithinDemoPlayback )
+	{
+		// reacquire ViewTarget if the player switched Pawns
+		if ( RealViewTarget != None && RealViewTarget != PlayerReplicationInfo &&
+			(Pawn(ViewTarget) == None || Pawn(ViewTarget).PlayerReplicationInfo != RealViewTarget) )
+		{
+			foreach WorldInfo.AllPawns(class'Pawn', P)
+			{
+				if (P.PlayerReplicationInfo == RealViewTarget)
+				{
+					SetViewTarget(P);
+					break;
+				}
+			}
+		}
+
+		if ( Pawn(ViewTarget) != None )
+		{
+			if ( UTPawn(ViewTarget) != None )
+			{
+				TargetViewRotation = ViewTarget.Rotation;
+				TargetViewRotation.Pitch = Rotation.Pitch; 
+			}
+			else
+			{
+				TargetViewRotation = Rotation;
+			}
+		}
+		
 	}
 }
 
@@ -736,7 +852,7 @@ reliable client function ClientSetOnlineStatus()
 			}
 		}
 	}
-
+ 
 	//@todo: Hook this up properly.
 	`Log("UTPlayerController::ClientSetOnlineStatus() - Setting online status for ControllerId: "$LP.ControllerId);
 	OnlineSub.PlayerInterface.SetOnlineStatus(LP.ControllerId, 0, StringSettings, Properties);
@@ -783,22 +899,22 @@ reliable client function ClientSetOnlineStatus()
 				// If we are a internet match, this really matters
 				if (!GameSettings.bIsLanMatch)
 				{
-					// We are playing a internet match. Determine whether the connection
-					// status change requires us to drop and go to the menu
-					switch (ConnectionStatus)
-					{
-					case OSCS_ConnectionDropped:
-					case OSCS_NoNetworkConnection:
-					case OSCS_ServiceUnavailable:
-					case OSCS_UpdateRequired:
-					case OSCS_ServersTooBusy:
-					case OSCS_NotConnected:
-						SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.ConnectionLost_Title>",
-							"<Strings:UTGameUI.Errors.ConnectionLost_Message>");
+		// We are playing a internet match. Determine whether the connection
+		// status change requires us to drop and go to the menu
+		switch (ConnectionStatus)
+		{
+		case OSCS_ConnectionDropped:
+		case OSCS_NoNetworkConnection:
+		case OSCS_ServiceUnavailable:
+		case OSCS_UpdateRequired:
+		case OSCS_ServersTooBusy:
+		case OSCS_NotConnected:
+			SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.ConnectionLost_Title>",
+				"<Strings:UTGameUI.Errors.ConnectionLost_Message>");
 						bInvalidConnectionStatus = true;
-						break;
-					}
-				}
+			break;
+		}
+	}
 			}
 		}
 	}
@@ -965,6 +1081,54 @@ function NotifyNotEnoughSpaceInInvite()
 	QuitToMainMenu();
 }
 
+/**
+* Once the join completes, use the platform specific connection information
+* to connect to it
+*
+* @param bWasSuccessful whether the join worked or not
+*/
+function OnInviteJoinComplete(bool bWasSuccessful)
+{
+	local string URL, ConnectPassword;
+	local UniqueNetId ZeroNetId;
+
+	if (bWasSuccessful)
+	{
+		if (OnlineSub != None && OnlineSub.GameInterface != None)
+		{
+			// Get the platform specific information
+			if (OnlineSub.GameInterface.GetResolvedConnectString(URL))
+			{
+				// if a password was set in the registry (this would normally be done by the UI scene that handles accepting
+				// the game invite or join friend request), append it to the URL
+				if ( class'UIRoot'.static.GetDataStoreStringValue("<Registry:ConnectPassword>", ConnectPassword) && ConnectPassword != "" )
+				{
+					// we append "Password=" because that's what AccessControl checks for (see AccessControl.PreLogin)
+					URL $= "?Password=" $ ConnectPassword;
+				}
+
+				if (PlayerReplicationInfo.FriendFollowedId != ZeroNetId)
+				{
+					// we append "Friend=" to check it later when we get into the game
+					URL $= "?Friend=" $ class'OnlineSubsystem'.static.UniqueNetIdToString(PlayerReplicationInfo.FriendFollowedId);
+				}
+
+				`Log("Resulting url is ("$URL$")");
+
+				// Open a network connection to it
+				ConsoleCommand("open "$URL);
+			}
+		}
+	}
+	else
+	{
+		// Do some error handling
+		NotifyInviteFailed();
+	}
+	ClearInviteDelegates();
+	class'UIRoot'.static.SetDataStoreStringValue("<Registry:ConnectPassword>", "");
+}
+
 
 /**
  * Callback for when a character has been unlocked.
@@ -1095,7 +1259,7 @@ reliable client function ClientSetProgressMessage( EProgressMessageType MessageT
 		if (WorldInfo.NetMode == NM_Client)
 		{
 			if (WorldInfo.TimeSeconds - LastConsoleDownloadMessageTime > 3.0)
-			{
+		{
 				ClientMessage(Title $ ":" @ Message);
 				LastConsoleDownloadMessageTime = WorldInfo.TimeSeconds;
 			}
@@ -1106,9 +1270,9 @@ reliable client function ClientSetProgressMessage( EProgressMessageType MessageT
 		ProgressMessageScene = OpenProgressMessageScene();
 		if ( ProgressMessageScene != None )
 		{
-			ProgressMessageScene.DisplayCancelBox(Message, Title, CancelPendingConnection);
-			ProgressMessageScene.ForceImmediateSceneUpdate();
-		}
+				ProgressMessageScene.DisplayCancelBox(Message, Title, CancelPendingConnection);
+				ProgressMessageScene.ForceImmediateSceneUpdate();
+			}
 		break;
 
 	case PMT_RedrawDownloadProgress:
@@ -1175,6 +1339,15 @@ function SetFrontEndErrorMessage(string Title, string Message)
 }
 
 /**
+ * Saves information to the registry about the last travel attempt, to allow the frontend to attempt a reconnect if necessary
+ */
+function SetFrontEndTravelRetryInfo(string URL, string ErrorCode)
+{
+	class'UIRoot'.static.SetDataStoreStringValue("<Registry:FrontEndError_LastURL>", URL);
+	class'UIRoot'.static.SetDataStoreStringValue("<Registry:FrontEndError_LastErrorCode>", ErrorCode);
+}
+
+/**
  * Notifies the player that an attempt to connect to a remote server failed, or an existing connection was dropped.
  *
  * @param	Message		a description of why the connection was lost
@@ -1200,6 +1373,7 @@ function NotifyConnectionError( string Message, optional string Title )
 	}
 
 	SetFrontEndErrorMessage(Title, Message);
+	SetFrontEndTravelRetryInfo(WorldInfo.LastTravelErrorURL, WorldInfo.LastTravelErrorCode);
 
 	// Start quitting to the main menu
 	QuitToMainMenu();
@@ -1221,8 +1395,14 @@ function QuitToMainMenu()
 /** Called after onlinesubsystem game cleanup has completed. */
 function FinishQuitToMainMenu()
 {
+	local string WasShowingBrowser;
+
 	// stop any movies currently playing before we quit out
 	class'Engine'.static.StopMovie();
+
+	// If the player was viewing the server browser before joining, tell the main menu it should return to the browser
+	if (Class'UIRoot'.static.GetDataStoreStringValue("<Registry:WasShowingBrowser>", WasShowingBrowser) && WasShowingBrowser == "1")
+		Class'UIRoot'.static.SetDataStoreStringValue("<Registry:ReturnToBrowser>", "1");
 
 	// Call disconnect to force us back to the menu level
 	ConsoleCommand("NativeDisconnect");
@@ -1358,7 +1538,7 @@ exec function ToggleSpeaking(bool bNowOn)
 			if (bNowOn)
 			{
 				VoiceInterface.StartNetworkedVoice(LP.ControllerId);
-				bIsTyping = true;
+					bIsTyping = true;
 				if ( WorldInfo.NetMode != NM_Client )
 				{
 					VoiceInterface.StartSpeechRecognition(LP.ControllerId);
@@ -1369,11 +1549,11 @@ exec function ToggleSpeaking(bool bNowOn)
 				VoiceInterface.StopNetworkedVoice(LP.ControllerId);
 				bIsTyping = false;
 				if ( WorldInfo.NetMode != NM_Client )
-				{
+	{
 					VoiceInterface.StopSpeechRecognition(LP.ControllerId);
-				}
-			}
 		}
+	}
+}
 	}
 }
 
@@ -1381,7 +1561,7 @@ exec function ToggleSpeaking(bool bNowOn)
 Replicated function from server for replicating audible sounds played on server
 UTPlayerController implementation considers sounds from its pawn as local, even if the pawn is not the viewtarget
 */
-unreliable client event ClientHearSound(SoundCue ASound, Actor SourceActor, vector SourceLocation, bool bStopWhenOwnerDestroyed, optional bool bIsOccluded )
+unreliable client event ClientHearSound(SoundCue ASound, Actor SourceActor, vector SourceLocation, bool bStopWhenOwnerDestroyed, optional bool bIsOccluded, optional bool bIsUISound )
 {
 	local AudioComponent AC;
 
@@ -1423,6 +1603,10 @@ unreliable client event ClientHearSound(SoundCue ASound, Actor SourceActor, vect
 		AC.VolumeMultiplier *= 0.5;
 		// AC.LowPassFilterApplied = true;
 	}
+
+	// force UI sound if passed in as such
+	AC.bIsUISound = AC.bIsUISound || bIsUISound;
+
 	AC.Play();
 }
 
@@ -1493,6 +1677,10 @@ function Rotator GetAdjustedAimFor( Weapon W, vector StartFireLoc )
 /** Tries to find a vehicle to drive within a limited radius. Returns true if successful */
 function bool FindVehicleToDrive()
 {
+	if ( (UTPawn(Pawn) != None) && UTPawn(Pawn).IsHero() )
+	{
+		return false;
+	}
 	return ( CheckVehicleToDrive(true) != None );
 }
 
@@ -1620,7 +1808,19 @@ function UTVehicle CheckVehicleToDrive(bool bEnterVehicle)
 
 exec function ToggleMinimap()
 {
-	bRotateMiniMap = !bRotateMiniMap;
+	local UTPlayerReplicationInfo PRI;
+
+	// Don't toggle the minimap if the hero meter is full
+	PRI = UTPlayerReplicationInfo(PlayerReplicationInfo);
+	if ( PRI != None && PRI.GetHeroMeter() < PRI.HeroThreshold )
+	{
+		bRotateMiniMap = !bRotateMiniMap;
+	}
+
+	if ( (Pawn != None) && Pawn.IsA('UTHeroPawn') )
+	{
+		TriggerHero();
+	}
 }
 
 exec function DropFlag()
@@ -1631,7 +1831,9 @@ exec function DropFlag()
 reliable server function ServerDropFlag()
 {
 	if ( UTPawn(Pawn) != None )
+	{
 		UTPawn(Pawn).DropFlag();
+	}
 }
 
 /** LandingShake()
@@ -1747,6 +1949,20 @@ simulated function bool TriggerInteracted()
 	return super.TriggerInteracted();
 }
 
+/** Fastforward control for demo playback */
+exec function DemoFF()
+{
+	if ( WorldInfo.bWithinDemoPlayback )
+		WorldInfo.DemoPlayTimeDilation = (WorldInfo.DemoPlayTimeDilation < 10) ?  WorldInfo.DemoPlayTimeDilation * 3.3 : 1.0;
+}
+
+/** Slomo used in demo playback */
+exec function DemoSloMo(float NewTimeDilation)
+{
+	if ( WorldInfo.bWithinDemoPlayback )
+		WorldInfo.DemoPlayTimeDilation = NewTimeDilation;
+}
+
 exec function PlayVehicleHorn()
 {
 	local UTVehicle V;
@@ -1774,7 +1990,7 @@ exec function Taunt(int TauntIndex)
 {
 	local UTVehicle UTV;
 	local UTPawn UTP;
-
+	
 	UTP = UTPawn(Pawn);
 	if(UTP == None)
 	{
@@ -1838,7 +2054,7 @@ function OnControllerChanged(int ControllerId,bool bIsConnected)
 {
 	local LocalPlayer LocPlayer;
 
-	// Call parent implementation (this will pause/unpause the game if needed)
+		// Call parent implementation (this will pause/unpause the game if needed)
 	super.OnControllerChanged( ControllerId, bIsConnected );
 
 	// Don't worry about remote players
@@ -2058,15 +2274,19 @@ function CheckAutoObjective(bool bOnlyNotifyDifferent)
 
 	if (Pawn != None && PlayerReplicationInfo != None)
 	{
-		ObjectiveActor = UTGame(WorldInfo.Game).GetAutoObjectiveFor(self);
-		if ( ObjectiveActor != None )
+		if (LastAutoObjectiveTime + 3.0 < WorldInfo.TimeSeconds)
 		{
-			SetAutoObjective(ObjectiveActor, bOnlyNotifyDifferent);
-		}
-		else
-		{
-			LastAutoObjective = None;
-			ClientSetAutoObjective(LastAutoObjective);
+			LastAutoObjectiveTime = WorldInfo.TimeSeconds;
+			ObjectiveActor = UTGame(WorldInfo.Game).GetAutoObjectiveFor(self);
+			if ( ObjectiveActor != None )
+			{
+				SetAutoObjective(ObjectiveActor, bOnlyNotifyDifferent);
+			}
+			else
+			{
+				LastAutoObjective = None;
+				ClientSetAutoObjective(LastAutoObjective);
+			}
 		}
 	}
 }
@@ -2327,13 +2547,19 @@ simulated function bool PerformedUseAction()
 	local UTCarriedObject Flag;
 
 	bJustFoundVehicle = false;
+
+	if ( UTPawn(Pawn) != None && UTPawn(Pawn).IsHero() )
+	{
+		Pawn.ToggleMelee();
+		return false;
+}
+
 	if (Pawn != None && Pawn.IsInState('FeigningDeath'))
 	{
 		// can't use things while feigning death
 		return true;
 	}
-	else
-	{
+
 		if ( (Pawn != None) && (Vehicle(Pawn) == None) )
 		{
 		  ForEach Pawn.TouchingActors(class'UTCarriedObject', Flag)
@@ -2344,8 +2570,27 @@ simulated function bool PerformedUseAction()
 			  }
 		  }
 		}
-		return Super.PerformedUseAction();
+	
+	if ( Super.PerformedUseAction() )
+	{
+		return true;
 	}
+	
+	if ( (Role == ROLE_Authority) && !bJustFoundVehicle )
+	{
+		// Gamepad smart use - bring out translocator or hoverboard if no other use possible
+		ClientSmartUse();
+		return true;
+	}
+	return false;
+	}
+
+function ClearDoubleClick()
+{
+	Super.ClearDoubleClick();
+
+	if (Pawn != none && UTPawn(Pawn) != none)
+		UTPawn(Pawn).DodgeResetTimestamp = WorldInfo.TimeSeconds + UTPawn(Pawn).DodgeResetTime;
 }
 
 // Player movement.
@@ -2500,7 +2745,11 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 		GRI = UTGameReplicationInfo(WorldInfo.GRI);
 		if (GRI != None && GRI.bMatchIsOver && !GRI.bStoryMode)
 		{
-			ShowMidGameMenu('ScoreTab',true);
+			// If voting is currently active, then go to the vote tab instead of scoreboard tab
+			if (VoteRI != none && GRI.VoteRoundTimeCounter != INDEX_None)
+				ShowMidGameMenu('VoteTab', True);
+			else
+				ShowMidGameMenu('ScoreTab', True);
 		}
 		else if (myHUD != None)
 		{
@@ -2515,9 +2764,9 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 		if (Role == ROLE_Authority && UTGame(WorldInfo.Game).bAutoContinueToNextRound)
 		{
 			myHUD.SetShowScores(false);
-			StartFire( 0 );
+				StartFire( 0 );
+			}
 		}
-	}
 
 	function BeginState(Name PreviousStateName)
 	{
@@ -2704,6 +2953,7 @@ state Dead
 	function BeginState(Name PreviousStateName)
 	{
 		local UTWeaponLocker WL;
+		local UTWeaponPickupFactory WF;
 
 		LastAutoObjective = None;
 		if ( Pawn(Viewtarget) != None )
@@ -2716,6 +2966,8 @@ state Dead
 		{
 			ForEach WorldInfo.AllNavigationPoints(class'UTWeaponLocker',WL)
 				WL.NotifyLocalPlayerDead(self);
+			ForEach WorldInfo.AllNavigationPoints(class'UTWeaponPickupFactory',WF)
+				WF.NotifyLocalPlayerDead(self);
 		}
 
 		if ( CurrentMapScene != none )
@@ -2863,7 +3115,7 @@ reliable client function ClientReset()
 
 exec function BehindView()
 {
-	if ( WorldInfo.NetMode == NM_Standalone )
+	if (WorldInfo.NetMode == NM_Standalone || bDemoOwner)
 		SetBehindView(!bBehindView);
 }
 
@@ -3156,6 +3408,20 @@ function PlayCameraAnim( CameraAnim AnimToPlay, optional float Scale=1.f, option
 		CamOverridePostProcess = class'CameraActor'.default.CamOverridePostProcess;
 		CameraAnimPlayer.Play(AnimToPlay, self, Rate, Scale, BlendInTime, BlendOutTime, bLoop, false);
 	}
+
+	// Play controller vibration - don't do this if damage, as that has its own handling
+	if( !bIsDamageShake && !bLoop && WorldInfo.NetMode != NM_DedicatedServer )
+	{
+		if( AnimToPlay.AnimLength <= 1 )
+		{
+			ClientPlayForceFeedbackWaveform(CameraShakeShortWaveForm);
+		}
+		else
+		{
+			ClientPlayForceFeedbackWaveform(CameraShakeLongWaveForm);
+		}
+	}
+
 	bCurrentCamAnimIsDamageShake = bIsDamageShake;
 }
 
@@ -3217,16 +3483,9 @@ function ViewShake(float DeltaTime)
 
 simulated exec function ToggleMelee()
 {
-	if ( (Pawn != None) && (Pawn.Weapon != None) && Vehicle(Pawn) == none)
+	if ( Pawn != None )
 	{
-		if ( Pawn.Weapon.bMeleeWeapon )
-		{
-			UTInventoryManager(Pawn.InvManager).SwitchToPreviousWeapon();
-		}
-		else
-		{
-			SwitchWeapon(1);
-		}
+		Pawn.ToggleMelee();
 	}
 }
 
@@ -3734,6 +3993,11 @@ exec function ShowMap()
 		DesiredBase = PlayerReplicationInfo.bHasFlag ? PlayerReplicationInfo.Team.TeamIndex : (1 - PlayerReplicationInfo.Team.TeamIndex);
 		BasePath(DesiredBase);
 	}
+	else if ( ClassIsChildOf(WorldInfo.GRI.GameClass, class'UTGreedGame') )
+	{
+		DesiredBase = 1 - PlayerReplicationInfo.Team.TeamIndex;
+		BasePath(DesiredBase);
+	}
 }
 
 server reliable function ServerViewingMap(bool bNewValue)
@@ -3790,6 +4054,12 @@ exec function ShowMenu()
 	ShowMidGameMenu('',true);
 }
 
+exec function ShowVoteMenu()
+{
+	if (VoteRI != none)
+		ShowMidGameMenu('VoteTab', True);
+}
+
 function UTUIScene_MidGameMenu ShowMidGameMenu(optional name TabTag,optional bool bEnableInput)
 {
 	local UTGameReplicationInfo GRI;
@@ -3825,12 +4095,14 @@ function UTUIScene_MidGameMenu ShowMidGameMenu(optional name TabTag,optional boo
 */
 reliable client function ClientGameEnded(optional Actor EndGameFocus, optional bool bIsWinner)
 {
+	local UTTimedPowerup Powerup;
+
 	if( EndGameFocus == None )
 		ServerVerifyViewTarget();
 	else
 	{
-		SetViewTarget(EndGameFocus);
-	}
+			SetViewTarget(EndGameFocus);
+		}
 
 	if ( (PlayerReplicationInfo != None) && !PlayerReplicationInfo.bOnlySpectator )
 		PlayWinMessage( bIsWinner );
@@ -3840,6 +4112,11 @@ reliable client function ClientGameEnded(optional Actor EndGameFocus, optional b
 	GotoState('RoundEnded');
 
 	SetBehindView(true);
+
+	ForEach Pawn.InvManager.InventoryActors( class'UTTimedPowerup', Powerup )
+	{
+		Powerup.ClientSetTimeRemaining(0.01);
+	}
 }
 
 /* epic ===============================================
@@ -4012,6 +4289,13 @@ reliable server function ServerBecomeActivePlayer()
 		}
 
 		ClientBecameActivePlayer();
+
+
+		if (WorldInfo.Game.BaseMutator != none)
+			WorldInfo.Game.BaseMutator.NotifyBecomeActivePlayer(Self);
+
+		if (UTGame(WorldInfo.Game).VoteCollector != none)
+			UTGame(WorldInfo.Game).VoteCollector.NotifyBecomeActivePlayer(Self);
 	}
 }
 
@@ -4272,7 +4556,7 @@ function CharacterProcessingComplete()
 //	if ( WorldInfo.NetMode != NM_Standalone && GRI != none && !GRI.bMatchHasBegun )
 	if ( GRI != none && !GRI.bMatchHasBegun && !GRI.bStoryMode && !bAlreadyReset && WorldInfo.NetMode != NM_Standalone )
 	{
-		Menu = ShowMidGameMenu('GameTab',true);
+		Menu = ShowMidGameMenu('ScoreTab',true);
 		bAlreadyReset = true;
 		if ( Menu != none )
 		{
@@ -4565,6 +4849,15 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 			}
 		}
 
+ 		if(Profile.GetProfileSettingValueId(class'UTProfileSettings'.const.UTPID_AlwaysLoadCustomCharacters, OutIntValue))
+ 		{
+ 			class'UTGameReplicationInfo'.default.bAlwaysLoadCustomCharacters = (OutIntValue == UTPID_VALUE_YES);
+ 			if (UTGameReplicationInfo(WorldInfo.GRI) != None)
+ 			{
+ 				UTGameReplicationInfo(WorldInfo.GRI).bAlwaysLoadCustomCharacters = class'UTGameReplicationInfo'.default.bAlwaysLoadCustomCharacters;
+			}
+ 		}
+
 		if (bLoadCharacter)
 		{
 			LoadCharacterFromProfile(Profile);
@@ -4714,7 +5007,7 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 				{
 					OutIntValue = 5 * OutIntValue * 100;
 					Profile.SetProfileSettingValueInt(423, OutIntValue); // UTPID_MouseSensitivityGame = 423
-				}
+			}
 				PlayerInput.MouseSensitivity = OutIntValue / 100.0;	// Mouse sensitivity is between 0-100
 			}
 
@@ -4755,6 +5048,12 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 			if(Profile.GetProfileSettingValueIntByName('DodgeDoubleClickTime', OutIntValue))
 			{
 				PlayerInput.DoubleClickTime = OutIntValue / 100.0f;
+			}
+
+			// ControllerSensitivityMultiplier
+			if(Profile.GetProfileSettingValueIntByName('ControllerSensitivityMultiplier', OutIntValue))
+			{
+				UTPlayerInput(PlayerInput).SensitivityMultiplier = float(OutIntValue) / 10.0f;
 			}
 		}
 
@@ -4823,7 +5122,7 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 		}
 
 		// NetworkConnection
-		if( Profile.GetProfileSettingValueIdByName('NetworkConnection', OutIntValue) )
+		if(Profile.GetProfileSettingValueIdByName('NetworkConnection', OutIntValue))
 		{
 			// @todo: Find reasonable values for these.
 			switch(OutIntValue)
@@ -4856,18 +5155,18 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 		}
 
 		// Set the player's name to their profile id.
-		SetName(OnlinePlayerData.PlayerNick);
-		ServerSetAlias(OnlinePlayerData.PlayerNick);
+			SetName(OnlinePlayerData.PlayerNick);
+			ServerSetAlias(OnlinePlayerData.PlayerNick);
 
-		// ClanTag
-		if(Profile.GetProfileSettingValueByName('ClanTag', OutStringValue))
-		{
+			// ClanTag
+			if(Profile.GetProfileSettingValueByName('ClanTag', OutStringValue))
+			{
 			if ( Len(OutStringValue) > 16 )
 			{
 				OutStringValue = Left(OutStringValue, 16);
 			}
-			ServerSetClanTag(OutStringValue);
-		}
+				ServerSetClanTag(OutStringValue);
+			}
 
 		// SpeechRecognition
 		/* @FIXME: currently there's no support for (de)activating speech recognition during gameplay
@@ -4971,7 +5270,7 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 
 		// RedeemerPriority
 		if(Profile.GetProfileSettingValueFloat(class'UTProfileSettings'.const.UTPID_RedeemerPriority, OutFloatValue))
-		{
+			{
 			class'UTWeap_Redeemer'.default.Priority=OutFloatValue;
 		}
 
@@ -5056,6 +5355,12 @@ function LoadSettingsFromProfile(bool bLoadCharacter)
 			bPopupMapOnDeath = (OutIntValue==UTPID_VALUE_YES);
 		}
 
+		// Achievement settings
+		if (Profile.CheckLikeTheBackOfMyHandMap(class'UTGame'.static.ConvertMapNameToContext(WorldInfo.GetMapName(true))))
+		{
+			UTPlayerReplicationInfo(PlayerReplicationInfo).bAllPickupsFoundThisMap = true;
+		}
+
 		///////////////////////////////////////////////////////////////////////////
 		// Apply Keybindings
 		///////////////////////////////////////////////////////////////////////////
@@ -5084,7 +5389,6 @@ unreliable client function ClientSpawnCameraEffect(class<UTEmitCameraEffect> Cam
 		}
 	}
 }
-
 
 /** @param CamEmitter Clear the CameraEffect if it is the one passed in */
 function RemoveCameraEffect( UTEmitCameraEffect CamEmitter )
@@ -5141,8 +5445,13 @@ function SaveProfile(optional Int PlayerIndex)
 			SP.PlayerIndexToSave = PlayerIndex;
 		}
 	}
-}
+	}
 
+
+event TriggerProfileSave()
+{
+	SaveProfile();
+}
 
 `if(`notdefined(ShippingPC))
 
@@ -5261,30 +5570,51 @@ function BullseyeMessage()
 	}
 }
 
-simulated function UpdateAchievement(int AchievementId, optional EUTUnlockType UnlockType = EUnlockType_Count, optional int Value = 1)
+simulated function UpdateAchievement(int AchievementId, optional int Value = 1)
 {
 	local LocalPlayer LocPlayer;
 	local UTProfileSettings Profile;
 	local bool UnlockedAchievement;
+	local INT UnlockType;
 
-	//Get the player profile and update it
-	Profile = UTProfileSettings(OnlinePlayerData.ProfileProvider.Profile);
-	if ( Profile != none )
+	// check the special case of -1 which means the unlock criteria has already been checked, so just unlock it
+	if (Value != -1)
 	{
-		if (UnlockType == EUnlockType_Count)
+		//Get the player profile and update it
+		Profile = UTProfileSettings(OnlinePlayerData.ProfileProvider.Profile);
+		if ( Profile != none )
 		{
-			UnlockedAchievement = Profile.UpdateAchievementCount(AchievementId, Value);
+			if (Profile.GetAchievementUnlockType(AchievementId, UnlockType))
+			{
+				if (UnlockType == EUnlockType_Count)
+				{
+					UnlockedAchievement = Profile.UpdateAchievementCount(AchievementId, Value);
+				}
+				else if (UnlockType == EUnlockType_BitMask)
+				{
+					UnlockedAchievement = Profile.UpdateAchievementBitMask(AchievementId, Value);
+				}
+				else if (UnlockType == EUnlockType_ByteCount)
+				{
+					UnlockedAchievement = Profile.UpdateAchievementByteCount(AchievementId, Value);
+				}
+			}
+			else
+			{
+				`Log("Failed to get unlock type for achievement "$AchievementId);
+			}
 		}
-		else if (UnlockType == EUnlockType_BitMask)
-		{
-			UnlockedAchievement = Profile.UpdateAchievementBitMask(AchievementId, Value);
-		}
+	}
+	else
+	{
+		// special case for the 64 bit bitmask achievements, just unlock it
+		UnlockedAchievement=true;
 	}
 
 	//If in updating, you exceeded the unlock requirement, unlock the achievement
 	if (UnlockedAchievement)
 	{
-		`log("Unlocked the achievement");
+		//`log("Unlocked the achievement "$AchievementId);
 		if (OnlineSub != None)
 		{
 			// if the extended interface is supported
@@ -5292,9 +5622,12 @@ simulated function UpdateAchievement(int AchievementId, optional EUTUnlockType U
 			{
 				LocPlayer = LocalPlayer(Player);
 				OnlineSub.PlayerInterfaceEx.AddUnlockAchievementCompleteDelegate(LocPlayer.ControllerId, AchievementDone);
+
+				LastAchievementIDUnlocked = AchievementId;
 				if (OnlineSub.PlayerInterfaceEx.UnlockAchievement(LocPlayer.ControllerId,AchievementId) == false)
 				{
-					`log("UnlockAchievement("$LocPlayer.ControllerId$","$AchievementId$") failed");
+//					`log("UnlockAchievement("$LocPlayer.ControllerId$","$AchievementId$") failed");
+					AchievementDone(false);
 				}
 			}
 			else
@@ -5314,22 +5647,64 @@ function AchievementDone(bool bWasSuccessful)
 {
 	if (bWasSuccessful == true)
 	{
-		if (OnlineSub != None)
-		{
-			if (OnlineSub.PlayerInterfaceEx.ShowAchievementsUI(0) == false)
-			{
-				`Log("ShowAchievementsUI(0) failed");
-			}
-		}
-	}
-	else
-	{
-		`Log("Failed to unlock achievement");
+		ShowAchievementToast(LastAchievementIDUnlocked);
 	}
 
-	if (OnlineSub != None)
+	LastAchievementIDUnlocked = 0;
+
+	if (OnlineSub != None && OnlineSub.PlayerInterfaceEx != None)
 	{
 		OnlineSub.PlayerInterfaceEx.ClearUnlockAchievementCompleteDelegate(0, AchievementDone);
+	}
+}
+
+function ShowAchievementToast(int AchievementId)
+{
+	local string UnlockedMsg, FinalMsg;
+	local int AchievementIndex;
+
+	if (!class'UIRoot'.static.IsConsole(CONSOLE_Any))
+	{
+		// Find the achievement with AchievementId, and get its Name
+		for ( AchievementIndex = 0; AchievementIndex < class'UTUIDataProvider_AvailableContent'.default.AllAchievements.length; ++AchievementIndex )
+		{
+			if ( class'UTUIDataProvider_AvailableContent'.default.AllAchievements[AchievementIndex].Achievement.ID == AchievementId )
+			{
+				class'UIRoot'.static.GetDataStoreStringValue(class'UTUIDataProvider_AvailableContent'.default.AllAchievements[AchievementIndex].Achievement.Name, FinalMsg);
+				UnlockedMsg = Localize("Achievements", "AchievementUnlocked", "UTGameUI");
+				FinalMsg = UnlockedMsg$":"@FinalMsg;
+				break;
+			}
+		}
+		
+
+		//Put some logic here to detect how many achievements and print something like "X Achievements unlocked" instead of multiple messages
+		//prevents needing to add a queuing system to Toasts
+
+		// Display toast
+		class'UTUIScene'.static.ShowOnlineToast(FinalMsg,,8);
+	}
+}
+
+exec function ShowHandMaps()
+{
+	local int i;
+	local UTProfileSettings Profile;
+
+	Profile = UTProfileSettings(OnlinePlayerData.ProfileProvider.Profile);
+	if ( Profile != none )
+	{
+		for (i=0; i<class'UTGame'.default.MapContexts.length; i++)
+		{
+			if (Profile.CheckLikeTheBackOfMyHandMap(class'UTGame'.default.MapContexts[i].MapContextId))
+			{
+				`log("Map:"@class'UTGame'.default.MapContexts[i].MapName@": COMPLETE");
+			}
+			else
+			{
+				`log("Map:"@class'UTGame'.default.MapContexts[i].MapName@": NOT COMPLETE");
+			}
+		}
 	}
 }
 
@@ -5350,8 +5725,16 @@ function OnUnlockAchievement(UTSeqAct_UnlockAchievement Action)
  */
 reliable client function ClientUpdateAchievement(int AchievementId, optional int Count=1)
 {
-	UpdateAchievement(AchievementId, EUnlockType_Count, Count);
+	//Spectators don't get any
+	if (PlayerReplicationInfo.bOnlySpectator)
+	{
+		return;
+	}
+
+	//`log("ClientUpdateAchievement"@AchievementId@"Count:"@Count);
+	UpdateAchievement(AchievementId, Count);
 }
+
 
 /** Used in the Character Editor - outputs current character setup as concise text form. */
 native exec function ClipChar();
@@ -5431,6 +5814,11 @@ exec function DebugMission()
 			ConsoleCommand("Say"@Text);
 		}
 	}
+}
+
+exec function TriggerHero()
+{
+	ServerTriggerHero();
 }
 
 simulated private function OnTTSAudioFinished(AudioComponent AC)
@@ -5672,6 +6060,13 @@ exec function AdminKick( string S )
 	}
 }
 
+exec function AdminSessionBan(string S)
+{
+	if (PlayerReplicationInfo.bAdmin)
+		ServerSessionBan(S);
+}
+
+
 exec function AdminPlayerList()
 {
 	local PlayerReplicationInfo PRI;
@@ -5832,8 +6227,13 @@ exec function AdminChangeOption(string Option, string Value)
 reliable server native function ServerAdminChangeOption(string Option, string Value);
 
 /** sends the client's maplist for the current gametype to the server - must be admin */
+// TODO(Shambler): Update this to work with the new maplist manager
 exec function AdminPublishMapList()
 {
+	ClientMessage("Maplist publishing is not compatibile with the new maplist system");
+
+	// TODO: Reimplement this
+/*
 	if (PlayerReplicationInfo.bAdmin && WorldInfo.NetMode == NM_Client)
 	{
 		if (MapListPublishGameClassName != 'None')
@@ -5851,11 +6251,14 @@ exec function AdminPublishMapList()
 			ClientSendNextMap(0);
 		}
 	}
+*/
 }
 
 /** sends a single map in the current gametype's maplist to the server for updating */
 reliable client function ClientSendNextMap(int MapIndex)
 {
+	// TODO: Reimplement this
+/*
 	local int MapListIndex;
 
 	MapListIndex = class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', MapListPublishGameClassName);
@@ -5872,11 +6275,14 @@ reliable client function ClientSendNextMap(int MapIndex)
 			ServerEndMapListPublish();
 		}
 	}
+*/
 }
 
 /** gets the server started for receiving a map list */
 reliable server function ServerStartMapListPublish(name GameClassName)
 {
+	// TODO: Reimplement this
+/*
 	local int MapListIndex;
 
 	if (PlayerReplicationInfo.bAdmin)
@@ -5884,6 +6290,21 @@ reliable server function ServerStartMapListPublish(name GameClassName)
 		MapListPublishGameClassName = GameClassName;
 		// remove old map list entries
 		MapListIndex = class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', GameClassName);
+
+		// TODO: Implement remote named maplist editing (and set it up so that only one person can transfer at a time,
+		//	and that the whole list must be received intact before it is applied)
+		if ((Class'UTGame'.default.bAllowMapVoting && Class'UTGame'.default.bAllowGameVoting) ||
+			Class'UTGame'.default.bUseNamedMapLists)
+		{
+			MapListPublishGameClassName = 'None';
+			ClientResetMapListPublish();
+
+			ClientMessage("The server is using named maplists, support for editing these remotely has not yet been added");
+
+			return;
+		}
+
+
 		if (MapListIndex != INDEX_NONE)
 		{
 			class'UTGame'.default.GameSpecificMapCycles[MapListIndex].Maps.length = 0;
@@ -5895,11 +6316,14 @@ reliable server function ServerStartMapListPublish(name GameClassName)
 			class'UTGame'.default.GameSpecificMapCycles[MapListIndex].GameClassName = GameClassName;
 		}
 	}
+*/
 }
 
 /** server receives a single map list entry and asks client for the next one */
 reliable server function ServerReceiveNextMap(int MapIndex, string MapName)
 {
+	// TODO: Reimplement this
+/*
 	local int MapListIndex;
 
 	if (PlayerReplicationInfo.bAdmin)
@@ -5908,6 +6332,11 @@ reliable server function ServerReceiveNextMap(int MapIndex, string MapName)
 		if (MapListIndex == INDEX_NONE)
 		{
 			`Warn("Maplist was modified by another source while receiving list from" @ PlayerReplicationInfo.PlayerName);
+
+			MapListPublishGameClassName = 'None';
+			ClientResetMapListPublish();
+
+			ClientMessage("Error during maplist transmission, aborting");
 		}
 		else
 		{
@@ -5915,11 +6344,14 @@ reliable server function ServerReceiveNextMap(int MapIndex, string MapName)
 			ClientSendNextMap(MapIndex + 1);
 		}
 	}
+*/
 }
 
 /** indicates server has received all maps in the client's list */
 reliable server function ServerEndMapListPublish()
 {
+	// TODO: Reimplement this
+/*
 	if (PlayerReplicationInfo.bAdmin)
 	{
 		MapListPublishGameClassName = 'None';
@@ -5927,12 +6359,145 @@ reliable server function ServerEndMapListPublish()
 		UTGame(WorldInfo.Game).GameSpecificMapCycles = class'UTGame'.default.GameSpecificMapCycles;
 		UTGame(WorldInfo.Game).MapCycleIndex = INDEX_NONE;
 	}
+*/
 }
 
 exec function Disconnect()
 {
 	QuitToMainMenu();
 }
+
+unreliable client function ClientSmartUse()
+{
+	if ( PlayerInput.bUsingGamepad )
+	{
+		ToggleTranslocator();
+	}
+}
+
+/** Spawn ClientSide gory Camera Effects (so low gore client can ignore) **/
+unreliable client function ClientSpawnGoreCameraEffect(class<UTEmitCameraEffect> CameraEffectClass)
+{
+	if (  !class'GameInfo'.static.UseLowGore(WorldInfo) )
+	{
+		ClientSpawnCameraEffect(CameraEffectClass);
+	}
+}
+
+
+reliable client function ClientIncrementMixItUp(int GameType, int AchievementType)
+{
+	local UTProfileSettings Profile;
+
+	//Get the player profile and update it
+	Profile = UTProfileSettings(OnlinePlayerData.ProfileProvider.Profile);
+	if ( Profile != none )
+	{
+		if (Profile.IncrementMixItUp(GameType, AchievementType))
+		{
+			if (AchievementType == 1)
+				ClientUpdateAchievement(EUTA_IA_EveryGameMode);
+			else if (AchievementType == 2)
+				ClientUpdateAchievement(EUTA_VERSUS_GetItOn);
+			//else if (AchievementType == 3)
+			//	ClientUpdateAchievement(EUTA_RANKED_EqualOpportunityDestroyer);
+		}
+	}
+}
+
+reliable client function ClientIncrementAroundTheWorld(int mapIndex)
+{
+	local UTProfileSettings Profile;
+
+	//Get the player profile and update it
+	Profile = UTProfileSettings(OnlinePlayerData.ProfileProvider.Profile);
+	if ( Profile != none )
+	{
+		if (Profile.UpdateAroundTheWorld(mapIndex))
+		{
+			ClientUpdateAchievement(EUTA_VERSUS_AroundTheWorld, -1);
+		}
+	}
+}
+
+reliable client function ClientIncrementLikeTheBackOfMyHand(int mapIndex)
+{
+	local UTProfileSettings Profile;
+
+	//Get the player profile and update it
+	Profile = UTProfileSettings(OnlinePlayerData.ProfileProvider.Profile);
+	if ( Profile != none )
+	{
+		if (Profile.UpdateLikeTheBackOfMyHand(mapIndex))
+		{
+			ClientUpdateAchievement(EUTA_EXPLORE_AllPowerups, -1);
+		}
+	}
+}
+
+reliable client function ClientUpdateSpiceOfLife(int MutatorBitMask)
+{
+	local UTProfileSettings Profile;
+	local int CurrentMask;
+	local int index;
+	local int MutatorBit;
+
+	//Get the player profile and update it
+	Profile = UTProfileSettings(OnlinePlayerData.ProfileProvider.Profile);
+	if ( Profile != none )
+	{
+		Profile.GetAchievementValue(EUTA_EXPLORE_EveryMutator,CurrentMask);
+
+		for (index=0; index < 31; index++)
+		{
+			MutatorBit = 1<<index;
+			if(((MutatorBitMask&MutatorBit)==MutatorBit) && ((CurrentMask&MutatorBit)==0))
+			{
+				ClientUpdateAchievement(EUTA_EXPLORE_EveryMutator, MutatorBit);
+				break;
+			}
+		}
+	}
+}
+
+reliable client function ClientUpdateGetALife()
+{
+	local UTProfileSettings Profile;
+
+	//Get the player profile and update it
+	Profile = UTProfileSettings(OnlinePlayerData.ProfileProvider.Profile);
+	if ( Profile != none )
+	{
+		if (Profile.IncrementGetALife())
+		{
+			ClientUpdateAchievement(EUTA_VERSUS_GetALife);
+		}
+	}
+}
+
+reliable server function ServerSessionBan(string PlayerToBan)
+{
+	if (PlayerReplicationInfo.bAdmin || LocalPlayer(Player) != none)
+		WorldInfo.Game.AccessControl.SessionBan(PlayerToBan);
+}
+
+reliable server function ServerTriggerHero()
+{
+	UTPlayerReplicationInfo(PlayerReplicationInfo).TriggerHero();
+}
+
+
+// Stop the clientside publishing code from breaking when transmission fails
+reliable client function ClientResetMapListPublish()
+{
+	// TODO: Reimplement this
+/*
+	MapListPublishGameClassName = 'None';
+*/
+}
+
+
+
 
 defaultproperties
 {
@@ -5968,4 +6533,15 @@ defaultproperties
 	OldMessageTime=-100.0
 	PopupWaitTime=5.0
 	LastTeamChangeTime=-1000.0
+	bSmoothClientDemo=true
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform7
+		Samples(0)=(LeftAmplitude=60,RightAmplitude=50,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.200)
+	End Object
+	CameraShakeShortWaveForm=ForceFeedbackWaveform7
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform8
+		Samples(0)=(LeftAmplitude=60,RightAmplitude=50,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.400)
+	End Object
+	CameraShakeLongWaveForm=ForceFeedbackWaveform8 
 }

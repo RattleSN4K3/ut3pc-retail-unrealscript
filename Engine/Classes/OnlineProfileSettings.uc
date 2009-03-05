@@ -441,6 +441,12 @@ native function bool SetProfileSettingValueInt(int ProfileSettingId,int Value);
  */
 native function bool SetProfileSettingValueFloat(int ProfileSettingId,float Value);
 
+/** 
+ *	 Compares the data inside the profile with default values to ensure that every entry exists
+ *   and sets to default values where appropriate
+ */
+native function ReconcileProfileSettings();
+
 /**
  * Sets all of the profile settings to their default values
  */

@@ -1,7 +1,7 @@
 ﻿/**
  * Activated when a tab page and tab button are enabled or disabled.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIEvent_TabPageEnabled extends UIEvent_TabControl;
 

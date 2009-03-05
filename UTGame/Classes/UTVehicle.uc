@@ -144,6 +144,9 @@ var soundcue		LinkedEndSound;
 /** How many linkguns are linking to this vehicle */
 var protected repnotify byte LinkedToCount;
 
+/** The force feedback waveform to play when you get in/out of the vehicle */
+var ForceFeedbackWaveform DriverStatusChangedWaveform;
+
 /** hint for AI */
 var float MaxDesireability;
 
@@ -158,6 +161,8 @@ var float HornAIRadius;
 var float LastHornTime;
 /** Horn to play for this vehicle. */
 var int HornIndex;
+/** The vechile index for this vehicle. */
+var int VehicleIndex;
 
 /** Set internally by physics - if the contact force is pressing along vehicle forward direction. */
 var const bool	bFrontalCollision;
@@ -469,7 +474,7 @@ struct native VehicleSeat
 
 	// ---[ HUD ] ----------------------------------
 
-	var vector2D SeatIconPOS;
+	var() vector2D SeatIconPOS;
 
 };
 
@@ -701,12 +706,14 @@ struct native BurnOutDatum
 /** The material instances and their data used when showing the burning hulk */
 var array<BurnOutDatum> BurnOutMaterialInstances;
 
-
 /** How long does it take to burn out */
 var float BurnOutTime;
 
 /** How long should the vehicle should last after being destroyed */
 var float DeadVehicleLifeSpan;
+
+/** How many times burnout has been delayed */
+var int DelayedBurnoutCount;
 
 /** Damage/Radius/Momentum parameters for dying explosions */
 var float ExplosionDamage, ExplosionRadius, ExplosionMomentum;
@@ -803,11 +810,19 @@ var TextureCoordinates EnterToolTipIconCoords;
 var TextureCoordinates DropFlagIconCoords;
 var TextureCoordinates DropOrbIconCoords;
 
+var TextureCoordinates ChargeBarCoords;			//the charge bar as a whole
+var TextureCoordinates ChargeBarEndCapCoords;	//the charge bar top endcap
+var float ChargeBarPosX;	 //offset relative to the upper left of the vehicle hud bar
+var float ChargeBarPosY;
+var float ChargeBarWidth;
+var float ChargeBarHeight;
+
 /** Last time trace test check for drawing postrender hud icons was performed */
 var float LastPostRenderTraceTime;
 
 /** true is last trace test check for drawing postrender hud icons succeeded */
 var bool bPostRenderTraceSucceeded;
+
 var bool bShowLocked;
 
 var float ShowLockedMaxDist;
@@ -1004,9 +1019,21 @@ var bool bIsNecrisVehicle;
 /** true if being spectated (set temporarily in UTPlayerController.GetPlayerViewPoint() */
 var bool bSpectatedView;
 
+/** bonus given for killing this vehicle (if driven by enemy) */
+var float HeroBonus;
+
+/** Coin bonus given for killing this vehicle (if driven by enemy) */
+var int GreedCoinBonus;
+
+/** if true, show health bar for this vehicle */
+var bool bDisplayHealthBar;
+
+/** If true, call postrenderfor() even if on different team */
+var bool bPostRenderOtherTeam;
+
 replication
 {
-	if (bNetDirty && !bNetOwner)
+	if (bNetDirty && (!bNetOwner || bDemoRecording))
 		WeaponRotation;
 	if (bNetDirty)
 		bTeamLocked, Team, bDeadVehicle, bPlayingSpawnEffect, bIsDisabled, SeatMask, PassengerPRI, LinkedToCount, bKeyVehicle;
@@ -1040,6 +1067,13 @@ native simulated function int GetBarrelIndex(int SeatIndex);
  * not complex logic, but since it's for use in vehicle replication statements, the faster the better
  */
 native(999) noexport final function bool IsSeatControllerReplicationViewer(int SeatIndex);
+
+native function VehicleHudCoordsFixup();
+
+/**
+ * Hack the max radius to be updated values
+ */
+native function SetMaxRadius(SoundNodeAttenuation Node);
 
 /**
  * Initialization
@@ -1096,6 +1130,29 @@ simulated function PostBeginPlay()
 	}
 
 	VehicleEvent('Created');
+
+	CheckGameClass();
+
+	VehicleHudCoordsFixup();
+}
+
+/** customize based on gameclass
+  */
+simulated function CheckGameClass()
+{
+	if ( WorldInfo.GRI.GameClass == None )
+	{
+		// check again later for valid gameclass
+		SetTimer(3.0+2.0*FRand(), false, 'CheckGameClass');
+	}
+	else if ( (class<UTGame>(WorldInfo.GRI.GameClass) != None) && class<UTGame>(WorldInfo.GRI.GameClass).Default.bShouldPostRenderEnemyPawns )
+	{
+		bPostRenderOtherTeam = true;
+		if ( !class<UTGame>(WorldInfo.GRI.GameClass).Default.bTeamGame )
+		{
+			TeamBeaconMaxDist = class<UTGame>(WorldInfo.GRI.GameClass).Default.DMBeaconMaxDist;
+		}
+	}
 }
 
 simulated function UpdateShadowSettings(bool bWantShadow)
@@ -1386,6 +1443,7 @@ simulated function RenderMapIcon(UTMapInfo MP, Canvas Canvas, UTPlayerController
  */
 event JumpOutCheck();
 
+
 /**
  * ContinueOnFoot() - used by AI Called from route finding if route can only be continued on foot.
  * @Returns true if driver left vehicle
@@ -1401,12 +1459,6 @@ event bool ContinueOnFoot()
 	}
 	else if (B.Squad == None || B.Squad.AllowContinueOnFoot(B, self))
 	{
-		// don't permanently bail on vehicle just to get powerup
-		if ((B.RouteDist > 1500.0 && B.RouteCache.length > 2) || PickupFactory(B.RouteGoal) == None)
-		{
-			VehicleLostTime = WorldInfo.TimeSeconds + 12;
-		}
-
 		B.NoVehicleGoal = B.RouteGoal;
 		if (B.RouteCache.Length > 0 && B.RouteCache[0] != None)
 		{
@@ -1442,6 +1494,17 @@ function bool IsGoodTowTruck()
 function bool IsDriverSeat(Vehicle TestSeatPawn)
 {
 	return (Seats[0].SeatPawn == TestSeatPawn);
+}
+
+function bool RecommendCharge(UTBot B, Pawn Enemy)
+{
+	return false;
+}
+
+/** Recommend high priority charge at enemy */
+function bool CriticalChargeAttack(UTBot B)
+{
+	return false;
 }
 
 /************************************************************************************
@@ -1774,7 +1837,7 @@ event RanInto(Actor Other)
 		if ( RanOverSound != None )
 			PlaySound(RanOverSound);
 
-		if ( WorldInfo.GRI.OnSameTeam(self,Other) )
+		if ( WorldInfo.GRI.OnSameTeam(self,Other) || ((UTPawn(Other) != None) && UTPawn(Other).IsHero()) )
 		{
 			Momentum += Speed * 0.25 * Pawn(Other).Mass * Normal(Velocity cross vect(0,0,1));
 		}
@@ -1794,12 +1857,20 @@ event RanInto(Actor Other)
 	}
 }
 
+function PancakeOther(Pawn Other)
+{
+	if ( (UTPawn(Other) != None) && UTPawn(Other).IsHero() && (Other.Controller != None) )
+	{
+		TakeDamage(1000, Other.Controller, Other.Location, Velocity * Other.Mass, CrushedDamageType);
+	}
+	Other.TakeDamage(10000, GetCollisionDamageInstigator(), Other.Location, Velocity * Other.Mass, CrushedDamageType);
+}
+
 /**
  * TakeWaterDamage() called every tick when AccumulatedWaterDamage>0 and PhysicsVolume.bWaterVolume=true
  *
  * @param	DeltaTime		The amount of time passed since it was last called
  */
-
 event TakeWaterDamage()
 {
 	local int ImpartedWaterDamage;
@@ -2313,6 +2384,8 @@ function bool HasOccupiedTurret()
  */
 simulated function DrivingStatusChanged()
 {
+	local UTConsolePlayerController UTPC;
+
 	// turn parking friction on or off
 	bUpdateWheelShapes = true;
 
@@ -2349,6 +2422,17 @@ simulated function DrivingStatusChanged()
 	}
 
 	VehicleEvent(bDriving ? 'EngineStart' : 'EngineStop');
+
+	UTPC = UTConsolePlayerController(Controller);
+	if (UTPC == None && Driver != None)
+	{
+		UTPC = UTConsolePlayerController(Driver.Controller);
+	}
+
+	if (UTPC != None && LocalPlayer(UTPC.Player) != None)
+	{
+		UTPC.ClientPlayForceFeedbackWaveform(DriverStatusChangedWaveform);
+	}
 }
 
 event OnAnimEnd(AnimNodeSequence SeqNode, float PlayedTime, float ExcessTime)
@@ -2754,7 +2838,7 @@ simulated function bool CanEnterVehicle(Pawn P)
 	local PlayerReplicationInfo SeatPRI;
 
 	if ( P.bIsCrouched || (P.DrivenVehicle != None) || (P.Controller == None) || !P.Controller.bIsPlayer
-	     || Health <= 0 || bDeleteMe )
+	     || Health <= 0 || bDeleteMe || ((UTPawn(P) != None) && UTPawn(P).IsHero()) )
 	{
 		return false;
 	}
@@ -2925,7 +3009,7 @@ simulated native function NativePostRenderFor(PlayerController PC, Canvas Canvas
  */
 simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraPosition, vector CameraDir)
 {
-	local float TextXL, XL, YL, Dist, HealthX, HealthY, xscale, MaxOffset;
+	local float TextXL, XL, YL, Dist, HealthY, xscale, MaxOffset;
 	local vector ScreenLoc, HitNormal, HitLocation, CrossDir;
 	local actor HitActor;
 	local LinearColor TeamColor;
@@ -2942,33 +3026,41 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 
 	if ( WorldInfo.GRI.GameClass.default.bTeamGame && !WorldInfo.GRI.OnSameTeam(self, PC) )
 	{
-		if ( !bShowLocked && !PC.PlayerReplicationInfo.bOnlySpectator )
+		if ( IsInvisible() )
 		{
-			// if not on same team, then only draw icon if locked
-			// maybe change to action music if close enough
-			if ( (PlayerReplicationInfo != None) && (WorldInfo.TimeSeconds - LastPostRenderTraceTime > 0.5) )
+			LastPostRenderTraceTime = WorldInfo.TimeSeconds;
+			return;
+		}
+		if ( !bPostRenderOtherTeam )
+		{
+			if ( !bShowLocked && !PC.PlayerReplicationInfo.bOnlySpectator )
 			{
-				if ( !UTPlayerController(PC).AlreadyInActionMusic() && (Dist*Dist < VSizeSq(PC.ViewTarget.Location - Location)) && !IsInvisible() )
+				// if not on same team, then only draw icon if locked
+				// maybe change to action music if close enough
+				if ( (PlayerReplicationInfo != None) && (WorldInfo.TimeSeconds - LastPostRenderTraceTime > 0.5) )
 				{
-					// check whether close enough to crosshair
-					screenLoc = Canvas.Project(Location);
-					if ( (Abs(screenLoc.X - 0.5*Canvas.ClipX) < 0.1 * Canvas.ClipX)
-						&& (Abs(screenLoc.Y - 0.5*Canvas.ClipY) < 0.1 * Canvas.ClipY) )
+					if ( !UTPlayerController(PC).AlreadyInActionMusic() && (Dist*Dist < VSizeSq(PC.ViewTarget.Location - Location)) )
 					{
-						// make sure really visible using traces
-						if ( FastTrace(Location, CameraPosition,, true)
-										|| FastTrace(Location+GetCollisionHeight()*vect(0,0,1), CameraPosition,, true) )
+						// check whether close enough to crosshair
+						screenLoc = Canvas.Project(Location);
+						if ( (Abs(screenLoc.X - 0.5*Canvas.ClipX) < 0.1 * Canvas.ClipX)
+							&& (Abs(screenLoc.Y - 0.5*Canvas.ClipY) < 0.1 * Canvas.ClipY) )
 						{
-							UTPlayerController(PC).ClientMusicEvent(0);;
+							// make sure really visible using traces
+							if ( FastTrace(Location, CameraPosition,, true)
+										|| FastTrace(Location+GetCollisionHeight()*vect(0,0,1), CameraPosition,, true) )
+							{
+								UTPlayerController(PC).ClientMusicEvent(0);;
+							}
 						}
 					}
+					LastPostRenderTraceTime = WorldInfo.TimeSeconds + 0.2*FRand();
 				}
-				LastPostRenderTraceTime = WorldInfo.TimeSeconds + 0.2*FRand();
-			}
-			bShowUseable = ShouldShowUseable(PC, Dist);
-			if ( !bShowUseable )
-			{
-				return;
+				bShowUseable = ShouldShowUseable(PC, Dist);
+				if ( !bShowUseable )
+				{
+					return;
+				}
 			}
 		}
 	}
@@ -3076,8 +3168,15 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 	{
 		ScreenName = PlayerReplicationInfo.GetPlayerAlias();
 		Canvas.StrLen(ScreenName, TextXL, YL);
-		XL = Max( TextXL, 2*HealthY );
-		HealthY *= 0.5;
+		if (bDisplayHealthBar)
+		{
+			XL = Max( TextXL, 2*HealthY );
+			HealthY *= 0.5;
+		}
+		else
+		{
+			XL = TextXL;
+		}
 	}
 	else
 	{
@@ -3137,7 +3236,7 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 		}
 		else
 		{
-			if ( !WorldInfo.GRI.GameClass.default.bTeamGame )
+			if ( !WorldInfo.GRI.GameClass.default.bTeamGame && !bPostRenderOtherTeam )
 			{
 				return;
 			}
@@ -3150,7 +3249,7 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 	}
 	else
 	{
-		if ( !WorldInfo.GRI.GameClass.default.bTeamGame )
+		if ( !WorldInfo.GRI.GameClass.default.bTeamGame && !bPostRenderOtherTeam )
 		{
 			return;
 		}
@@ -3160,25 +3259,12 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 		}
 		bRequestedEntryWithFlag = false;
 	}
-	Class'UTHUD'.static.DrawBackground(ScreenLoc.X-0.7*XL,ScreenLoc.Y-1.8*YL-1.8*HealthY,1.4*XL,1.8*YL+1.9*HealthY, TeamColor, Canvas);
 
-	if ( ScreenName != "" )
+	if ( HUD != None )
 	{
-		Canvas.DrawColor = TextColor;
-		Canvas.SetPos(ScreenLoc.X-0.5*TextXL,ScreenLoc.Y-1.2*YL-1.4*HealthY);
-		Canvas.DrawTextClipped(ScreenName, true);
+		HUD.DrawVehicleBeacon(self, Canvas, ScreenLoc, XL, YL, HealthY, TextXL, Dist, TeamColor, ScreenName, TextColor );
 	}
 
-	HealthX = XL * FMin(1.0, GetDisplayedHealth()/float(HealthMax));
-
-	if ( (PlayerReplicationInfo != None) && (Dist < TeamBeaconPlayerInfoMaxDist) )
-	{
-		Class'UTHUD'.static.DrawHealth(ScreenLoc.X-0.5*XL,ScreenLoc.Y-0.2*YL-1.8*HealthY, HealthX, XL, HealthY, Canvas);
-	}
-	else
-	{
-		Class'UTHUD'.static.DrawHealth(ScreenLoc.X-0.5*XL,ScreenLoc.Y-0.1*YL-1.4*HealthY, HealthX, XL, HealthY, Canvas);
-	}
 	if ( Dist < TeamBeaconPlayerInfoMaxDist )
 	{
 		RenderPassengerBeacons(PC, Canvas, TeamColor, TextColor, Weap);
@@ -3219,11 +3305,13 @@ simulated function RenderPassengerBeacons(PlayerController PC, Canvas Canvas, Li
  */
 simulated function PostRenderPassengerBeacon(PlayerController PC, Canvas Canvas, LinearColor TeamColor, Color TextColor, UTWeapon Weap, UTPlayerReplicationInfo InPassengerPRI, vector InPassengerTeamBeaconOffset)
 {
-	local float TextXL, XL, YL;
-	local vector ScreenLoc, X, Y,Z;
+	local float TextXL, XL, YL, NumXL, NumYL, FontScale;
+	local vector ScreenLoc, X, Y, Z;
+	local string NumString;
+	local UTHUD HUD;
 
 	GetAxes(Rotation, X, Y, Z);
-	screenLoc = Canvas.Project(Location + InPassengerTeamBeaconOffset.X * X + InPassengerTeamBeaconOffset.Y * Y + InPassengerTeamBeaconOffset.Z * Z);
+	ScreenLoc = Canvas.Project(Location + InPassengerTeamBeaconOffset.X * X + InPassengerTeamBeaconOffset.Y * Y + InPassengerTeamBeaconOffset.Z * Z);
 
 	// make sure not clipped out
 	if (screenLoc.X < 0 ||
@@ -3235,23 +3323,47 @@ simulated function PostRenderPassengerBeacon(PlayerController PC, Canvas Canvas,
 	}
 
 	// make sure not behind weapon
-	if ( (Weap != None) && Weap.CoversScreenSpace(screenLoc, Canvas) )
+	if ( (Weap != None) && Weap.CoversScreenSpace(ScreenLoc, Canvas) )
 	{
 		return;
 	}
-	else if ( (UTVehicle_Hoverboard(PC.Pawn) != None) && UTVehicle_Hoverboard(PC.Pawn).CoversScreenSpace(screenLoc, Canvas) )
+	else if ( (UTVehicle_Hoverboard(PC.Pawn) != None) && UTVehicle_Hoverboard(PC.Pawn).CoversScreenSpace(ScreenLoc, Canvas) )
 	{
 		return;
 	}
 
 	Canvas.StrLen(InPassengerPRI.GetPlayerAlias(), TextXL, YL);
-	XL = FMax( TextXL, 64.0 * Canvas.ClipX/1024);
+	XL = TextXL;
 
-	Class'UTHUD'.static.DrawBackground(ScreenLoc.X-0.7*XL,ScreenLoc.Y-1.8*YL,1.4*XL,1.8*YL, TeamColor, Canvas);
+	HUD = UTHUD(PC.myHUD);
+	if ( HUD != None )
+	{
+		if ( InPassengerPRI.GetNumCoins() > 0 )
+		{
+			Canvas.Font = HUD.GetFontSizeIndex(2);
+			NumString = string(InPassengerPRI.GetNumCoins());
+			Canvas.StrLen(NumString, NumXL, NumYL);
+			FontScale = 0.75;
+			Canvas.Font = HUD.GetFontSizeIndex(0);
+			YL += NumYL * FontScale;
+		}
 
-	Canvas.DrawColor = TextColor;
-	Canvas.SetPos(ScreenLoc.X-0.5*TextXL,ScreenLoc.Y-1.4*YL);
-	Canvas.DrawTextClipped(InPassengerPRI.GetPlayerAlias(), true);
+		HUD.DrawBeaconBackground(ScreenLoc.X-0.7*XL,ScreenLoc.Y-1.8*YL,1.4*XL,1.9*YL, TeamColor, Canvas);
+		Canvas.DrawColor = TextColor;
+		if ( InPassengerPRI.GetNumCoins() > 0 )
+		{
+			Canvas.Font = HUD.GetFontSizeIndex(2);
+			Canvas.SetPos(ScreenLoc.X - 0.5*FontScale*NumXL,ScreenLoc.Y-1.5*NumYL*FontScale);
+			Canvas.DrawTextClipped(NumString, true, FontScale, FontScale);
+			Canvas.SetPos(ScreenLoc.X-0.5*TextXL,ScreenLoc.Y-1.2*YL);
+			Canvas.Font = HUD.GetFontSizeIndex(0);
+		}
+		else
+		{
+			Canvas.SetPos(ScreenLoc.X-0.5*TextXL,ScreenLoc.Y-1.2*YL);
+		}
+		Canvas.DrawTextClipped(InPassengerPRI.GetPlayerAlias(), true);
+	}
 }
 
 /**
@@ -3611,7 +3723,6 @@ function bool DriverEnter(Pawn P)
 	HandleEnteringFlag(UTPlayerReplicationInfo(PlayerReplicationInfo));
 
 	SetSeatStoragePawn(0,P);
-//	Seats[0].StoragePawn = P;
 
 	if (ParentFactory != None)
 	{
@@ -4870,7 +4981,7 @@ simulated function VehicleWeaponImpactEffects(vector HitLocation, int SeatIndex)
 			if (ImpactEffect.ParticleTemplate != None)
 			{
 				SpawnImpactEmitter(HitLocation, HitNormal, ImpactEffect, SeatIndex );
-				if ( (Seats[SeatIndex].ImpactFlashLightClass != None) && (WorldInfo.GetDetailMode() != DM_Low)
+				if ( (Seats[SeatIndex].ImpactFlashLightClass != None) && (WorldInfo.GetDetailMode() != DM_Low) && !class'Engine'.static.IsSplitScreen()
 					&& (!WorldInfo.bDropDetail || (Seats[SeatIndex].SeatPawn != None && PlayerController(Seats[SeatIndex].SeatPawn.Controller) != None && Seats[SeatIndex].SeatPawn.IsLocallyControlled())) )
 				{
 					LightLoc = HitLocation + ((0.5 * Seats[SeatIndex].ImpactFlashLightClass.default.TimeShift[0].Radius * vect(1,0,0)) >> rotator(HitNormal));
@@ -5303,10 +5414,13 @@ simulated function StartBurnOut()
 	// if we are then we want to push the actual burn out til after we have hit the ground (and possibly do a secondary explosion)
 	if( Velocity.Z < -100.0f )
 	{
-		SetTimer( 1.0f, false, 'StartBurnOut' );
-		LifeSpan += 1.0f;
-
-		return;
+		DelayedBurnoutCount++;
+		if ( DelayedBurnoutCount < 6 )
+		{
+			SetTimer( 1.0f, false, 'StartBurnOut' );
+			LifeSpan += 1.0f;
+			return;
+		}
 	}
 
 	if (SpawnOutSound != none)
@@ -5335,7 +5449,6 @@ simulated function StartBurnOut()
 	{
 		DeathExplosion.ParticleSystemComponent.DeactivateSystem();
 	}
-
 
 	// wait a few before turning off shadows (this reduces the jarring pop that you see if everything happens all at once)
 	SetTimer( 0.5f, FALSE, 'TurnOffShadows' );
@@ -6292,7 +6405,7 @@ simulated function UTGib SpawnGibVehicle(vector SpawnLocation, rotator SpawnRota
 
 		Gib.LifeSpan = Gib.LifeSpan + (2.0 * FRand());
 
-		Gib.OwningClass = self.Class;
+		Gib.OwningClass = Class;
 
 
 		if( PS_OnBreak != none )
@@ -6414,7 +6527,7 @@ function SetSeatStoragePawn(int SeatIndex, Pawn PawnToSit)
 	Seats[SeatIndex].StoragePawn = PawnToSit;
 	if ( (SeatIndex == 1) && (Role == ROLE_Authority) )
 	{
-		PassengerPRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;
+		PassengerPRI = (PawnToSit == None) ? None : UTPlayerReplicationInfo(Seats[SeatIndex].SeatPawn.PlayerReplicationInfo);
 	}
 
 	Mask = 1 << SeatIndex;
@@ -6492,17 +6605,37 @@ function bool CanAttack(Actor Other)
 	}
 }
 
+function bool CanDeployedAttack(Actor Other)
+{
+	return false;
+}
+
+simulated function bool IsDeployed()
+{
+	return true;
+}
+
 function name GetVehicleKillStatName()
 {
 	local name VehicleKillStatName;
-	VehicleKillStatName = name('VEHICLEKILL_'$Class.Name);
+
+    //Convert Gold content properly
+	if (Class.Name == 'UTVehicle_StealthbenderGold_Content')
+	{
+		VehicleKillStatName = 'VEHICLEKILL_UTVEHICLE_STEALTHBENDER_CONTENT';
+	}
+	else
+	{
+		VehicleKillStatName = name('VEHICLEKILL_'$Class.Name);	
+	}
+
 	return VehicleKillStatName;
 }
 
 simulated function DisplayHud(UTHud Hud, Canvas Canvas, vector2D HudPOS, optional int SeatIndex)
 {
 	local vector2D POS;
-	local float W,H, PercValue, PosX, PosY, BarWidth, BarHeight;
+	local float W,H, PercValue, PosX, PosY, XL, YL;
 	local int VHealth;
 	local linearcolor MissingHealthColor;
 
@@ -6510,7 +6643,7 @@ simulated function DisplayHud(UTHud Hud, Canvas Canvas, vector2D HudPOS, optiona
 	W = Abs(HudCoords.UL) * HUD.ResolutionScale;
 	H = Abs(HudCoords.VL) * HUD.ResolutionScale;
 	PosX = Canvas.ClipX - W;
-	PosY = Canvas.ClipY - H - 3*HUD.ResolutionScale;
+	PosY = Canvas.ClipY - H - (HUD.AmmoBarOffsetY*HUD.ResolutionScale);
 
 	// Draw the Vehicle icon, showing health pct
 	VHealth = Max(0, Health);
@@ -6520,10 +6653,10 @@ simulated function DisplayHud(UTHud Hud, Canvas Canvas, vector2D HudPOS, optiona
 	{
 		MissingHealthColor = Hud.WhiteLinearColor;
 		MissingHealthColor.A = 0.3;
-		Canvas.DrawColorizedTile(HudIcons, W, H*(1.0-PercValue), HudCoords.U, HudCoords.V, HudCoords.UL, HudCoords.VL*(1.0-PercValue), MissingHealthColor);
+		Canvas.DrawColorizedTile(HUD.UT3GHudTexture, W, H*(1.0-PercValue), HudCoords.U, HudCoords.V, HudCoords.UL, HudCoords.VL*(1.0-PercValue), MissingHealthColor);
 		Canvas.SetPos(PosX, PosY+H*(1.0-PercValue));
 	}
-	Canvas.DrawColorizedTile(HudIcons, W, H*PercValue, HudCoords.U, HudCoords.V+HudCoords.VL*(1.0-PercValue), HudCoords.UL, HudCoords.VL*PercValue, Hud.TeamHudColor);
+	Canvas.DrawColorizedTile(HUD.UT3GHudTexture, W, H*PercValue, HudCoords.U, HudCoords.V+HudCoords.VL*(1.0-PercValue), HudCoords.UL, HudCoords.VL*PercValue, Hud.TeamHudColor);
 
 	// Draw the Seats.
 	DisplaySeats(HUD, Canvas, PosX, PosY, W,H, SeatIndex);
@@ -6531,10 +6664,10 @@ simulated function DisplayHud(UTHud Hud, Canvas Canvas, vector2D HudPOS, optiona
 	if ( HUD.bShowVehicleArmorCount )
 	{
 		// Recalc the Positions given the health bar
-		PosX = PosX - 140 * HUD.ResolutionScale;
-		PosY = Canvas.ClipY - 47 * HUD.ResolutionScale;
+		PosX = PosX - (HUD.AmmoBGCoords.UL * HUD.ResolutionScale);
+		PosY = Canvas.ClipY - (HUD.AmmoBGCoords.VL + HUD.AmmoBarOffsetY) * HUD.ResolutionScale;
 		Canvas.SetPos(PosX,PosY);
-		Canvas.DrawColorizedTile(HUD.AltHudTexture, (140 * HUD.ResolutionScale), 44 * HUD.ResolutionScale, 4,346,112,35, HUD.TeamHUDColor);
+		Canvas.DrawColorizedTile(HUD.AltHudTexture, (HUD.AmmoBGCoords.UL * HUD.ResolutionScale), HUD.AmmoBGCoords.VL * HUD.ResolutionScale, HUD.AmmoBGCoords.U, HUD.AmmoBGCoords.V, HUD.AmmoBGCoords.UL, HUD.AmmoBGCoords.VL, HUD.TeamHUDColor);
 
 		// Pulse if health is being added
 		if ( Health > LastHealth )
@@ -6543,43 +6676,71 @@ simulated function DisplayHud(UTHud Hud, Canvas Canvas, vector2D HudPOS, optiona
 		}
 		LastHealth = Health;
 
-		// Draw the health Text
-		Hud.DrawGlowText( string(VHealth), PosX + (130 * HUD.ResolutionScale), PosY + (-9 * HUD.ResolutionScale), 53 * Hud.ResolutionScale, HealthPulseTime,true);
+		//Some magic contained inside DrawGlowText that isn't in StrLen
+		Canvas.StrLen(string(VHealth), XL, YL);
+		XL *= (58 / YL);
+
+		//Center the vehicle health text
+		Hud.DrawGlowText( string(VHealth), PosX + (HUD.AmmoBGCoords.UL - XL) * 0.5 * HUD.ResolutionScale, PosY - (HUD.AmmoTextOffsetY * HUD.ResolutionScale), 58 * Hud.ResolutionScale, HealthPulseTime, false);
 
 		// Draw any extra data.  We pass in the full bounds of the widget as well as the full X/Y
-		W += 140 * HUD.ResolutionScale;
+		W += (HUD.AmmoBGCoords.UL * HUD.ResolutionScale);
 		POS.X = PosX;
 		POS.Y = PosY;
 		DisplayExtraHud(Hud, Canvas, POS, W, H, SeatIndex);
-	}
-	else
-	{
-		PosY = Canvas.ClipY - 5*HUD.ResolutionScale;
 	}
 
 	// If we have a bar graph display, do it here
 	if ( (Seats[SeatIndex].Gun != None) && (Seats[SeatIndex].Gun.AmmoDisplayType != EAWDS_Numeric) )
 	{
+		bHasBarGraph = true;
 		PercValue = Seats[SeatIndex].Gun.GetPowerPerc();
-		BarHeight = 70 * HUD.ResolutionScale;
-		BarWidth = 16 * HUD.ResolutionScale;
-		PosX = Canvas.ClipX - Abs(HudCoords.UL) * HUD.ResolutionScale - BarWidth;
-		PosY = PosY - BarHeight;
-		DrawBarGraph(PosX, PosY, BarHeight * PercValue,  BarHeight, BarWidth, Canvas);
+		ChargeBarHeight = H - (2 * ChargeBarPosY * HUD.ResolutionScale);
+		PosX = Canvas.ClipX - (Abs(HudCoords.UL) - ChargeBarPosX) * HUD.ResolutionScale;
+		PosY = Canvas.ClipY - (Abs(HudCoords.VL) - ChargeBarPosY + HUD.AmmoBarOffsetY) * HUD.ResolutionScale;
+		DrawBarGraph(PosX, PosY, ChargeBarWidth * HUD.ResolutionScale, ChargeBarHeight, PercValue, HUD.ResolutionScale, Canvas);
+	}
+	else
+	{
+		bHasBarGraph = false;
 	}
 }
 
-simulated function DrawBarGraph(float X, float Y, float Width, float MaxWidth, float Height, Canvas DrawCanvas)
+simulated function DrawBarGraph(float X, float Y, float Width, float Height, float PercentFilled, float ResolutionScale, Canvas DrawCanvas)
 {
-	// draw background
-	DrawCanvas.DrawColor = class'UTHUD'.default.WhiteColor;
-	DrawCanvas.SetPos(X, Y);
-	DrawCanvas.DrawTile(class'UTHUD'.default.AltHudTexture, Height, MaxWidth, 376,458, 88, 14);
+	local float PosX, PosY;
+	local float TrueHeight, EndCapHeight;
+	local float myV, myVL;
 
+	EndCapHeight = ChargeBarEndCapCoords.VL * ResolutionScale;
+
+	//Height of just the part that grows (no endcaps)
+	TrueHeight = Height - (2 * EndCapHeight);
+
+	//Find the position of the lower part of the bar
+	PosX = X;
+	PosY = Y + EndCapHeight + (1.0 - PercentFilled) * TrueHeight;
+	TrueHeight *= PercentFilled;
+	
+	//Add back the bottom cap
+	TrueHeight += EndCapHeight;
+
+	//Figure out the length of the moving bar
+	myV = ChargeBarCoords.V + ChargeBarEndCapCoords.VL + (1.0 - PercentFilled) * (ChargeBarCoords.VL - (2.0 * ChargeBarEndCapCoords.VL));
+	myVL = PercentFilled * (ChargeBarCoords.VL - (2.0 * ChargeBarEndCapCoords.VL));
+
+    //Add back space for the bottom cap
+	myVL += ChargeBarEndCapCoords.VL;
+	
+	// draw the bar
 	DrawCanvas.DrawColor = class'UTHUD'.default.WhiteColor;
 	DrawCanvas.DrawColor.B = 16;
-	DrawCanvas.SetPos(X, Y + MaxWidth - Width);
-	DrawCanvas.DrawTile(class'UTHUD'.default.AltHudTexture,Height,Width,202,238,37,9);
+	DrawCanvas.SetPos(PosX, PosY);
+	DrawCanvas.DrawTile(class'UTHUD'.default.IconHudTexture, Width, TrueHeight, ChargeBarCoords.U, myV, ChargeBarCoords.UL, myVL);
+
+	// draw the fixed size end cap
+	DrawCanvas.SetPos(PosX, PosY - EndCapHeight);
+	DrawCanvas.DrawTile(class'UTHUD'.default.IconHudTexture, Width, EndCapHeight, ChargeBarEndCapCoords.U, ChargeBarEndCapCoords.V, ChargeBarEndCapCoords.UL, ChargeBarEndCapCoords.VL);
 }
 
 
@@ -6595,7 +6756,7 @@ simulated function DisplaySeats(UTHud Hud, Canvas Canvas, float PosX, float PosY
 		X = PosX + (Width * (Seats[i].SeatIconPOS.X + Hud.TX));
 		Y = PosY + (Height * (Seats[i].SeatIconPOS.Y + Hud.TY));
 		Canvas.SetPos(X,Y);
-		Hud.DrawTileCentered(Hud.AltHudTexture, 18 * Hud.ResolutionScale, 18 * Hud.ResolutionScale, 267,1,20,20, GetSeatColor(i, i == SIndex) );
+		Hud.DrawTileCentered(Hud.AltHudTexture, 18 * Hud.ResolutionScale, 18 * Hud.ResolutionScale, 268,0,20,20, GetSeatColor(i, i == SIndex) );
 	}
 }
 
@@ -6722,6 +6883,12 @@ function bool ShouldLeaveForCombat(UTBot B)
 	return bShouldLeaveForCombat;
 }
 
+/** returns true if vehicle should charge attack this node (also responsible for setting up charge */
+function bool ChargeAttackObjective(UTBot B, UTGameObjective O)
+{
+	return false;
+}
+
 defaultproperties
 {
 
@@ -6755,6 +6922,7 @@ defaultproperties
 	VehicleLostTime=0.0
 	TeamBeaconMaxDist=5000.0
 	TeamBeaconPlayerInfoMaxDist=3000.f
+	bDisplayHealthBar=true
 	MaxDesireability=0.5
 	bTeamLocked=true
 	bEnteringUnlocks=true
@@ -6808,6 +6976,12 @@ defaultproperties
 	DropFlagIconCoords=(U=85,UL=66,V=767,VL=48)
 	DropOrbIconCoords=(U=109,UL=55,V=815,VL=38)
 
+	ChargeBarCoords=(U=276,V=407,UL=9,VL=63)
+	ChargeBarEndCapCoords=(U=276,V=407,UL=9,VL=6)
+	ChargeBarPosX=2
+	ChargeBarPosY=0
+	ChargeBarWidth=10
+
 	BaseEyeheight=30
 	Eyeheight=30
 
@@ -6842,7 +7016,7 @@ defaultproperties
 	ExplosionDamageType=class'UTDmgType_VehicleExplosion'
 	VehiclePieceClass=class'UTGib_VehiclePiece'
 
-	WaterDamage=10.0
+	WaterDamage=20.0
 	bTakeWaterDamageWhileDriving=true
 	FireDamagePerSec=2.0
 	UpsideDownDamagePerSec=500.0
@@ -6899,4 +7073,13 @@ defaultproperties
 	TimeTilSecondaryVehicleExplosion=2.0f
 
 	bUseAlternatePaths=true
+
+	VehicleIndex=-1;
+
+	// Short "pop" of getting in/out vehicle
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformVehicleEnter
+	Samples(0)=(LeftAmplitude=25,RightAmplitude=50,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.1)
+	End Object
+	DriverStatusChangedWaveform=ForceFeedbackWaveformVehicleEnter
+	GreedCoinBonus=2
 }

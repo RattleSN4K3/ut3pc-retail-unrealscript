@@ -4,7 +4,8 @@
  * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 
-class UTDroppedItemPickup extends UTDroppedPickup;
+class UTDroppedItemPickup extends UTDroppedPickup
+	abstract;
 
 var float MaxDesireability;
 var SoundCue PickupSound;

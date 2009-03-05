@@ -76,6 +76,9 @@ var	float	LastEmoteTime;
 /** Controls how often you can send an emote. */
 var float	MinTimeBetweenEmotes;
 
+/** Duration of current emote */
+var float   CurrentEmoteDuration;
+
 
 /** Struct used for communicating info to play an emote from server to clients. */
 struct native PlayAnimInfo
@@ -117,7 +120,7 @@ var vector OldCameraPosition;
 var float CameraZOffset;
 
 /** If true, use end of match "Hero" camera */
-var bool bIsHero;
+var bool bWinnerCam;
 
 /** Used for end of match "Hero" camera */
 var(HeroCamera) float HeroCameraScale;
@@ -131,7 +134,9 @@ var		float	DodgeSpeed;
 var		float	DodgeSpeedZ;
 var		eDoubleClickDir CurrentDir;
 var		int		MultiJumpRemaining;
+var		int		MultiDodgeRemaining;	// Not strictly supported, more an exploit fix
 var		int		MaxMultiJump;
+var		int		MaxMultiDodge;
 var		int		MultiJumpBoost;
 var		float	MaxDoubleJumpHeight;
 var		float	SlopeBoostFriction;			// which materials allow slope boosting
@@ -139,6 +144,8 @@ var()	float	DoubleJumpEyeHeight;
 var		float	DoubleJumpThreshold;
 var		int		MaxLeanRoll;		/** how much pawn should lean into turns */
 var		float	DefaultAirControl;
+var		float	DodgeResetTime;			// Limits the time between one dodge finishing and another beginning
+var		float	DodgeResetTimestamp;
 
 /** view bob properties */
 var	globalconfig	float	Bob;
@@ -189,6 +196,10 @@ var array<name> NoDriveBodies;
  * using UTDamageType::CalcDeathCamera() (when is has bSpecialDeathCamera set to true)
  */
 var SkeletalMeshComponent FirstPersonDeathVisionMesh;
+/** Light environment for FirstPersonDeathVisionMesh */
+var LightEnvironmentComponent FirstPersonDeathVisionLightEnvironment;
+/** True when the FirstPersonDeathVisionMesh has been initialized */
+var bool bSetupDeathLight;
 
 /** Whether this pawn can play a falling impact. Set to false upon the fall, but getting up should reset it */
 var bool bCanPlayFallingImpacts;
@@ -223,6 +234,11 @@ var bool bBlendOutTakeHitPhysics;
 /** speed at which physics is blended out when bBlendOutTakeHitPhysics is true (amount subtracted from PhysicsWeight per second) */
 var float TakeHitPhysicsBlendOutSpeed;
 
+/** Controller vibration for taking falling damage. */
+var ForceFeedbackWaveform FallingDamageWaveForm;
+
+/** Controller vibration for feigning death. */
+var ForceFeedbackWaveform FeignDeathWaveForm;
 
 /*********************************************************************************************
  Aiming
@@ -246,6 +262,8 @@ var GameSkelCtrl_Recoil		GunRecoilNode;
 var GameSkelCtrl_Recoil		LeftRecoilNode;
 var GameSkelCtrl_Recoil		RightRecoilNode;
 
+/** Used for smoothing client aiming pitch */
+var float SavedAimPitch;
 
 /*********************************************************************************************
   Gibs
@@ -411,6 +429,13 @@ var protected SkeletalMeshComponent OverlayMesh;
 
 var repnotify byte WeaponOverlayFlags;
 
+/** True if XRay effect is current */
+var bool bXRayEffectActive;
+/** Damage multiplier for when XRay effect is Active */ 
+var float XRayEffectDamageMult;
+
+var LightEnvironmentComponent XRayEffectLightEnvironment;
+
 /*********************************************************************************************
 * Team beacons
 ********************************************************************************************* */
@@ -424,6 +449,8 @@ var float LastPostRenderTraceTime;
 /** true is last trace test check for drawing postrender beacon succeeded */
 var bool bPostRenderTraceSucceeded;
 
+/** If true, call postrenderfor() even if on different team */
+var bool bPostRenderOtherTeam;
 
 /*********************************************************************************************
 * HUD Icon
@@ -534,6 +561,8 @@ var int JumpBootCharge;
 
 /** Mesh scaling default */
 var float DefaultMeshScale;
+/** currently desired scale of the hero (switches between crouched and default) */
+var float DesiredMeshScale;
 
 struct QuickPickCell
 {
@@ -549,6 +578,41 @@ struct QuickPickCell
 var float StartedFallingTime;
 
 var name TauntNames[6];
+
+/* Aura system (benefits to hero teammates) */
+var float AuraRadius;
+var float LastAuraCheckTime;
+/** Indicates if this pawn is a hero. Not replicated */
+var bool bClientIsHero;
+/** Indicates if this pawn is performing a hero melee attack. Not replicated */
+var bool bClientInHeroMelee;
+
+/** Shown on HUD if superhero */
+var float HeroStartTime;
+
+/** standing collision size */
+var float DefaultRadius, DefaultHeight;
+
+/** AI hint - currently carrying slow field powerup */
+var bool bHasSlowField;
+
+/** whether pawn can ragdoll (feigning or forced) */
+var bool bCanRagDoll;
+
+/** Previous replicated velocity - used for leaning on clients */
+var vector OldReplicatedVelocity;
+
+/** Darkmatch Hack */
+var PointLightComponent DarkMatchLight;
+
+/** List of spidermines chasing me - used for aiming help vs spidermines on console */
+var array<UTProj_SpiderMineBase> SpiderChasers;
+
+/** Used to limit voice taunt frequency */
+var float NextTauntTime;
+
+/** Used to syncrhonize the players weapon at the start of serverside demo playback */
+var repnotify Weapon DemoWeapon;
 
 
 
@@ -570,6 +634,9 @@ replication
 	// variable sent to all clients when Pawn has been torn off. (bTearOff)
 	if( bTearOff && bNetDirty && (Role==ROLE_Authority) )
 		bTearOffGibs;
+
+	if (bNetInitial && bDemoRecording)
+		DemoWeapon;
 }
 
 native function GetBoundingCylinder(out float CollisionRadius, out float CollisionHeight) const;
@@ -580,6 +647,37 @@ native function RestorePreRagdollCollisionComponent();
 native function EnsureOverlayComponentLast();
 
 native simulated function vector GetTargetLocation(optional actor RequestedBy, optional bool bRequestAlternateLoc) const;
+
+/*************************************************************
+/ * Hero system stubs
+*/
+final native function bool HeroFits(UTPawn P, float NewRadius, float NewHeight);
+
+final native function SetMaxStepHeight(float NewMaxStepHeight);
+
+simulated function ActivateHero();
+
+simulated event bool IsHero()
+{
+	return false;
+}
+
+/** Accessor to make sure we always get a valid UTPRI */
+simulated function UTPlayerReplicationInfo GetUTPlayerReplicationInfo()
+{
+	local UTPlayerReplicationInfo UTPRI;
+
+	UTPRI = UTPlayerReplicationInfo(PlayerReplicationInfo);
+	if (UTPRI == None)
+	{
+		if (DrivenVehicle != None)
+		{
+			UTPRI = UTPlayerReplicationInfo(DrivenVehicle.PlayerReplicationInfo);
+		}
+	}
+
+	return UTPRI;
+}
 
 event StoppedFalling()
 {
@@ -684,6 +782,74 @@ simulated function SetBodyMatColor(LinearColor NewBodyMatColor, float NewOverlay
 	CurrentBodyMatColor = BodyMatColor;
 	CurrentBodyMatColor.R += 1;				// make sure CurrentBodyMatColor differs from BodyMatColor to force update
 	VerifyBodyMaterialInstance();
+}
+
+simulated event ClearXRayEffect()
+{
+	local class<UTFamilyInfo> FamilyInfo;
+
+	FamilyInfo = GetFamilyInfo();
+
+	// Clear the x-ray effect
+	bXRayEffectActive = false;
+	SetSkin(None);
+	if( FamilyInfo != None &&
+		FamilyInfo.default.DeathMeshSkelMesh != None )
+	{
+		if ( !IsInState('Dying') )
+		{
+			OverlayMesh.SetSkeletalMesh( FamilyInfo.default.MasterSkeleton );
+		}
+	}
+	SetOverlayMaterial( None );
+	DetachComponent(XRayEffectLightEnvironment);
+}
+
+simulated function SetXRayEffect(bool bTurnOn, optional Material XRayInvisMaterial )
+{
+	local int i;
+	local class<UTFamilyInfo> FamilyInfo;
+
+	FamilyInfo = GetFamilyInfo();
+	if( !AffectedByHitEffects() )
+	{
+		return;
+	}
+
+	if( !bTurnOn )
+	{
+		ClearXRayEffect();
+		return;
+	}
+
+	// Enable the x-ray effect
+	bXRayEffectActive = true;
+	if ( XRayInvisMaterial != None )
+	{
+		SetSkin( XRayInvisMaterial );
+	}
+	if( FamilyInfo != None &&
+		FamilyInfo.default.DeathMeshSkelMesh != None )
+	{
+		OverlayMesh.SetSkeletalMesh( FamilyInfo.default.DeathMeshSkelMesh, True );
+		for (i = 0; i < OverlayMesh.SkeletalMesh.Materials.Length; i++)
+		{
+			OverlayMesh.SetMaterial(i, FamilyInfo.default.DeathMeshSkelMesh.Materials[i]);
+		}
+		XRayEffectLightEnvironment.SetEnabled(true);
+		OverlayMesh.SetLightEnvironment(XRayEffectLightEnvironment);
+		AttachComponent(XRayEffectLightEnvironment);
+
+		// attach the overlay mesh
+		if (!OverlayMesh.bAttached)
+		{
+			AttachComponent(OverlayMesh);
+		}
+	}
+	else
+	{
+		SetOverlayMaterial( GetShieldMaterialInstance(WorldInfo.Game.bTeamGame) );
+	}
 }
 
 simulated function SetInvisible(bool bNowInvisible)
@@ -980,6 +1146,27 @@ simulated function NotifyTeamChanged()
 		{
 			LightEnvironment.LightDesaturation = 1.0;
 		}
+		else if ( IsHumanControlled() && IsLocallyControlled() )
+		{
+			LightEnvironment.AmbientGlow.R = 0.0;
+			LightEnvironment.AmbientGlow.G = 0.0;
+			LightEnvironment.AmbientGlow.B = 0.0;
+		}
+		if ( left(WorldInfo.GetMapName(), 9) ~= "DARKMATCH" )
+		{
+			LightEnvironment.AmbientGlow.R = 0.0;
+			LightEnvironment.AmbientGlow.G = 0.0;
+			LightEnvironment.AmbientGlow.B = 0.0;
+
+			// HACK - dynamic light in DarkMatch
+			if ( IsHumanControlled() && IsLocallyControlled() )
+			//&& !WorldInfo.IsConsoleBuild(CONSOLE_PS3)
+			{
+	        	DarkMatchLight = new(Outer) class'UTDarkmatchLight';
+	        	AttachComponent(DarkMatchLight);
+			}
+		}
+
 		Family = class'UTCustomChar_Data'.static.FindFamilyInfo(PRI.CharacterData.FamilyID);
 		if (PRI.CharacterMesh != None && PRI.CharacterMesh != DefaultMesh)
 		{
@@ -1137,6 +1324,7 @@ simulated function SetTeamColor()
 {
 	local int i;
 	local UTPlayerReplicationInfo PRI;
+	local LinearColor EColor, TeamColor;
 
 	if ( PlayerReplicationInfo != None )
 	{
@@ -1153,9 +1341,12 @@ simulated function SetTeamColor()
 	{
 		if ( VerifyBodyMaterialInstance() )
 		{
+			EColor = GetFamilyInfo().default.NonTeamEmissiveColor;
+			TeamColor = GetFamilyInfo().default.NonTeamTintColor;
 			for (i = 0; i < BodyMaterialInstances.length; i++)
 			{
-				BodyMaterialInstances[i].SetVectorParameterValue('TeamColor', MakeLinearColor(2,2,0,2));
+				BodyMaterialInstances[i].SetVectorParameterValue('Char_TeamColor', TeamColor);
+				BodyMaterialInstances[i].SetVectorParameterValue('Char_Emissive_Color', EColor);
 			}
 		}
 	}
@@ -1163,16 +1354,26 @@ simulated function SetTeamColor()
 	{
 		if ( PRI.Team.TeamIndex == 0 )
 		{
+            //Check colors in UTCustomChar.cpp if you change these
+			EColor		= MakeLinearColor(10.f,0.2f,0.2f,0.f);
+			TeamColor	= MakeLinearColor(8.0f,0.1f,0.1f,0.f);
+
 			for (i = 0; i < BodyMaterialInstances.length; i++)
 			{
-				BodyMaterialInstances[i].SetVectorParameterValue('TeamColor', MakeLinearColor(2,0,0,2));
+				BodyMaterialInstances[i].SetVectorParameterValue('Char_TeamColor', TeamColor);
+				BodyMaterialInstances[i].SetVectorParameterValue('Char_Emissive_Color', EColor);
 			}
 		}
 		else
 		{
+            //Check colors in UTCustomChar.cpp if you change these
+			EColor		= MakeLinearColor(1.f,1.f,10.f,0.f);
+			TeamColor	= MakeLinearColor(0.5f,1.f,10.f,0.f);
+
 			for (i = 0; i < BodyMaterialInstances.length; i++)
 			{
-				BodyMaterialInstances[i].SetVectorParameterValue('TeamColor', MakeLinearColor(0,0,2,2));
+				BodyMaterialInstances[i].SetVectorParameterValue('Char_TeamColor', TeamColor);
+				BodyMaterialInstances[i].SetVectorParameterValue('Char_Emissive_Color', EColor);
 			}
 		}
 	}
@@ -1211,12 +1412,37 @@ simulated function PostBeginPlay()
 
 	// add to local HUD's post-rendered list
 	ForEach LocalPlayerControllers(class'PlayerController', PC)
+	{
 		if ( UTHUD(PC.MyHUD) != None )
+		{
 			UTHUD(PC.MyHUD).AddPostRenderedActor(self);
+		}
+	}
 
 	if ( WorldInfo.NetMode != NM_DedicatedServer )
 	{
 		UpdateShadowSettings(class'UTPlayerController'.default.PawnShadowMode == SHADOW_All);
+	}
+
+	CheckGameClass();
+}
+
+/** customize based on gameclass
+  */
+simulated function CheckGameClass()
+{
+	if ( WorldInfo.GRI == None || WorldInfo.GRI.GameClass == None )
+	{
+		// check again later for valid gameclass
+		SetTimer(3.0+2.0*FRand(), false, 'CheckGameClass');
+	}
+	else if ( (class<UTGame>(WorldInfo.GRI.GameClass) != None) && class<UTGame>(WorldInfo.GRI.GameClass).Default.bShouldPostRenderEnemyPawns )
+	{
+		bPostRenderOtherTeam = true;
+		if ( !class<UTGame>(WorldInfo.GRI.GameClass).Default.bTeamGame )
+		{
+			TeamBeaconMaxDist = class<UTGame>(WorldInfo.GRI.GameClass).Default.DMBeaconMaxDist;
+		}
 	}
 }
 
@@ -1348,19 +1574,18 @@ simulated function LeaveABloodSplatterDecal( vector HitLoc, vector HitNorm )
 	local MaterialInstanceTimeVarying MITV_Decal;
 
 	TraceStart = HitLoc;
-	HitNorm.Z = 0;
-	TraceDest =  HitLoc  + ( HitNorm * 105 );
+	HitNorm.Z *= 0.5;
+	TraceDest =  HitLoc  + 300 * Normal(HitNorm);
 
 	TraceActor = Trace( out_HitLocation, out_HitNormal, TraceDest, TraceStart, false, TraceExtent, HitInfo, TRACEFLAG_PhysicsVolumes );
 
-	if (TraceActor != None && Pawn(TraceActor) == None)
+	if (TraceActor != None && TraceActor.bWorldGeometry)
 	{
 		// we might want to move this to the UTFamilyInfo
 		MITV_Decal = new(Outer) class'MaterialInstanceTimeVarying';
 		MITV_Decal.SetParent( GetFamilyInfo().default.BloodSplatterDecalMaterial );
 
 		WorldInfo.MyDecalManager.SpawnDecal(MITV_Decal, out_HitLocation, rotator(-out_HitNormal), 100, 100, 50, false,, HitInfo.HitComponent, true, false, HitInfo.BoneName, HitInfo.Item, HitInfo.LevelIndex);
-
 		MITV_Decal.SetScalarStartTime( class'UTGib'.default.DecalDissolveParamName, class'UTGib'.default.DecalWaitTimeBeforeDissolve );
 	}
 }
@@ -1376,6 +1601,7 @@ simulated function LeaveABloodSplatterDecal( vector HitLoc, vector HitNorm )
 function PerformEmoteCommand(EmoteInfo EInfo, int PlayerID)
 {
 	local array<UTPlayerReplicationInfo> PRIs;
+	local UTPlayerReplicationInfo BotPRI;
 	local UTBot Bot;
 	local int i;
 	local bool bShouldAck;
@@ -1388,8 +1614,26 @@ function PerformEmoteCommand(EmoteInfo EInfo, int PlayerID)
 	}
 	if (Sender != None)
 	{
+		if ( EInfo.Command == 'DropFlag' )
+		{
+			for (i=0;i<WorldInfo.GRI.PRIArray.Length;i++)
+			{
+				BotPRI = UTPlayerReplicationInfo(WorldInfo.GRI.PRIArray[i]);
+				if ( BotPRI.bHasFlag && WorldInfo.GRI.OnSameTeam(BotPRI,self) )
+				{
+					Bot = UTBot(BotPRI.Owner);
+					if ( Bot != none )
+					{
+						Bot.SetBotOrders(EInfo.Command, Sender, true);
+						return;
+					}
+				}
+			}
+			return;
+		}
+		
 		// If we require a player for this command, look it up
-		if ( EInfo.bRequiresPlayer )
+		if ( EInfo.bRequiresPlayer || EInfo.CategoryName == 'Order' )
 		{
 			// Itterate over the PRI array
 			for (i=0;i<WorldInfo.GRI.PRIArray.Length;i++)
@@ -1425,25 +1669,25 @@ function PerformEmoteCommand(EmoteInfo EInfo, int PlayerID)
 		if ( EInfo.Command != '' )
 		{
 			bShouldAck = true;
-			for (i=0;i<PRIs.Length;i++)
-			{
-				if ( (PlayerID == 255) || (PRIs[i].PlayerID == PlayerID) )
+				for (i=0;i<PRIs.Length;i++)
 				{
-					Bot = UTBot(PRIs[i].Owner);
-					if ( Bot != none )
+					if ( (PlayerID == 255) || (PRIs[i].PlayerID == PlayerID) )
 					{
-						`log("### Command:"@EInfo.Command@"to"@PRIs[i].PlayerName);
-						Bot.SetBotOrders(EInfo.Command, Sender, bShouldAck);
-						bShouldAck = false;
-						if ( PlayerID != 255 )
+						Bot = UTBot(PRIs[i].Owner);
+						if ( Bot != none )
 						{
-							break;
+							//`log("### Command:"@EInfo.Command@"to"@PRIs[i].PlayerName);
+							Bot.SetBotOrders(EInfo.Command, Sender, bShouldAck);
+							bShouldAck = false;
+							if ( PlayerID != 255 )
+							{
+								break;
+							}
 						}
 					}
 				}
 			}
 		}
-	}
 }
 
 
@@ -1488,7 +1732,7 @@ simulated function DoPlayEmote(name InEmoteTag, int InPlayerID)
 			// If on server..
 			if (Role == ROLE_Authority)
 			{
-				// Perform any commands associated with this Emote if authoratitive
+				// Perform any commands associated with this Emote if authoritative
 				if(EInfo.Command != '')
 				{
 					PerformEmoteCommand(EInfo, InPlayerID);
@@ -1507,8 +1751,9 @@ simulated function DoPlayEmote(name InEmoteTag, int InPlayerID)
 						EInfo.EmoteAnim = 'Taunt_UB_ComeHear';
 					}
 
-					if(EInfo.bTopHalfEmote || DrivenVehicle != None)
+					if(EInfo.bTopHalfEmote || DrivenVehicle != None || (Abs(VSizeSq(Velocity)) > 0.01 && !bClientInHeroMelee))
 					{
+						//Top half emotes don't have any problem blending with walking, so perform them here.
 						if(TopHalfAnimSlot != None)
 						{
 							TopHalfAnimSlot.PlayCustomAnim(EInfo.EmoteAnim, 1.0, 0.2, 0.2, FALSE, TRUE);
@@ -1516,9 +1761,17 @@ simulated function DoPlayEmote(name InEmoteTag, int InPlayerID)
 					}
 					else
 					{
+						//Full body emotes are played on both slots so that we can turn off the full body if the pawn starts moving
+						//and still get the top half
+						if(TopHalfAnimSlot != None)
+						{
+							TopHalfAnimSlot.PlayCustomAnim(EInfo.EmoteAnim, 1.0, 0.2, 0.2, FALSE, TRUE);
+						}
+
 						if(FullBodyAnimSlot != None)
 						{
 							FullBodyAnimSlot.PlayCustomAnim(EInfo.EmoteAnim, 1.0, 0.2, 0.2, FALSE, TRUE);
+							CurrentEmoteDuration = AnimNodeSequence(FullBodyAnimSlot.Children[1].Anim).AnimSeq.SequenceLength;
 						}
 					}
 				}
@@ -1545,9 +1798,16 @@ reliable server function ServerPlayEmote(name InEmoteTag, int InPlayerID)
 			UTPRI = UTPlayerReplicationInfo(DrivenVehicle.PlayerReplicationInfo);
 			C = DrivenVehicle.Controller;
 		}
-		if(UTPRI != None)
+		if ( (UTPRI != None) && (UTBot(C) == None) && (InEmoteTag != 'MeleeA') )
 		{
-			UTPRI.VoiceClass.static.SendVoiceForTauntAnim(C, InEmoteTag, InPlayerID != -1);
+			if ( WorldInfo.TimeSeconds > NextTauntTime )
+			{
+				UTPRI.VoiceClass.static.SendVoiceForTauntAnim(C, InEmoteTag, InPlayerID != -1);
+				if ( WorldInfo.Game.NumPlayers > 1 )
+				{
+					NextTauntTime = WorldInfo.TimeSeconds + 1.0 + FMax(0.0, 8.0 - WorldInfo.TimeSeconds + NextTauntTime);
+				}
+			}
 		}
 	}
 
@@ -1565,7 +1825,6 @@ exec simulated function PlayEmote(name InEmoteTag, int InPlayerID)
 		LastEmoteTime = WorldInfo.TimeSeconds;
 	}
 }
-
 
 function OnPlayAnim( UTSeqAct_PlayAnim InAction )
 {
@@ -1588,7 +1847,6 @@ reliable server function DoPlayAnim( PlayAnimInfo TheAnimRepInfo )
 		FullBodyAnimSlot.PlayCustomAnim( TheAnimRepInfo.AnimName, 1.0, 0.2, 0.2, TheAnimRepInfo.bLooping, TRUE );
 	}
 }
-
 
 function SpawnDefaultController()
 {
@@ -1803,6 +2061,12 @@ function bool BotFire(bool bFinished)
 	return true;
 }
 
+/** returns true if this pawn wants to force a special attack (for AI) */
+function bool ForceSpecialAttack(Pawn EnemyPawn)
+{
+	return false;
+}
+
 function bool StopWeaponFiring()
 {
 	local int i;
@@ -1845,8 +2109,8 @@ function byte ChooseFireMode()
 
 function bool RecommendLongRangedAttack()
 {
-	if ( UTWeapon(Weapon) != None )
-		return UTWeapon(Weapon).RecommendLongRangedAttack();
+	if ( Weapon != None )
+		return Weapon.RecommendLongRangedAttack();
 	return false;
 }
 
@@ -1881,6 +2145,11 @@ function OnHealDamage(SeqAct_HealDamage Action)
 
 simulated native function NativePostRenderFor(PlayerController PC, Canvas Canvas, vector CameraPosition, vector CameraDir);
 
+simulated function string GetScreenName()
+{
+	return PlayerReplicationInfo.GetPlayerAlias();
+}
+
 /**
 PostRenderFor()
 Hook to allow pawns to render HUD overlays for themselves.
@@ -1890,13 +2159,8 @@ Assumes that appropriate font has already been set
 */
 simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraPosition, vector CameraDir)
 {
-	local float TextXL, XL, YL, Dist;
 	local vector ScreenLoc;
-	local LinearColor TeamColor;
-	local Color	TextColor;
-	local string ScreenName;
 	local UTWeapon Weap;
-	local UTPlayerReplicationInfo PRI;
 	local UTHUD HUD;
 
 	screenLoc = Canvas.Project(Location + GetCollisionHeight()*vect(0,0,1));
@@ -1909,8 +2173,7 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 		return;
 	}
 
-	PRI = UTPlayerReplicationInfo(PlayerReplicationInfo);
-	if ( !WorldInfo.GRI.OnSameTeam(self, PC) )
+	if ( (!bPostRenderOtherTeam || bFeigningDeath) && !WorldInfo.GRI.OnSameTeam(self, PC) )
 	{
 		// maybe change to action music if close enough
 		if ( WorldInfo.TimeSeconds - LastPostRenderTraceTime > 0.5 )
@@ -1960,32 +2223,11 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 		return;
 	}
 
-	class'UTHUD'.Static.GetTeamColor( GetTeamNum(), TeamColor, TextColor);
-
-	Dist = VSize(CameraPosition - Location);
-	if ( Dist < TeamBeaconPlayerInfoMaxDist )
-	{
-		ScreenName = PlayerReplicationInfo.GetPlayerAlias();
-		Canvas.StrLen(ScreenName, TextXL, YL);
-		XL = Max( TextXL, 24 * Canvas.ClipX/1024 * (1 + 2*Square((TeamBeaconPlayerInfoMaxDist-Dist)/TeamBeaconPlayerInfoMaxDist)));
-	}
-	else
-	{
-		XL = Canvas.ClipX * 16 * TeamBeaconPlayerInfoMaxDist/(Dist * 1024);
-		YL = 0;
-	}
-
-	Class'UTHUD'.static.DrawBackground(ScreenLoc.X-0.7*XL,ScreenLoc.Y-1.8*YL,1.4*XL,1.9*YL, TeamColor, Canvas);
-
-	if ( (PRI != None) && (Dist < TeamBeaconPlayerInfoMaxDist) )
-	{
-		Canvas.DrawColor = TextColor;
-		Canvas.SetPos(ScreenLoc.X-0.5*TextXL,ScreenLoc.Y-1.2*YL);
-		Canvas.DrawTextClipped(ScreenName, true);
-	}
-
 	HUD = UTHUD(PC.MyHUD);
-	if ( (HUD != None) && !HUD.bCrosshairOnFriendly
+	if ( HUD != None )
+	{
+		HUD.DrawPlayerBeacon(self, Canvas, CameraPosition, ScreenLoc);
+		if ( !HUD.bCrosshairOnFriendly
 		&& (Abs(screenLoc.X - 0.5*Canvas.ClipX) < 0.1 * Canvas.ClipX)
 		&& (screenLoc.Y <= 0.5*Canvas.ClipY) )
 	{
@@ -1996,6 +2238,7 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 			HUD.bCrosshairOnFriendly = true;
 		}
 	}
+}
 }
 
 
@@ -2350,7 +2593,7 @@ function DoTranslocate(vector PrevLocation)
 		TeamNum = PlayerReplicationInfo.Team.TeamIndex;
 	}
 
-	PlayTeleportEffect(false, false);
+	PlayTeleportEffect(false, true);
 	DoTranslocateOut(PrevLocation,TeamNum);
 
 	BigTeleportCount++;
@@ -2487,6 +2730,7 @@ simulated event StopDriving(Vehicle V)
 {
 	local DrivenWeaponPawnInfo EmptyWeaponPawnInfo;
 	local UTVehicleBase VBase;
+	local UTInventoryManager UTInv;
 
 	Mesh.SetLightEnvironment(LightEnvironment);
 	Mesh.SetScale(DefaultMeshScale);
@@ -2509,9 +2753,20 @@ simulated event StopDriving(Vehicle V)
 		SetWeaponVisibility(IsFirstPerson());
 		bIgnoreForces = ( (UTGame(WorldInfo.Game) != None) && UTGame(WorldInfo.Game).bDemoMode && (PlayerController(Controller) != None) );
 
+		if ( Weapon != None )
+		{
+			Weapon.GotoState('WeaponEquipping');
+		}
 		if (Role == ROLE_Authority)
 		{
 			DrivenWeaponPawn = EmptyWeaponPawnInfo;
+
+			// verify whether need to force switch to deployable
+			UTInv = UTInventoryManager(InvManager);
+			if ( UTInv != None )
+			{
+				UTInv.ForceDeployableSwitch();
+			}
 		}
 	}
 
@@ -2642,6 +2897,11 @@ function AdjustDamage( out int inDamage, out Vector momentum, Controller instiga
 		UTWeapon(Weapon).AdjustPlayerDamage( inDamage, InstigatedBy, HitLocation, Momentum, DamageType );
 	}
 
+	// If x-ray effect is active, use the damage multiplier
+	if ( bXRayEffectActive )
+	{
+		inDamage *= XRayEffectDamageMult;
+	}
 	if( DamageType.default.bArmorStops && (inDamage > 0) )
 	{
 		PreDamage = inDamage;
@@ -3045,6 +3305,11 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 	local name HeadShotSocketName;
 	local SkeletalMeshSocket SMS;
 
+	if ( DarkMatchLight != None )
+	{
+		DarkMatchLight.SetEnabled(false);
+	}
+
 	bCanTeleport = false;
 	bReplicateMovement = false;
 	bTearOff = true;
@@ -3178,24 +3443,27 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 				SetPawnRBChannels(TRUE);
 			}
 
-			Mesh.PhysicsAssetInstance.SetAllBodiesFixed(FALSE);
-
-			// Turn on angular motors on skeleton.
-			Mesh.bUpdateJointsFromAnimation = TRUE;
-			Mesh.PhysicsAssetInstance.SetNamedMotorsAngularPositionDrive(false, false, NoDriveBodies, Mesh, true);
-			Mesh.PhysicsAssetInstance.SetAngularDriveScale(1.0f, 1.0f, 0.0f);
-
-			// If desired, turn on hip spring to keep physics character upright
-			if(bUseHipSpring)
+			if ( Mesh.PhysicsAssetInstance != None )
 			{
-				HipBodyInst = Mesh.PhysicsAssetInstance.FindBodyInstance('b_Hips', Mesh.PhysicsAsset);
-				HipBoneIndex = Mesh.MatchRefBone('b_Hips');
-				HipMatrix = Mesh.GetBoneMatrix(HipBoneIndex);
-				HipBodyInst.SetBoneSpringParams(DeathHipLinSpring, DeathHipLinDamp, DeathHipAngSpring, DeathHipAngDamp);
-				HipBodyInst.bMakeSpringToBaseCollisionComponent = FALSE;
-				HipBodyInst.EnableBoneSpring(TRUE, TRUE, HipMatrix);
-				HipBodyInst.bDisableOnOverextension = TRUE;
-				HipBodyInst.OverextensionThreshold = 100.f;
+				Mesh.PhysicsAssetInstance.SetAllBodiesFixed(FALSE);
+	
+				// Turn on angular motors on skeleton.
+				Mesh.bUpdateJointsFromAnimation = TRUE;
+				Mesh.PhysicsAssetInstance.SetNamedMotorsAngularPositionDrive(false, false, NoDriveBodies, Mesh, true);
+				Mesh.PhysicsAssetInstance.SetAngularDriveScale(1.0f, 1.0f, 0.0f);
+	
+				// If desired, turn on hip spring to keep physics character upright
+				if(bUseHipSpring)
+				{
+					HipBodyInst = Mesh.PhysicsAssetInstance.FindBodyInstance('b_Hips', Mesh.PhysicsAsset);
+					HipBoneIndex = Mesh.MatchRefBone('b_Hips');
+					HipMatrix = Mesh.GetBoneMatrix(HipBoneIndex);
+					HipBodyInst.SetBoneSpringParams(DeathHipLinSpring, DeathHipLinDamp, DeathHipAngSpring, DeathHipAngDamp);
+					HipBodyInst.bMakeSpringToBaseCollisionComponent = FALSE;
+					HipBodyInst.EnableBoneSpring(TRUE, TRUE, HipMatrix);
+					HipBodyInst.bDisableOnOverextension = TRUE;
+					HipBodyInst.OverextensionThreshold = 100.f;
+				}
 			}
 
 			FullBodyAnimSlot.PlayCustomAnim(UTDamageType.default.DeathAnim, UTDamageType.default.DeathAnimRate, 0.05, -1.0, false, false);
@@ -3238,6 +3506,7 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 					HeadshotNeckAttachment = new(self) class'StaticMeshComponent';
 					HeadshotNeckAttachment.SetActorCollision( FALSE, FALSE );
 					HeadshotNeckAttachment.SetBlockRigidBody( FALSE );
+					HeadshotNeckAttachment.SetScale(0.5);
 
 					Mesh.AttachComponentToSocket( HeadshotNeckAttachment, HeadShotSocketName );
 					HeadshotNeckAttachment.SetStaticMesh( GetFamilyInfo().default.HeadShotNeckGoreAttachment );
@@ -3335,6 +3604,32 @@ function AddDefaultInventory()
 }
 
 /**
+  * Add a new spidermine to the list of spidermines currently chasing me.  Used for aiming help on console
+  */
+function AddSpiderChaser(UTProj_SpiderMineBase NewChaser)
+{
+	local int i;
+
+	for ( i=0; i<SpiderChasers.Length; i++ )
+	{
+		if ( SpiderChasers[i] == NewChaser )
+		{
+			return;
+		}
+	}
+
+	for ( i=0; i<SpiderChasers.Length; i++ )
+	{
+		if ( (SpiderChasers[i] == None) || SpiderChasers[i].bDeleteMe || (SpiderChasers[i].TargetPawn != self) )
+		{
+			SpiderChasers[i] = NewChaser;
+			return;
+		}
+	}
+	SpiderChasers[SpiderChasers.Length] = NewChaser;
+}
+
+/**
  *	Calculate camera view point, when viewing this pawn.
  *
  * @param	fDeltaTime	delta time seconds since last update
@@ -3346,8 +3641,11 @@ function AddDefaultInventory()
  */
 simulated function bool CalcCamera( float fDeltaTime, out vector out_CamLoc, out rotator out_CamRot, out float out_FOV )
 {
-	// Handle the fixed camera
+	local PlayerController PC;
+	local bool bIsFirstPerson, bUseBlendedRot;
+	local rotator BlendedTargetViewRotation;
 
+	// Handle the fixed camera
 	if (bFixedView)
 	{
 		out_CamLoc = FixedViewLoc;
@@ -3355,14 +3653,36 @@ simulated function bool CalcCamera( float fDeltaTime, out vector out_CamLoc, out
 	}
 	else
 	{
-		if ( !IsFirstPerson() )	// Handle BehindView
+		bIsFirstPerson = true;
+		ForEach LocalPlayerControllers(class'PlayerController', PC)
 		{
-			CalcThirdPersonCam(fDeltaTime, out_CamLoc, out_CamRot, out_FOV);
+			if ( PC.ViewTarget == self )
+			{
+				if ( !PC.UsingFirstPersonCamera() )
+				{
+					bIsFirstPerson = false;
+				}
+				else if ( WorldInfo.bWithinDemoPlayback )
+				{
+					bUseBlendedRot = true;
+					BlendedTargetViewRotation = PC.BlendedTargetViewRotation;
+				}
+				break;
+			}
 		}
-		else
+		if ( bIsFirstPerson )	
 		{
 			// By default, we view through the Pawn's eyes..
 			GetActorEyesViewPoint( out_CamLoc, out_CamRot );
+			if ( bUseBlendedRot )
+			{
+				out_CamRot = BlendedTargetViewRotation;
+			}
+		}
+		else
+		{
+			// Handle BehindView
+			CalcThirdPersonCam(fDeltaTime, out_CamLoc, out_CamRot, out_FOV);
 		}
 
 		if ( UTWeapon(Weapon) != none)
@@ -3395,7 +3715,7 @@ simulated function FindGoodEndView(PlayerController InPC, out Rotator GoodRotati
 
 	PC = UTPlayerController(InPC);
 
-	bIsHero = true;
+	bWinnerCam = true;
 	SetHeroCam(GoodRotation);
 	GoodRotation.Pitch = HeroCameraPitch;
 	ViewRotation = GoodRotation;
@@ -3456,9 +3776,26 @@ simulated function bool TryNewCamRot(UTPlayerController PC, rotator ViewRotation
 
 simulated function SetHeroCam(out rotator out_CamRot)
 {
-	CameraZOffset = 0.0;
-	CameraScale = HeroCameraScale;
-	CurrentCameraScale = HeroCameraScale;
+	if ( IsHero() )
+	{
+		CameraScale = 8.0;
+		CurrentCameraScale = CameraScale;
+	}
+	else
+	{
+		CameraScale = HeroCameraScale;
+		CurrentCameraScale = HeroCameraScale;
+	}
+
+	// Increase the Z offset in splitscreen to keep the winner's face onscreen
+	if ( class'Engine'.static.IsSplitScreen() )
+	{
+		CameraZOffset = 25.0;
+	}
+	else
+	{
+		CameraZOffset = 0.0;
+	}
 }
 
 simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_CamLoc, out rotator out_CamRot, out float out_FOV )
@@ -3470,7 +3807,12 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 
 	CamStart = Location;
 
-	if ( bIsHero )
+	if ( Role == ROLE_SimulatedProxy )
+	{
+		CamStart += MeshTranslationOffset;
+	}
+
+	if ( bWinnerCam )
 	{
 		// use "hero" cam
 		SetHeroCam(out_CamRot);
@@ -3517,6 +3859,11 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
  */
 simulated function Vector GetWeaponStartTraceLocation(optional Weapon CurrentWeapon)
 {
+	if ( IsHero() )
+	{
+		// Instant fire traces for Heroes should start at the center of the 3rd person camera
+		return Super.GetWeaponStartTraceLocation(CurrentWeapon);
+	}
 	return GetPawnViewLocation();
 }
 
@@ -3529,8 +3876,11 @@ function bool Dodge(eDoubleClickDir DoubleClickMove)
 	local Actor HitActor;
 	local rotator TurnRot;
 
-	if ( bIsCrouched || bWantsToCrouch || (Physics != PHYS_Walking && Physics != PHYS_Falling) )
+	if (MultiDodgeRemaining <= 0 || DodgeResetTimestamp > WorldInfo.TimeSeconds || bIsCrouched || bWantsToCrouch ||
+		(Physics != PHYS_Walking && Physics != PHYS_Falling))
+	{
 		return false;
+	}
 
 	TurnRot.Yaw = Rotation.Yaw;
 	GetAxes(TurnRot,X,Y,Z);
@@ -3606,6 +3956,8 @@ function bool PerformDodge(eDoubleClickDir DoubleClickMove, vector Dir, vector C
 	}
 
 	bDodging = true;
+	--MultiDodgeRemaining;
+
 	bReadyToDoubleJump = (JumpBootCharge > 0);
 	VelocityZ = Velocity.Z;
 	Velocity = DodgeSpeed*Dir + (Velocity Dot Cross)*Cross;
@@ -3726,6 +4078,7 @@ event Landed(vector HitNormal, actor FloorActor)
 
 	AirControl = DefaultAirControl;
 	MultiJumpRemaining = MaxMultiJump;
+	MultiDodgeRemaining = MaxMultiDodge;
 	bDodging = false;
 	bReadyToDoubleJump = false;
 	if (UTBot(Controller) != None)
@@ -4363,7 +4716,7 @@ simulated function bool CheckValidLocation(vector FeignLocation)
 
 reliable server function ServerFeignDeath()
 {
-	if (Role == ROLE_Authority && !WorldInfo.Game.IsInState('MatchOver') && DrivenVehicle == None && Controller != None && !bFeigningDeath)
+	if (bCanRagdoll && Role == ROLE_Authority && !WorldInfo.Game.IsInState('MatchOver') && DrivenVehicle == None && Controller != None && !bFeigningDeath)
 	{
 		bFeigningDeath = true;
 		PlayFeignDeath();
@@ -4380,9 +4733,12 @@ exec simulated function FeignDeath()
  */
 function ForceRagdoll()
 {
-	bFeigningDeath = true;
-	bForcedFeignDeath = true;
-	PlayFeignDeath();
+	if ( bCanRagdoll )
+	{
+		bFeigningDeath = true;
+		bForcedFeignDeath = true;
+		PlayFeignDeath();
+	}
 }
 
 simulated function FiringModeUpdated(bool bViaReplication)
@@ -4531,6 +4887,7 @@ simulated event ReplicatedEvent(name VarName)
 	}
 	else if (VarName == 'EmoteRepInfo')
 	{
+		LastEmoteTime = WorldInfo.TimeSeconds;
 		DoPlayEmote(EmoteRepInfo.EmoteTag, EmoteRepInfo.EmoteID);
 	}
 	else if (VarName == 'AnimRepInfo')
@@ -4549,6 +4906,11 @@ simulated event ReplicatedEvent(name VarName)
 	{
 		FireRateChanged();
 	}
+	else if (VarName == 'DemoWeapon')
+	{
+		if (InvManager != none)
+			InvManager.ClientSyncWeapon(DemoWeapon);
+	}
 	else
 	{
 		Super.ReplicatedEvent(VarName);
@@ -4558,6 +4920,7 @@ simulated event ReplicatedEvent(name VarName)
 simulated event SetHeadScale(float NewScale)
 {
 	local SkelControlBase SkelControl;
+	local class<UTFamilyInfo> Family;
 
 	HeadScale = NewScale;
 	if ( (class'GameInfo'.Static.UseLowGore(WorldInfo)) && (HeadScale < 0.1) )
@@ -4571,13 +4934,18 @@ simulated event SetHeadScale(float NewScale)
 		SkelControl.IgnoreAtOrAboveLOD = 1000;
 	}
 
-	// we need to scale the neck bone also as otherwise the head piece leaves a point and doesn't show the neck cavity
-	SkelControl = Mesh.FindSkelControl('NeckControl');
-	if (SkelControl != None)
+	Family = GetFamilyInfo();
+	// all females, all liandri, all necris SKIP neck scale
+	if (PlayerReplicationInfo != None && !(PlayerReplicationInfo.bIsFemale || Family == class'UTFamilyInfo_Necris_Male' || Family == class'UTFamilyInfo_Liandri_Male'))
 	{
-		// NeckScale should only ever between 0 or 1
-		SkelControl.BoneScale = FClamp( NewScale, 0.f, 1.0f );
-		SkelControl.IgnoreAtOrAboveLOD = 1000;
+		// we need to scale the neck bone also as otherwise the head piece leaves a point and doesn't show the neck cavity
+		SkelControl = Mesh.FindSkelControl('NeckControl');
+		if (SkelControl != None)
+		{
+			// NeckScale should only ever between 0 or 1
+			SkelControl.BoneScale = FClamp( NewScale, 0.f, 1.0f );
+			SkelControl.IgnoreAtOrAboveLOD = 1000;
+		}
 	}
 }
 
@@ -4654,6 +5022,8 @@ simulated function WeaponFired( bool bViaReplication, optional vector HitLocatio
 			CurrentWeaponAttachment.FirstPersonFireEffects(Weapon, HitLocation);
 	                if ( class'Engine'.static.IsSplitScreen() && CurrentWeaponAttachment.EffectIsRelevant(CurrentWeaponAttachment.Location,false,CurrentWeaponAttachment.MaxFireEffectDistance) )
 	                {
+                		// third person animations only (no particles)				
+				CurrentWeaponAttachment.SplitScreenEffects(HitLocation);
 		                // third person muzzle flash
 		                CurrentWeaponAttachment.CauseMuzzleFlash();
 	                }
@@ -4748,6 +5118,7 @@ function PlayHit(float Damage, Controller InstigatedBy, vector HitLocation, clas
 {
 	local UTPlayerController Hearer;
 	local class<UTDamageType> UTDamage;
+	local bool bSetMomentumForClients;
 
 	if ( InstigatedBy != None && (class<UTDamageType>(DamageType) != None) && class<UTDamageType>(DamageType).default.bDirectDamage )
 	{
@@ -4812,7 +5183,23 @@ function PlayHit(float Damage, Controller InstigatedBy, vector HitLocation, clas
 
 		LastTakeHitInfo.Damage = Damage;
 		LastTakeHitInfo.HitLocation = HitLocation;
+		if ( (DamageType != None) && DamageType.default.bCausesBloodSplatterDecals
+			&& !class'Engine'.static.IsSplitScreen() && (WorldInfo.GetDetailMode() != DM_Low) && !WorldInfo.bDropDetail
+			&& (PlayerController(InstigatedBy) != None) && (InstigatedBy.Pawn != None) && IsZero(Momentum) )
+		{
+			if ( InstigatedBy.IsLocalPlayerController() )
+			{
+				LastTakeHitInfo.Momentum = InstigatedBy.Pawn.Location - HitLocation;
+			}
+			else
+			{
+				bSetMomentumForClients = true;
+			}
+		}
+		else
+		{
 		LastTakeHitInfo.Momentum = Momentum;
+		}
 		LastTakeHitInfo.DamageType = DamageType;
 		LastTakeHitInfo.HitBone = HitInfo.BoneName;
 		LastTakeHitTimeout = WorldInfo.TimeSeconds + ( (UTDamage != None) ? UTDamage.static.GetHitEffectDuration(self, Damage)
@@ -4820,6 +5207,11 @@ function PlayHit(float Damage, Controller InstigatedBy, vector HitLocation, clas
 
 		// play clientside effects
 		PlayTakeHitEffects();
+
+		if ( bSetMomentumForClients )
+		{
+			LastTakeHitInfo.Momentum = InstigatedBy.Pawn.Location - HitLocation;
+		}
 	}
 }
 
@@ -4864,28 +5256,6 @@ simulated function PlayTakeHitEffects()
 				UTDamage = class<UTDamageType>(LastTakeHitInfo.DamageType);
 				if (UTDamage != None)
 				{
-					//@todo: apply impulse when in full ragdoll too (that also needs to happen on the server)
-					if ( !class'Engine'.static.IsSplitScreen() && Health > 0 && DrivenVehicle == None && Physics != PHYS_RigidBody &&
-						VSize(LastTakeHitInfo.Momentum) > UTDamage.default.PhysicsTakeHitMomentumThreshold )
-					{
-						if (Mesh.PhysicsAssetInstance != None)
-						{
-							// just add an impulse to the asset that's already there
-							Mesh.AddImpulse(LastTakeHitInfo.Momentum, LastTakeHitInfo.HitLocation);
-							// if we were already playing a take hit effect, restart it
-							if (bBlendOutTakeHitPhysics)
-							{
-								Mesh.PhysicsWeight = 0.5;
-							}
-						}
-						else if (Mesh.PhysicsAsset != None)
-						{
-							Mesh.PhysicsWeight = 0.5;
-							Mesh.PhysicsAssetInstance.SetNamedBodiesFixed(true, TakeHitPhysicsFixedBones, Mesh, true);
-							Mesh.AddImpulse(LastTakeHitInfo.Momentum, LastTakeHitInfo.HitLocation);
-							bBlendOutTakeHitPhysics = true;
-						}
-					}
 					UTDamage.static.SpawnHitEffect(self, LastTakeHitInfo.Damage, LastTakeHitInfo.Momentum, LastTakeHitInfo.HitBone, LastTakeHitInfo.HitLocation);
 				}
 			}
@@ -4917,7 +5287,9 @@ reliable server function ServerHoverboard()
 		bInDeepWater = TRUE;
 	}
 
-	if ( bHasHoverboard && !bIsCrouched && (DrivenVehicle == None) && !PhysicsVolume.bWaterVolume && (WorldInfo.TimeSeconds - LastHoverboardTime > MinHoverboardInterval) && (Physics != PHYS_Swimming) &&  !bInDeepWater)
+	if ( bHasHoverboard && !bIsCrouched && (DrivenVehicle == None) && 
+		 !PhysicsVolume.bWaterVolume && (WorldInfo.TimeSeconds - LastHoverboardTime > MinHoverboardInterval) && 
+		 (Physics != PHYS_Swimming) &&  !bInDeepWater && !IsHero() )
 	{
 		LastHoverboardTime = WorldInfo.TimeSeconds;
 		//Temp turn off collision
@@ -5098,6 +5470,22 @@ simulated event TornOff()
 simulated function SetOverlayVisibility(bool bVisible)
 {
 	OverlayMesh.SetOwnerNoSee(!bVisible);
+}
+
+simulated function TakeFallingDamage()
+{
+	local UTPlayerController UTPC;
+
+	Super.TakeFallingDamage();
+
+	if (Velocity.Z < -0.5 * MaxFallSpeed)
+	{
+		UTPC = UTPlayerController(Controller);
+		if(UTPC != None && LocalPlayer(UTPC.Player) != None)
+		{
+			UTPC.ClientPlayForceFeedbackWaveform(FallingDamageWaveForm);
+		}
+	}
 }
 
 simulated event RigidBodyCollision( PrimitiveComponent HitComponent, PrimitiveComponent OtherComponent,
@@ -5444,6 +5832,10 @@ state FeigningDeath
 		local UTPlayerController PC;
 		local UTWeapon UTWeap;
 
+		if ( DarkMatchLight != None )
+		{
+			DarkMatchLight.SetEnabled(false);
+		}
 		PC = UTPlayerController(Controller);
 
 		bCanPickupInventory = false;
@@ -5465,6 +5857,11 @@ state FeigningDeath
 			PC.SetBehindView(true);
 			CurrentCameraScale = 1.5;
 			CameraScale = 2.25;
+
+			if(LocalPlayer(PC.Player) != None)
+			{
+				PC.ClientPlayForceFeedbackWaveform(FeignDeathWaveForm);
+			}
 		}
 
 		DropFlag();
@@ -5478,6 +5875,10 @@ state FeigningDeath
 		
 		if (NextStateName != 'Dying')
 		{
+			if ( DarkMatchLight != None )
+			{
+				DarkMatchLight.SetEnabled(true);
+			}
 			bNoWeaponFiring = default.bNoWeaponFiring;
 			bCanPickupInventory = default.bCanPickupInventory;
 		
@@ -5610,6 +6011,17 @@ ignores OnAnimEnd, Bump, HitWall, HeadVolumeChange, PhysicsVolumeChange, Falling
 		else
 		{
 			UTDamage.static.CalcDeathCamera(self, fDeltaTime, out_CamLoc, out_CamRot, out_FOV);
+			
+			// If necessary, initialize the light environment for FirstPersonDeathVisionMesh
+			// This is performed here because we cannot modify UTGameContent for UT3G
+			if (!bSetupDeathLight && FirstPersonDeathVisionMesh != None && FirstPersonDeathVisionLightEnvironment != None)
+			{
+				FirstPersonDeathVisionLightEnvironment.SetEnabled(true);
+				FirstPersonDeathVisionMesh.SetLightEnvironment(FirstPersonDeathVisionLightEnvironment);
+				AttachComponent(FirstPersonDeathVisionLightEnvironment);
+				bSetupDeathLight = true;
+			}
+
 			return true;
 		}
 	}
@@ -5738,6 +6150,13 @@ ignores OnAnimEnd, Bump, HitWall, HeadVolumeChange, PhysicsVolumeChange, Falling
 			SetTimer(2.0, false);
 			LifeSpan = RagDollLifeSpan;
 		}
+	}
+
+	simulated function EndState(Name NextStateName)
+	{
+		bSetupDeathLight = false;
+		DetachComponent(FirstPersonDeathVisionLightEnvironment);
+		Super.EndState(NextStateName);
 	}
 }
 
@@ -5893,14 +6312,39 @@ exec function HandDamp(float LinDamp)
 	//`log("Hip Damp set to "$LinDamp);
 }
 
+function bool BecomeHero()
+{
+	return false;
+}
+
+function bool PerformMeleeAttack()
+{
+	return false;
+}
+
+simulated function ToggleMelee()
+{
+	if ( Weapon != None )
+	{
+		if ( Weapon.bMeleeWeapon )
+		{
+			UTInventoryManager(InvManager).SwitchToPreviousWeapon();
+		}
+		else if ( UTPlayerController(Controller) != None )
+		{
+			UTPlayerController(Controller).SwitchWeapon(1);
+		}
+	}
+}
+
 defaultproperties
 {
 	Components.Remove(Sprite)
 
 	Begin Object Class=DynamicLightEnvironmentComponent Name=MyLightEnvironment
 		ModShadowFadeoutTime=1.0
-		AmbientGlow=(R=0.8,G=0.8,B=0.8,A=1.0)
-		AmbientShadowColor=(R=0.5,G=0.5,B=0.5)
+		AmbientGlow=(R=0.3,G=0.3,B=0.3,A=1.0)
+		AmbientShadowColor=(R=0.3,G=0.3,B=0.3)
 	End Object
 	Components.Add(MyLightEnvironment)
 	LightEnvironment=MyLightEnvironment
@@ -6003,6 +6447,9 @@ defaultproperties
 	End Object
 	CylinderComponent=CollisionCylinder
 
+	DefaultRadius=21.0
+	DefaultHeight=44.0
+
 	Begin Object Class=UTAmbientSoundComponent name=AmbientSoundComponent
 	End Object
 	PawnAmbientSound=AmbientSoundComponent
@@ -6012,6 +6459,22 @@ defaultproperties
 	End Object
 	WeaponAmbientSound=AmbientSoundComponent2
 	Components.Add(AmbientSoundComponent2)
+
+	Begin Object Class=DynamicLightEnvironmentComponent Name=DeathVisionLightEnv
+		bDynamic=FALSE
+		bCastShadows=FALSE
+		AmbientGlow=(R=0.2,G=0.2,B=0.2,A=1.0)
+	End Object
+	FirstPersonDeathVisionLightEnvironment=DeathVisionLightEnv
+
+	Begin Object Class=DynamicLightEnvironmentComponent Name=XRayEffectLightEnv
+		ModShadowFadeoutTime=1.0
+		AmbientGlow=(R=40.0,G=40.0,B=40.0,A=1.0)
+		AmbientShadowColor=(R=0.5,G=0.5,B=0.5)	
+	End Object
+	XRayEffectLightEnvironment=XRayEffectLightEnv
+
+	XRayEffectDamageMult=5.0
 
 	ViewPitchMin=-18000
 	ViewPitchMax=18000
@@ -6043,7 +6506,7 @@ defaultproperties
 	bCanStrafe=True
 	bCanSwim=true
 	RotationRate=(Pitch=20000,Yaw=20000,Roll=20000)
-	MaxLeanRoll=2048
+	MaxLeanRoll=5000
 	AirControl=+0.35
 	DefaultAirControl=+0.35
 	bStasis=false
@@ -6056,6 +6519,9 @@ defaultproperties
 	MaxMultiJump=1
 	MultiJumpRemaining=1
 	MultiJumpBoost=-45.0
+	MaxMultiDodge=1
+	MultiDodgeRemaining=1
+	DodgeResetTime=0.35
 
 	SoundGroupClass=class'UTGame.UTPawnSoundGroup'
 
@@ -6081,8 +6547,8 @@ defaultproperties
 	DamageParameterName=DamageOverlay
 	SaturationParameterName=Char_DistSatRangeMultiplier
 
-	TeamBeaconMaxDist=3000.f
-	TeamBeaconPlayerInfoMaxDist=3000.f
+	TeamBeaconMaxDist=3000.0
+	TeamBeaconPlayerInfoMaxDist=3000.0
 	RagdollLifespan=18.0
 
 	bPhysRigidBodyOutOfWorldCheck=TRUE
@@ -6198,4 +6664,16 @@ defaultproperties
 	TauntNames(3)=TauntD
 	TauntNames(4)=TauntE
 	TauntNames(5)=TauntF
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformFall
+		Samples(0)=(LeftAmplitude=50,RightAmplitude=40,LeftFunction=WF_Sin90to180,RightFunction=WF_Sin90to180,Duration=0.200)
+	End Object
+	FallingDamageWaveForm=ForceFeedbackWaveformFall
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformFeignDeath
+	Samples(0)=(LeftAmplitude=50,RightAmplitude=40,LeftFunction=WF_Sin90to180,RightFunction=WF_Sin90to180,Duration=0.500)
+	End Object
+	FeignDeathWaveForm=ForceFeedbackWaveformFeignDeath
+
+	bCanRagdoll=true
 }

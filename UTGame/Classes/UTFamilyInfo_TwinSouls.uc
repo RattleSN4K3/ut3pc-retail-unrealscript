@@ -11,4 +11,6 @@ defaultproperties
 
 	NonTeamEmissiveColor=(R=20.0,G=2.0,B=1.0)
 	NonTeamTintColor=(R=3.0,G=1.0,B=1.0)
+
+	TrustWorthiness=+2.5
 }

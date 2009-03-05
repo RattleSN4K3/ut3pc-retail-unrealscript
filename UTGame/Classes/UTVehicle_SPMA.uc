@@ -47,7 +47,7 @@ replication
 {
 	if (bNetDirty)
 		GunnerFlashLocation;
-	if (!IsSeatControllerReplicationViewer(1))
+	if (!IsSeatControllerReplicationViewer(1) || bDemoRecording)
 		GunnerFlashCount, GunnerFiringMode, GunnerWeaponRotation;
 }
 
@@ -352,6 +352,22 @@ function DriverLeft()
 	}
 }
 
+
+function bool CanDeployedAttack(Actor Other)
+{
+	local UTVWeap_SPMACannon Gun;
+	
+	Gun = UTVWeap_SPMACannon(Seats[1].Gun);
+	if ( Gun != None )
+	{
+		return Gun.CanAttack(Other);
+	}
+	else
+	{
+		return CanAttack(Other);
+	}
+}
+
 function bool CanAttack(Actor Other)
 {
 	local Pawn P;
@@ -547,6 +563,8 @@ defaultproperties
 	bHasAlternateTargetLocation=true
 
 	HornIndex=1
+	VehicleIndex=11
 
 	DeployIconOffset=0.92
+	ChargeBarPosY=7
 }

@@ -18,6 +18,12 @@ var Name	LandingGearBoneName;
 
 
 
+simulated function PostBeginPlay()
+{
+	Super.PostBeginPlay();
+	SetMaxRadius(SoundNodeAttenuation(EngineSound.SoundCue.FirstNode));
+}
+
 simulated function PostInitAnimTree(SkeletalMeshComponent SkelComp)
 {
 	Super.PostInitAnimTree(SkelComp);
@@ -147,5 +153,6 @@ defaultproperties
 	MaxDesireability=0.6
 
 	HornIndex=0
+	VehicleIndex=8
 }
 

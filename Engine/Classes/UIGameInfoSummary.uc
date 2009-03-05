@@ -1,7 +1,7 @@
 ﻿/**
  * Provides information about the static resources available for a particular gametype.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIGameInfoSummary extends UIResourceDataProvider
 	PerObjectConfig

@@ -132,7 +132,7 @@ static function ShakeView(vector Loc, WorldInfo WI)
 				{
 					Scale = (default.DamageRadius * 2.0 - Dist) / default.DamageRadius;
 				}
-				PC.ClientPlayCameraAnim(default.ExplosionShake, Scale);
+				PC.ClientPlayCameraAnim(CameraAnim'Camera_FX_02.WP_Redeemer.C_WP_Redeemer_Shake_UT3G', Scale);
 			}
 		}
 	}
@@ -185,7 +185,7 @@ static function RedeemerHurtRadius(float RadiusFactor, Actor Redeemer, Controlle
 	// move explosion center up a bit to address not hitting pawns
 	ExplosionCenter = Redeemer.Location + vect(0,0,200);
 	HitActor = Redeemer.Trace(HitLocation, HitNormal, ExplosionCenter, Redeemer.Location, true,,,TRACEFLAG_Blocking);
-	ExplosionCenter = (HitActor == None) ? Redeemer.Location + vect(0,0,100) : 0.5 * (ExplosionCenter + HitLocation);
+	ExplosionCenter = (HitActor == None) ? Redeemer.Location + vect(0,0,100) : 0.5 * (Redeemer.Location + HitLocation);
 
 	foreach Redeemer.CollidingActors(class'Actor', Victim, HurtRadius, ExplosionCenter)
 	{
@@ -197,6 +197,11 @@ static function RedeemerHurtRadius(float RadiusFactor, Actor Redeemer, Controlle
 			if (!bCauseDamage)
 			{
 				bCauseDamage = Redeemer.FastTrace(Victim.Location , ExplosionCenter);
+				if ( !bCauseDamage )
+				{
+					bCauseDamage = Redeemer.FastTrace(Victim.Location , Redeemer.Location);
+				}
+
 				if ( !bCauseDamage && (Radius > 100.0) )
 				{
 					// try sides
@@ -267,7 +272,7 @@ defaultproperties
 	speed=1000.0
 	MaxSpeed=1000.0
 	Damage=250.0
-	DamageRadius=2000.0
+	DamageRadius=2600.0
 	MomentumTransfer=250000
 	LifeSpan=20.00
 

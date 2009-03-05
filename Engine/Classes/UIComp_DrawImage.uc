@@ -6,7 +6,7 @@
  * responsibility to call ApplyImageStyle when the widget receives a call to OnStyleResolved for the UIStyleReference
  * which is intended to be used as the style for this image.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIComp_DrawImage extends UIComp_DrawComponents
 	native(UIPrivate)

@@ -45,6 +45,8 @@ var localized string	VersionText;
 var vector2D			VersionPos;
 var font				VersionFont;
 
+var transient string LastURL;
+
 /** Post initialize callback. */
 event PostInitialize()
 {
@@ -200,6 +202,14 @@ function OnTabPage_Hide_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimatio
 	ButtonBar.PlayUIAnimation('ButtonBarShow');
 
 	NewlyActivePage = TabControl.GetPageAtIndex(CurrentPageIndex);
+
+	//This happens if you remove a page between the start/stop of animation
+	//The "active page" variable below seems to be fine, but since UT setup CurrentPageIndex
+	//I didn't want to shake the jello.
+	if (NewlyActivePage == None && CurrentPageIndex >= TabControl.GetPageCount())
+	{
+		NewlyActivePage = TabControl.ActivePage;
+	}
 
 	if(NewlyActivePage != None)
 	{
@@ -379,7 +389,7 @@ function CheckForFrontEndError()
 	local string ErrorTitle;
 	local string ErrorMessage;
 	local string ErrorDisplay;
-
+	local string LastErrorCode;
 	local UTPlayerController UTPC;
 	local UTUIScene_ConnectionStatus ConnectionFailedScene;
 
@@ -387,27 +397,68 @@ function CheckForFrontEndError()
 		GetDataStoreStringValue("<Registry:FrontEndError_Message>", ErrorMessage) &&
 		GetDataStoreStringValue("<Registry:FrontEndError_Display>", ErrorDisplay))
 	{
-		if(ErrorDisplay=="1")
+		if (ErrorDisplay=="1")
 		{
-			UTPC = GetUTPlayerOwner();
-			if ( UTPC != None )
+			// If the last failed travel was due to a missing password, then ask the client to enter a password
+			// NOTE: This should only be called when Gamespy is not in use (e.g. when using the 'Open' command)
+			if (GetDataStoreStringValue("<Registry:FrontEndError_LastErrorCode>", LastErrorCode)
+				&& LastErrorCode ~= "NeedPassword" && GetDataStoreStringValue("<Registry:FrontEndError_LastURL>", LastURL)
+				&& LastURL != "")
 			{
-				ConnectionFailedScene = UTPC.OpenProgressMessageScene();
-				if ( ConnectionFailedScene != None )
-				{
-					ConnectionFailedScene.DisplayAcceptBox(ErrorMessage, ErrorTitle);
-				}
+				PromptForPassword();
 			}
-
-			if ( ConnectionFailedScene == None )
+			else
 			{
-				DisplayMessageBox(ErrorMessage, ErrorTitle);
+				UTPC = GetUTPlayerOwner();
+
+				if (UTPC != None)
+				{
+					ConnectionFailedScene = UTPC.OpenProgressMessageScene();
+
+					if (ConnectionFailedScene != none)
+						ConnectionFailedScene.DisplayAcceptBox(ErrorMessage, ErrorTitle);
+				}
+
+				if ( ConnectionFailedScene == None )
+					DisplayMessageBox(ErrorMessage, ErrorTitle);
 			}
 		}
 	}
 
 	// Clear the display flag.
 	SetDataStoreStringValue("<Registry:FrontEndError_Display>", "0");
+	SetDataStoreStringValue("<Registry:FrontEndError_LastErrorCode>", "");
+	SetDataStoreStringValue("<Registry:FrontEndError_LastURL>", "");
+}
+
+final function PromptForPassword()
+{
+	local UTUIScene_InputBox PasswordInputScene;
+
+	PasswordInputScene = GetInputBoxScene();
+
+	if (PasswordInputScene != None)
+	{
+		PasswordInputScene.SetPasswordMode(True);
+
+		PasswordInputScene.DisplayAcceptCancelBox("<Strings:UTGameUI.MessageBox.EnterServerPassword_Message>",
+								"<Strings:UTGameUI.MessageBox.EnterServerPassword_Title>",
+								OnRetryPasswordDialog_Closed);
+	}
+}
+
+final function OnRetryPasswordDialog_Closed(UTUIScene_MessageBox MessageBox, int SelectedOption, int PlayerIndex)
+{
+	local UTUIScene_InputBox PasswordInputScene;
+	local string ServerPassword;
+
+	PasswordInputScene = UTUIScene_InputBox(MessageBox);
+
+	if ( PasswordInputScene != None && SelectedOption == 0 )
+	{
+		ServerPassword = Class'UTUIFrontEnd_HostGame'.static.StripInvalidPasswordCharacters(PasswordInputScene.GetValue());
+		ConsoleCommand("Open"@LastURL$"?Password="$ServerPassword);
+	}
 }
 
 /** Callback for when the login required box has finished displaying. */

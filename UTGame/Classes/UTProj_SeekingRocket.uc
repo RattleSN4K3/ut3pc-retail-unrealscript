@@ -15,6 +15,9 @@ var float	LastLockWarningTime;
 /** How long before re-sending the next Lock On message update */
 var float	LockWarningInterval;
 
+/** Tracking strength multiplier */
+var float BaseTrackingStrength;
+
 replication
 {
     if( bNetInitial && (Role==ROLE_Authority) )
@@ -29,4 +32,5 @@ defaultproperties
     LifeSpan=8.000000
     bRotationFollowsVelocity=true
 	CheckRadius=0.0
+	BaseTrackingStrength=1.0
 }

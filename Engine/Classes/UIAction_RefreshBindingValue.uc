@@ -1,7 +1,7 @@
 ﻿/**
  * This action instructs the owning widget to refresh and reapply the value of a data store binding.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_RefreshBindingValue extends UIAction_DataStore
 	native(inherit);

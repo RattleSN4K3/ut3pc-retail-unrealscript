@@ -110,6 +110,39 @@ simulated function FireAmmunition()
 	super.FireAmmunition();
 }
 
+/** GetDesiredAimPoint - Returns the desired aim given the current controller
+* @param TargetActor (out) - if specified, set to the actor being aimed at
+* @return The location the controller is aiming at
+*/
+simulated event vector GetDesiredAimPoint(optional out Actor TargetActor)
+{
+	local vector CameraLocation, HitLocation, HitNormal, DesiredAimPoint;
+	local rotator CameraRotation;
+	local Controller C;
+	local PlayerController PC;
+
+	C = MyVehicle.Seats[SeatIndex].SeatPawn.Controller;
+
+	PC = PlayerController(C);
+	if (PC != None)
+	{
+		PC.GetPlayerViewPoint(CameraLocation, CameraRotation);
+        // Use 2.0 * Range to handle camera being much further back than the turret itself
+		DesiredAimPoint = CameraLocation + Vector(CameraRotation) * (2.0 * GetTraceRange());
+		TargetActor = GetTraceOwner().Trace(HitLocation, HitNormal, DesiredAimPoint, CameraLocation);
+		if (TargetActor != None)
+		{
+			DesiredAimPoint = HitLocation;
+		}
+	}
+	else if ( C != None )
+	{
+		DesiredAimPoint = C.FocalPoint;
+		TargetActor = C.Focus;
+	}
+	return DesiredAimPoint;
+}
+
 /**
  * This function looks at who/what the beam is touching and deals with it accordingly.  bInfoOnly
  * is true when this function is called from a Tick.  It causes the link portion to execute, but no
@@ -117,18 +150,18 @@ simulated function FireAmmunition()
  */
 simulated function UpdateBeam(float DeltaTime)
 {
-	local Vector		StartTrace, EndTrace;
-	local ImpactInfo	TestImpact;
+	local Vector		StartTrace, EndTrace, AimDir;
+	local ImpactInfo	RealImpact;
 
 	// define range to use for CalcWeaponFire()
 	StartTrace	= InstantFireStartTrace();
-	EndTrace	= InstantFireEndTrace(StartTrace);
-
+	AimDir = vector(MyVehicle.GetWeaponAim(self));
+	EndTrace = StartTrace + AimDir * GetTraceRange();
 	// Trace a shot
-	TestImpact = CalcWeaponFire( StartTrace, EndTrace );
+	RealImpact = CalcWeaponFire( StartTrace, EndTrace );
 
 	// Allow children to process the hit
-	ProcessBeamHit(StartTrace, vect(0,0,0), TestImpact, DeltaTime);
+	ProcessBeamHit(StartTrace, vect(0,0,0), RealImpact, DeltaTime);
 }
 
 simulated function PostBeginPlay()
@@ -481,19 +514,44 @@ function byte BestMode()
 {
 	local UTBot B;
 	local int SelectedDeployable;
+	local UTGameObjective O;
 
-	// choose deployable here
+//0 spider
+//1 slowv xray
+//2 emp
+//3 shield link
+	SelectedDeployable = (FRand() < 0.5) ? 0 : 2;
 	B = UTBot(Instigator.Controller);
-	if (B != None && B.IsDefending())
+	if ( B != None )
 	{
-		// spider mines or energy shield
-		SelectedDeployable = (FRand() < 0.5) ? 0 : 3;
+		if ( B.Squad.SquadObjective != None )
+		{
+			if ( B.IsDefending() && (VSize(B.Pawn.Location - B.Squad.SquadObjective.Location) < 400) )
+			{
+				SelectedDeployable = (FRand() < 0.5) ? 1 : 3;
+			}
 	}
 	else
 	{
-		SelectedDeployable = Rand(NUMDEPLOYABLETYPES);
+			// consider dropping a deployable if near a relevant objective
+			foreach WorldInfo.RadiusNavigationPoints(class'UTGameObjective', O, Location, 1500.0)
+			{
+				SelectedDeployable = (FRand() < 0.5) ? 1 : 3;
+				if ( O.IsActive() && WorldInfo.GRI.OnSameTeam(B,O) && (VSize(B.Pawn.Location - O.Location) < 400) )
+				{
+					SelectedDeployable = (FRand() < 0.5) ? 1 : 3;
+					break;
+				}
+			}
+		}
 	}
-	SelectWeapon(SelectedDeployable);
+	if ( !SelectWeapon(SelectedDeployable) )
+	{
+		if ( !SelectWeapon(0) )
+			if ( !SelectWeapon(2) )
+				if ( !SelectWeapon(1) )
+					SelectWeapon(3);
+	}
 
 	return 0;
 }
@@ -756,6 +814,10 @@ function DeployItem()
 		{
 			UTDeployedActor(Deployable).OnDeployableUsedUp = DeployableUsedUp;
 		}
+		else if ( UTXRayVolume(Deployable) != none )
+		{
+			UTXRayVolume(Deployable).OnDeployableUsedUp = DeployableUsedUp;
+		}
 
 		DeployableList[DeployableIndex].Queue[DeployableList[DeployableIndex].Queue.Length] = Deployable;
 
@@ -868,4 +930,6 @@ defaultproperties
 	WeaponRange=900
 	MomentumTransfer=50000.0
 	MinimumDamage=5.0
+
+	MaxFinalAimAdjustment=.9
 }

@@ -15,6 +15,9 @@ var bool			bLastSecondSave;
 /** set when leaving Dropped state, to stop some of its state functions from doing anything during EndState() */
 var bool bLeavingDroppedState;
 
+/** Distance within which a bot can toss this to a player teammate */
+var float		TossDistance;
+
 var repnotify UTPlayerReplicationInfo HolderPRI;
 var Pawn      Holder;
 
@@ -71,6 +74,8 @@ var float LastFlagSeeTime;
 var int LastSeeMessageIndex;
 
 var LinearColor RedColor, BlueColor, GoldColor;
+
+var ForceFeedbackWaveform PickUpWaveForm;
 
 
 
@@ -227,7 +232,9 @@ function SetHolder(Controller C)
 	PC = UTPlayerController(C);
 	if (PC != None)
 	{
-		PC.CheckAutoObjective(true);
+		PC.CheckAutoObjective(false);
+
+		PC.ClientPlayForceFeedbackWaveform(PickUpWaveForm);
 	}
 	foreach WorldInfo.AllControllers(class'Controller', OtherC)
 	{
@@ -898,6 +905,8 @@ defaultproperties
 	bUpdateSimulatedPosition=true
 	bAlwaysRelevant=true
 
+	TossDistance=1500
+
 	IconCoords=(U=599,V=236,UL=25,VL=25)
 	MapSize=1.0
 
@@ -910,4 +919,9 @@ defaultproperties
 	BlueColor=(B=1.0,A=1.0)
 	GoldColor=(R=1.0,G=1.0,A=1.0)
 	IconTexture=Texture2D'UI_HUD.HUD.UI_HUD_BaseA'
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformPickUp
+		Samples(0)=(LeftAmplitude=80,RightAmplitude=80,LeftFunction=WF_LinearIncreasing,RightFunction=WF_LinearIncreasing,Duration=0.2)
+	End Object
+	PickUpWaveForm=ForceFeedbackWaveformPickUp
 }

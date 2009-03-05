@@ -37,8 +37,8 @@ function ModifyPlayer(Pawn P)
 		Enforcer = UTWeap_Enforcer(PlayerPawn.FindInventoryType(HandicapInventory[1]));
 		if ( Enforcer != None )
 		{
-			Enforcer.DualMode = EDM_DualEquipping;
-			Enforcer.BecomeDual();
+			Enforcer.DelayedBecomeDual();
+
 		}
 	}
 	for ( i=2; i<HandicapNeed; i++ )

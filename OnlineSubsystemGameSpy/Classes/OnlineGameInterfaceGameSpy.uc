@@ -13,9 +13,6 @@ class OnlineGameInterfaceGameSpy extends OnlineGameInterfaceImpl within OnlineSu
 /** stores a handle to the QR2 instance */
 var native const transient private pointer QR2Handle{struct qr2_implementation_s};
 
-/** stores a handle to the ServerBrowsing instance */
-var native const transient private pointer SBHandle{struct _ServerBrowser};
-
 /** The QR2 key id for the player id */
 var const int QR2OwningPlayerIdKeyId;
 
@@ -57,14 +54,6 @@ var array<delegate<OnRegisterPlayerComplete> > RegisterPlayerCompleteDelegates;
 
 /** This is the list of requested delegates to fire when complete */
 var array<delegate<OnUnregisterPlayerComplete> > UnregisterPlayerCompleteDelegates;
-
-struct native SBServer
-{
-	var native const transient private pointer Server{_SBServer};
-};
-
-/** Holds a set of servers that are pending info requests */
-var array<SBServer> ServersPendingInfo;
 
 /** Holds an array of values that are published in the map name field */
 var const string PackedServerInfo;
@@ -237,3 +226,6 @@ function ClearUnregisterPlayerCompleteDelegate(delegate<OnUnregisterPlayerComple
 * @return true if the update succeeded, false otherwise
 */
 native function bool RecalculateSkillRating(const out array<UniqueNetId> Players);
+
+/** Query an individual server for additional information */
+native function bool QueryAuxServerInfo(byte SearchingPlayerNum,OnlineGameSearch SearchSettings,const out OnlineGameSearchResult Server);

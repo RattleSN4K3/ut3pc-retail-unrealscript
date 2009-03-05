@@ -59,8 +59,14 @@ var(Movement) float CrouchedAirSpeed;
 
 replication
 {
-	if (!bNetOwner && Role == ROLE_Authority)
+	if ((!bNetOwner || bDemoRecording) && Role == ROLE_Authority)
 		bDoBikeJump, bHoldingDuck;
+}
+
+simulated function PostBeginPlay()
+{
+	Super.PostBeginPlay();
+	SetMaxRadius(SoundNodeAttenuation(EngineSound.SoundCue.FirstNode));
 }
 
 /**
@@ -138,7 +144,7 @@ function byte ChooseFireMode()
 
 	B = UTBot(Controller);
 	if ( B != None
-		&& (B.Skill > 2.5)
+		&& (B.Skill > 1.7 + FRand())
 		&& Pawn(Controller.Focus) != None
 		&& Vehicle(Controller.Focus) == None
 		&& Controller.MoveTarget == Controller.Focus
@@ -241,6 +247,19 @@ function bool TooCloseToAttack(Actor Other)
 	}
 }
 
+function bool RecommendCharge(UTBot B, Pawn Enemy)
+{
+	if ( B.Skill < 1 + FRand() )
+	{
+		return false;
+	}
+	if ( Vehicle(Enemy) == None )
+	{
+		return (VSize(Location - Enemy.Location) < 1000.0 + 3000.0*FRand());
+	}
+	return false;
+}	
+
 defaultproperties
 {
 	Health=200
@@ -294,8 +313,8 @@ defaultproperties
 		MaxThrustForce=325.0
 		MaxReverseForce=250.0
 		LongDamping=0.3
-		MaxStrafeForce=275.0
-		DirectionChangeForce=400.0
+		MaxStrafeForce=260.0
+		DirectionChangeForce=375.0
 		LatDamping=0.3
 		MaxRiseForce=0.0
 		UpDamping=0.0
@@ -312,7 +331,7 @@ defaultproperties
 		RollDamping=0.2
 		MaxRandForce=20.0
 		RandForceInterval=0.4
-		bAllowZThrust=true
+		bAllowZThrust=false
 	End Object
 	SimObj=SimObject
 	Components.Add(SimObject)
@@ -377,4 +396,5 @@ defaultproperties
 	bEjectKilledBodies=true
 
 	HornIndex=0
+	VehicleIndex=6
 }

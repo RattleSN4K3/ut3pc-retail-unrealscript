@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for all actions which operate on UITabControl, UITabButton, or UITabPage.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_TabControl extends UIAction
 	abstract;

@@ -136,6 +136,9 @@ struct native ClientAdjustment
 };
 var ClientAdjustment PendingAdjustment;
 
+/** Time stamp of last good move ack */
+var float	LastGoodMoveAckTime;
+
 // Progress Indicator - used by the engine to provide status messages (HUD is responsible for displaying these).
 var					string			ProgressMessage[2];
 var					float			ProgressTimeOut;
@@ -367,6 +370,21 @@ var float LastSpectatorStateSynchTime;
 /** Cached value of the ConvolveResponse hash */
 var transient string HashResponseCache;
 
+/** Remotely set by the client when demo recording */
+var bool bClientDemo;
+
+/** Max netspeed client desires */
+var int MaxClientNetSpeed;
+
+/** Variables for checking that the clients HUD is correctly set */
+var bool bConfirmSetHUD;
+var int HUDResetCount;
+var Class<HUD> ClientHUDClass;
+var Class<Scoreboard> ClientScoringClass;
+
+/** Set when the client begins seamless travel, and unset when the client has completed seamless travel */
+var bool bPendingNotifyLoadedWorld;
+
 
 
 replication
@@ -402,6 +420,15 @@ reliable client native function ClientSetTravelGuid(Guid NextTravelGuid);
  */
 reliable client native event ClientTravel(string URL, ETravelType TravelType, optional bool bSeamless = false);
 
+/** Should be called in place of 'ClientTravel', when seamless travel is desired
+ * @param URL the URL to travel to
+ */
+event ClientSeamlessTravel(string URL)
+{
+	bPendingNotifyLoadedWorld = True;
+	ClientTravel(URL, TRAVEL_Relative, True);
+}
+
 native(546) final function UpdateURL(string NewOption, string NewValue, bool bSave1Default);
 native final function string GetDefaultURL(string Option);
 // Execute a console command in the context of this player, then forward to Actor.ConsoleCommand.
@@ -425,6 +452,9 @@ native final function bool CheckSpeedHack(float DeltaTime);
 returns an integer to use as a pitch to orient player view along current ground (flat, up, or down)
 */
 native(524) final function int FindStairRotation(float DeltaTime);
+
+/** Clears out 'left-over' audio components. */
+native function CleanUpAudioComponents();
 
 /**
  * Attempts to pause/unpause the game when the UI opens/closes. Note: pausing
@@ -609,6 +639,7 @@ function AddCheats()
 
 exec function EnableCheats()
 {
+	class'Engine'.static.CheatWasEnabled();
 	AddCheats();
 }
 
@@ -773,6 +804,7 @@ event InitUniquePlayerId()
 	{
 		// Get our local id from the online subsystem
 		OnlineSub.PlayerInterface.GetUniquePlayerId(LocPlayer.ControllerId,PlayerReplicationInfo.UniqueId);
+
 		if (WorldInfo.NetMode == NM_Client)
 		{
 			// Grab the game so we can check for being invited
@@ -1335,6 +1367,18 @@ function PawnDied(Pawn P)
     super.PawnDied( P );
 }
 
+function SetHUD(Class<HUD> newHUDType, Class<Scoreboard> newScoringType)
+{
+	if (WorldInfo.NetMode == NM_DedicatedServer || (WorldInfo.NetMode == NM_ListenServer && LocalPlayer(Player) == none))
+	{
+		bConfirmSetHUD = True;
+		ClientHUDClass = newHUDType;
+		ClientScoringClass = newScoringType;
+	}
+
+	ClientSetHUD(newHUDType, newScoringType);
+}
+
 reliable client function ClientSetHUD(class<HUD> newHUDType, class<Scoreboard> newScoringType)
 {
 	if ( myHUD != None )
@@ -1354,6 +1398,9 @@ reliable client function ClientSetHUD(class<HUD> newHUDType, class<Scoreboard> n
 			MyHUD.SpawnScoreBoard(newScoringType);
 		}
 	}
+
+	if (WorldInfo.NetMode == NM_Client)
+		ServerConfirmSetHUD(newHUDType, newScoringType);
 }
 
 function HandlePickup(Inventory Inv)
@@ -1385,9 +1432,9 @@ reliable client event ReceiveLocalizedMessage( class<LocalMessage> Message, opti
 }
 
 //Play a sound client side (so only client will hear it)
-unreliable client event ClientPlaySound(SoundCue ASound)
+unreliable client event ClientPlaySound(SoundCue ASound, optional bool bIsUISound)
 {
-	ClientHearSound(ASound, self, Location, false, false);
+	ClientHearSound(ASound, self, Location, false, false, bIsUISound);
 }
 
 /** hooked up to the OnAudioFinished delegate of AudioComponents created through PlaySound() to return them to the pool */
@@ -1418,7 +1465,7 @@ native function AudioComponent GetPooledAudioComponent(SoundCue ASound, Actor So
 /* ClientHearSound()
 Replicated function from server for replicating audible sounds played on server
 */
-unreliable client event ClientHearSound(SoundCue ASound, Actor SourceActor, vector SourceLocation, bool bStopWhenOwnerDestroyed, optional bool bIsOccluded )
+unreliable client event ClientHearSound(SoundCue ASound, Actor SourceActor, vector SourceLocation, bool bStopWhenOwnerDestroyed, optional bool bIsOccluded, optional bool bIsUISound )
 {
 	local AudioComponent AC;
 
@@ -1461,6 +1508,10 @@ unreliable client event ClientHearSound(SoundCue ASound, Actor SourceActor, vect
 		// if occluded reduce volume: @FIXME do something better
 		AC.VolumeMultiplier *= 0.5;
 	}
+
+	// force UI sound if passed in as such
+	AC.bIsUISound = AC.bIsUISound || bIsUISound;
+
 	AC.Play();
 }
 
@@ -2139,7 +2190,11 @@ event SendClientAdjustment()
 	if( PendingAdjustment.bAckGoodMove == 1 )
 	{
 		// just notify client this move was received
-		ClientAckGoodMove(PendingAdjustment.TimeStamp);
+		if ( WorldInfo.TimeSeconds - LastGoodMoveAckTime > 0.2 )
+		{
+			LastGoodMoveAckTime = WorldInfo.TimeSeconds;
+			ClientAckGoodMove(PendingAdjustment.TimeStamp);
+		}
 	}
 	else if( (Pawn == None) || (Pawn.Physics != PHYS_Spider) )
 	{
@@ -2349,6 +2404,7 @@ unreliable client function ClientAdjustPosition
 /** sets NetSpeed on the server, so it won't send the client more than this many bytes */
 reliable server function ServerSetNetSpeed(int NewSpeed)
 {
+	MaxClientNetSpeed = NewSpeed;
 	if ( (WorldInfo.Game != None) && (WorldInfo.NetMode == NM_ListenServer) )
 	{
 		NewSpeed = Min(NewSpeed, WorldInfo.Game.AdjustedNetSpeed);
@@ -2363,7 +2419,7 @@ Occasionally send ping updates to the server, and also adjust netspeed if connec
 */
 final function UpdatePing(float TimeStamp)
 {
-	if ( PlayerReplicationInfo != None )
+	if ( !bDemoOwner && PlayerReplicationInfo != None )
 	{
 		PlayerReplicationInfo.UpdatePing(TimeStamp);
 		if ( WorldInfo.TimeSeconds - LastPingUpdate > 4 )
@@ -2901,14 +2957,14 @@ function ReplicateMove
 		else
 			NetMoveDelta = FMax(0.0222,2 * WorldInfo.MoveRepSize/Player.CurrentNetSpeed);
 
-		if ( (WorldInfo.TimeSeconds - ClientUpdateTime) * WorldInfo.TimeDilation < NetMoveDelta )
+		if ( (WorldInfo.RealTimeSeconds - ClientUpdateTime) < NetMoveDelta )
 		{
 			PendingMove = NewMove;
 			return;
 		}
 	}
 
-	ClientUpdateTime = WorldInfo.TimeSeconds;
+	ClientUpdateTime = WorldInfo.RealTimeSeconds;
 
 	// Send to the server
 	ClientRoll = (Rotation.Roll >> 8) & 255;
@@ -3101,7 +3157,17 @@ Command to try to pause the game.
 */
 exec function Pause()
 {
-	ServerPause();
+	if (bDemoOwner)
+	{
+		if (WorldInfo.Pauser == none)
+			WorldInfo.Pauser = PlayerReplicationInfo;
+		else
+			WorldInfo.Pauser = None;
+	}
+	else
+	{
+		ServerPause();
+	}
 }
 
 reliable server function ServerPause()
@@ -3227,7 +3293,7 @@ exec function StartFire( optional byte FireModeNum )
 		return;
 	}
 
-	if ( Pawn != None && !bCinematicMode )
+	if ( Pawn != None && !bCinematicMode && !bDemoOwner)
 	{
 		Pawn.StartFire( FireModeNum );
 	}
@@ -3235,7 +3301,7 @@ exec function StartFire( optional byte FireModeNum )
 
 exec function StopFire( optional byte FireModeNum )
 {
-	if ( Pawn != None )
+	if ( Pawn != None && !bDemoOwner)
 	{
 		Pawn.StopFire( FireModeNum );
 	}
@@ -3957,11 +4023,14 @@ reliable client event ClientSetViewTarget( Actor A, optional ViewTargetTransitio
 	{
 		ServerVerifyViewTarget();
 	}
-    SetViewTarget( A, TransitionParams );
+	else
+	{
+		SetViewTarget( A, TransitionParams );
+	}
 }
 
 native function Actor GetViewTarget();
-
+ 
 reliable server function ServerVerifyViewTarget()
 {
 	local Actor TheViewTarget;
@@ -3972,7 +4041,18 @@ reliable server function ServerVerifyViewTarget()
 	{
 		return;
 	}
-	ClientSetViewTarget( TheViewTarget );
+	
+	if ( !IsTimerActive('DelayedClientSetViewTarget') )
+	{
+		SetTimer(0.05, false, 'DelayedClientSetViewTarget');
+	}
+}
+
+/** Used to prevent RPC spamming when viewtarget hasn't been replicated yet 
+*/
+function DelayedClientSetViewTarget()
+{
+	ClientSetViewTarget( GetViewTarget() );
 }
 
 event SpawnPlayerCamera()
@@ -4998,25 +5078,63 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 		bPressedJump = false;
 	}
 
+	/* ServerMove()
+	- replicated function sent by client to server - contains client movement and firing info.
+	*/
 	unreliable server function ServerMove
 	(
-		float TimeStamp,
-		vector InAccel,
-		vector ClientLoc,
-		byte NewFlags,
-		byte ClientRoll,
-		int View
+		float	TimeStamp,
+		vector	InAccel,
+		vector	ClientLoc,
+		byte	MoveFlags,
+		byte	ClientRoll,
+		int		View
 	)
 	{
-	Global.ServerMove(	TimeStamp,
-							InAccel,
-							ClientLoc,
-							NewFlags,
-							ClientRoll,
-							//epic superville: Cleaner compression with no roundoff error
-							((Rotation.Yaw & 65535) << 16) + (Rotation.Pitch & 65535)
-						);
+		local rotator	ViewRot;
+		local int		ViewPitch, ViewYaw;
 
+		//@FIXME: this mostly happens when seamless travel swaps PlayerControllers
+		//	the correct fix is to reject the RPC, but that may have other side effects
+		if (Player == None)
+		{
+			return;
+		}
+
+		// If this move is outdated, discard it.
+		if( CurrentTimeStamp >= TimeStamp )
+		{
+			return;
+		}
+
+		if( AcknowledgedPawn != Pawn )
+		{
+			InAccel = vect(0,0,0);
+			GivePawn(Pawn);
+		}
+
+		View = ((Rotation.Yaw & 65535) << 16) + (Rotation.Pitch & 65535);
+		
+		// View components
+		ViewPitch	= (View & 65535);
+		ViewYaw		= (View >> 16);
+
+		bWasSpeedHack = FALSE;
+		ResetTimeMargin();
+
+		CurrentTimeStamp = TimeStamp;
+		ServerTimeStamp = WorldInfo.TimeSeconds;
+		ViewRot.Pitch = ViewPitch;
+		ViewRot.Yaw = ViewYaw;
+		ViewRot.Roll = 0;
+
+		LastActiveTime = WorldInfo.TimeSeconds;
+
+		SetRotation(ViewRot);
+
+		// acknowledge receipt of this successful servermove()
+		PendingAdjustment.TimeStamp = TimeStamp;
+		PendingAdjustment.bAckGoodMove = 1;
 	}
 
 	function FindGoodView()
@@ -5458,6 +5576,7 @@ unreliable server function ServerCauseEvent(Name EventName)
 	{
 		return;
 	}
+	class'Engine'.static.CheatWasEnabled();
 
 	// Get the gameplay sequence.
 	GameSeq = WorldInfo.GetGameSequence();
@@ -6120,6 +6239,12 @@ reliable server event ServerMutePlayer(UniqueNetId PlayerNetId)
 {
 	local PlayerController Other;
 
+	// Find the muted player's player controller
+	Other = GetPlayerControllerFromNetId(PlayerNetId);
+
+	if (Other == none)
+		return;
+
 	// Don't reprocess if they are already muted
 	if (VoiceMuteList.Find('Uid',PlayerNetId.Uid) == INDEX_NONE)
 	{
@@ -6131,17 +6256,14 @@ reliable server event ServerMutePlayer(UniqueNetId PlayerNetId)
 		VoicePacketFilter[VoicePacketFilter.Length] = PlayerNetId;
 	}
 	ClientMutePlayer(PlayerNetId);
-	// Find the muted player's player controller so it can be notified
-	Other = GetPlayerControllerFromNetId(PlayerNetId);
-	if (Other != None)
+
+
+	// Update the other players packet filter list too
+	if (Other.VoicePacketFilter.Find('Uid',PlayerReplicationInfo.UniqueId.Uid) == INDEX_NONE)
 	{
-		// Update their packet filter list too
-		if (Other.VoicePacketFilter.Find('Uid',PlayerReplicationInfo.UniqueId.Uid) == INDEX_NONE)
-		{
-			Other.VoicePacketFilter[Other.VoicePacketFilter.Length] = PlayerReplicationInfo.UniqueId;
-			// Tell the other PC to mute this one
-			Other.ClientMutePlayer(PlayerReplicationInfo.UniqueId);
-		}
+		Other.VoicePacketFilter[Other.VoicePacketFilter.Length] = PlayerReplicationInfo.UniqueId;
+		// Tell the other PC to mute this one
+		Other.ClientMutePlayer(PlayerReplicationInfo.UniqueId);
 	}
 }
 
@@ -6894,6 +7016,86 @@ exec function Disconnect()
 	consolecommand("NativeDisconnect");
 }
 
+
+/** Demo recording related functions */
+
+/**
+ * Called at the start of demo recording (NOT playback), in 'serverside' demos (i.e. standalone/listen/dedicated demos)
+ * Used by DemoRecSpectator to trigger events which help synchronize some actors at the start of demo playback
+ */
+event StartServerDemoRec()
+{
+	DemoPlaybackNotify();
+}
+
+/**
+ * Called at the start of demo recording in clientside demos
+ */
+simulated event StartClientDemoRec()
+{
+	DemoPlaybackNotify();
+	DemoSetHUD(MyHUD.Class, MyHUD.Scoreboard.Class);
+	DemoSyncPawn();
+
+	bClientDemo = True;
+	ServerSetClientDemo(True);
+}
+
+// Have the server replicate extra information, necessary for demo recording, to the client
+reliable server function ServerSetClientDemo(bool bValue)
+{
+	bClientDemo = bValue;
+
+	// The same as the 'DemoSyncPawn' code; replicated from the server to ensure the correct weapon is synced
+	if (Pawn != none)
+	{
+		ClientRestart(Pawn);
+
+		if (Pawn.InvManager != none && Pawn.Weapon != none)
+			Pawn.InvManager.ClientSyncWeapon(Pawn.Weapon);
+	}
+}
+
+// Called during demorec playback, in order to set the demorec players HUD/Scoreboard
+reliable demorecording function DemoSetHUD(Class<HUD> newHUDClass, Class<Scoreboard> newScoreboardClass)
+{
+	if (MyHUD == none)
+		ClientSetHUD(newHUDClass, newScoreboardClass);
+}
+
+// Sometimes the pawn and weapon aren't properly synced up when playing back demos, this fixes that
+reliable demorecording function DemoSyncPawn()
+{
+	if (Pawn != none)
+	{
+		ClientRestart(Pawn);
+
+		if (Pawn.InvManager != none && Pawn.Weapon != none)
+			Pawn.InvManager.ClientSyncWeapon(Pawn.Weapon);
+	}
+}
+
+// Sometimes the clients HUD doesn't get set properly, due to a required package not being loaded clientside, so the client must confirm the HUD change
+reliable server function ServerConfirmSetHUD(Class<HUD> HUDType, Class<Scoreboard> ScoringType)
+{
+	if ((WorldInfo.NetMode == NM_DedicatedServer || (WorldInfo.NetMode == NM_ListenServer && LocalPlayer(Player) == none))
+		&& bConfirmSetHUD && ++HUDResetCount < 30 && (HUDType != ClientHUDClass || ScoringType != ClientScoringClass))
+	{
+		SetHUD(ClientHUDClass, ClientScoringClass);
+	}
+	else
+	{
+		bConfirmSetHUD = False;
+	}
+}
+
+reliable demorecording function DemoPlaybackNotify()
+{
+	WorldInfo.bWithinDemoPlayback = True;
+}
+
+
+
 defaultproperties
 {
 	// The PlayerController is currently required to have collision as there is code that uses the collision
@@ -6940,4 +7142,5 @@ defaultproperties
 	bIsUsingStreamingVolumes=TRUE
 	SpectatorCameraSpeed=600.0
 	MinRespawnDelay=1.0
+	MaxClientNetSpeed=20000
 }

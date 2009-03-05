@@ -3,7 +3,7 @@
  *
  * For this event class and its children, the EventActivator is the TabPage which generated this event.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIEvent_TabControl extends UIEvent
 	native(inherit)

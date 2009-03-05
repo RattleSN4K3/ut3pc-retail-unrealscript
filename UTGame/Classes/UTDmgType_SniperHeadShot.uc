@@ -48,4 +48,5 @@ defaultproperties
 	NodeDamageScaling=0.4
 	DeathAnim=Death_Headshot
 	CustomTauntIndex=3
+	bCausesBloodSplatterDecals=true
 }

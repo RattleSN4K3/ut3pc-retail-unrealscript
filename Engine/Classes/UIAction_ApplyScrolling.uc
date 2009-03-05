@@ -1,7 +1,7 @@
 ﻿/**
  * This action allows designers to scroll widgets (which support scrolling) up or down.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_ApplyScrolling extends UIAction;
 

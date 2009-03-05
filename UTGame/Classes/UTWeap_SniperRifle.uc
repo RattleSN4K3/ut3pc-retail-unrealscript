@@ -48,6 +48,7 @@ function float GetAIRating()
 {
 	local UTBot B;
 	local float ZDiff, dist, Result;
+	local UTPawn EnemyPawn;
 
 	B = UTBot(Instigator.Controller);
 	if ( B == None )
@@ -56,6 +57,16 @@ function float GetAIRating()
 		return AIRating - 0.15;
 	if ( B.Enemy == None )
 		return AIRating;
+
+	if ( UTSlowVolume(B.Enemy.PhysicsVolume) != None )
+	{
+		return 0.3;
+	}
+	EnemyPawn = UTPawn(B.Enemy);
+	if ( (EnemyPawn != None) && EnemyPawn.bHasSlowField )
+	{
+		return 0.3;
+	}
 
 	if ( B.Stopped() )
 		result = AIRating + 0.1;
@@ -571,4 +582,9 @@ defaultproperties
 	TeamSkins[1]=MaterialInterface'WP_SniperRifle.Materials.M_WP_SniperRifle_Blue'
 
 	bDisplaycrosshair = true;
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformShooting1
+		Samples(0)=(LeftAmplitude=30,RightAmplitude=50,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.200)
+	End Object
+	WeaponFireWaveForm=ForceFeedbackWaveformShooting1
 }

@@ -62,5 +62,9 @@ var config bool bOnlineOnly;
 /** Whether the option is a offline only option or not. */
 var config bool bOfflineOnly;
 
+/** Allows you to rearrange the order of menu options, without having to keep them in the same order within the .ini file */
+/** NOTE: To set an option as the first menu option, set OptionIndex to 1; OptionIndex is ignored when set to 0 */
+var config int OptionIndex;
+
 
 

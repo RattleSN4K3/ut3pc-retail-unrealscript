@@ -1,4 +1,8 @@
-﻿class UTSeqEvent_GameEnded extends SequenceEvent;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTSeqEvent_GameEnded extends SequenceEvent;
 
 /** The winner of the game. In Deathmatch, the player with the final kill; in other gametypes, the home base of the winning team */
 var Actor Winner;

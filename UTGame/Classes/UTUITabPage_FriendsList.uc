@@ -164,12 +164,22 @@ function OnRemoveFriend_Confirm(UTUIScene_MessageBox MessageBox, int SelectedIte
 {
 	local UniqueNetId FriendNetId;
 	local OnlinePlayerInterface PlayerInt;
+	local UIDataStore_OnlinePlayerData PlayerData;
+	local UTUIScene OwnerUTScene;
 
 	PlayerInt = UTUIScene(GetScene()).GetPlayerInterface();
+
 	if(SelectedItem==0 && GetCurrentFriendNetId(FriendNetId) && PlayerInt!=None)
 	{
 		PlayerInt.RemoveFriend(GetPlayerOwner().ControllerId, FriendNetId);
-		FriendsList.RemoveElement(FriendsList.GetCurrentItem());
+
+
+		// Refresh the Friends list
+		OwnerUTScene = UTUIScene(GetScene());
+		PlayerData = UIDataStore_OnlinePlayerData(OwnerUTScene.FindDataStore('OnlinePlayerData', GetPlayerOwner()));
+
+		if (PlayerData != None && PlayerData.FriendsProvider != None)
+			PlayerData.FriendsProvider.RefreshFriendsList();
 	}
 }
 

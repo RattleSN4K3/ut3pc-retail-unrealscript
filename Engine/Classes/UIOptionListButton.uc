@@ -1,7 +1,7 @@
 ﻿/**
 * A special button used by the UIOptionListBase class for incrementing or decrementing the current position of the list's label
 *
-* Copyright 2007 Epic Games, Inc. All Rights Reserved
+* Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
 */
 class UIOptionListButton extends UIButton
 	within UIOptionListBase

@@ -48,6 +48,16 @@ var config float IconV;
 var config float IconUL;
 var config float IconVL;
 
+
+// Allows mods to specify a custom scene for configuring mod settings;
+//	accessible through the 'Mod Settings' button in the Instant Action and Host Game menus
+var config string ModGameSettingsScene;
+
+// As above, but this scene is made accessible through the main menu settings page, and the mid game menu settings
+var config string ModClientSettingsScene;
+
+
+
 defaultproperties
 {
 	bSearchAllInis=true

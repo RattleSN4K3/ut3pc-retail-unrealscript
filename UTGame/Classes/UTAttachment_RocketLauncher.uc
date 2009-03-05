@@ -25,6 +25,16 @@ simulated function ThirdPersonFireEffects(vector HitLocation)
 	Mesh.StopAnim();
 }
 
+/** 
+*   Optimized equivalent of calling ThirdPersonFireEffects while in splitscreen
+*/
+simulated function SplitScreenEffects(vector HitLocation)
+{
+	Super.SplitScreenEffects(HitLocation);
+
+	//Mesh.StopAnim();
+}
+
 simulated function FirstPersonFireEffects(Weapon PawnWeapon, vector HitLocation)
 {
 	Super.FirstPersonFireEffects(PawnWeapon, HitLocation);

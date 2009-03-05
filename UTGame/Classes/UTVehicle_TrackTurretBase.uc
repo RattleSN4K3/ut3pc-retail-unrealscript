@@ -21,6 +21,19 @@ var Box LastBoundingBox;
 
 
 
+simulated function AttachFlag(UTCarriedObject FlagActor, Pawn NewDriver)
+{
+	if ( UTOnslaughtFlag(FlagActor) == None )
+	{
+		// CTF flag needs different offset
+		FlagOffset.X = 50;
+		FlagOffset.Z = 20;
+		FlagRotation.Yaw = 49152;
+		FlagRotation.Roll = 16384;
+	}
+	super.AttachFlag(FlagActor, NewDriver);
+}
+
 /**
  * When an icon for this vehicle is needed on the hud, this function is called
  */

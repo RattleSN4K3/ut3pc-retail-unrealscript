@@ -31,16 +31,16 @@ function CopyAllStats(UTPlayerReplicationInfo PRI)
 {
 	local IntStat tempIntStat;
 	local TimeStat tempTimeStat;
-	local int NumKills;
+	local int Score;
 
-	NumKills = PRI.Kills;
-	SetIntStat(`PROPERTY_EVENT_KILLS,NumKills);
+	SetIntStat(`PROPERTY_EVENT_KILLS,PRI.Kills);
 	// Make sure to create a non-zero rating value
-	if (NumKills == 0)
+	Score = PRI.Score;
+	if (Score == 0)
 	{
-		NumKills = -1;
+		Score = -1;
 	}
-	SetIntStat(PROPERTY_LEADERBOARDRATING,NumKills);
+	SetIntStat(PROPERTY_LEADERBOARDRATING,Score);
 	SetIntStat(`PROPERTY_EVENT_DEATHS,PRI.Deaths);
 
 	//Kill stats

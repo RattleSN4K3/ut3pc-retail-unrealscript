@@ -26,4 +26,15 @@ defaultproperties
 	DefaultMeshScale=1.0
 	BaseTranslationOffset=2.0
 	PortraitExtraOffset=(X=35,Z=2)  //adjustment to fit the Krall head in the portrait
+
+	// Hero camera adjustments
+	CameraXOffset=0.3
+	CameraYOffset=-1.6
+
+	HeroFireOffset=(X=180.0,Y=-15.0,Z=-70.0)
+	SuperHeroFireOffset=(X=420.0,Y=-15.0,Z=-100.0)
+
+	HeroMeleeAnimSet=AnimSet'CH_AnimKrall_Hero.Anims.K_AnimKrall_Hero'
+
+	TrustWorthiness=-2.5
 }

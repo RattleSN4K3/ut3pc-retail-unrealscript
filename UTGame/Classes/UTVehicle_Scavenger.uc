@@ -121,7 +121,7 @@ replication
 		BallStatus;
 	if (bNetOwner)
 		ActiveSeeker;
-	if (!bNetOwner)
+	if (!bNetOwner || bDemoRecording)
 		bSpinAttackActive;
 }
 
@@ -946,4 +946,5 @@ defaultproperties
 	bIsNecrisVehicle=true
 
 	HornIndex=2
+	VehicleIndex=9
 }

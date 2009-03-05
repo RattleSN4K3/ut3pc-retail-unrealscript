@@ -66,6 +66,12 @@ var color ArrowColor;
 var texture2D SelectionImage;
 var texture2D ArrowImage;
 
+/** Properties for individual option spacing */
+var() float DefaultOptionHeight;
+var() float DefaultOptionPadding;
+var() float DefaultOptionTopMargin;
+var() float DefaultOptionRightMargin;
+
 /** Current state of the arrows. */
 var transient float DragDeadZone;
 var transient bool bDragging;
@@ -420,12 +426,20 @@ function bool SelectNextItem(optional bool bWrap=false, optional int PlayerIndex
 {
 	local int TargetIndex;
 
-	TargetIndex = CurrentIndex+1;
+	TargetIndex = CurrentIndex;
 
-	if(bWrap)
+	//Continue to search the list while we have disabled options
+	do 
 	{
-		TargetIndex = TargetIndex%(GeneratedObjects.length);
-	}
+		TargetIndex++;
+
+		if(bWrap)
+		{
+			TargetIndex = TargetIndex%(GeneratedObjects.length);
+		}
+
+		//Keep going until we find an enabled widget, we've exceed bounds or we wrapped back around
+	} until(GeneratedObjects[TargetIndex].OptionObj.IsEnabled(PlayerIndex) == true || TargetIndex >= GeneratedObjects.length || TargetIndex == CurrentIndex);
 
 	return SelectItem(TargetIndex, PlayerIndex);
 }
@@ -435,12 +449,21 @@ function bool SelectPreviousItem(optional bool bWrap=false, optional int PlayerI
 {
 	local int TargetIndex;
 
-	TargetIndex = CurrentIndex-1;
+	TargetIndex = CurrentIndex;
 
-	if(bWrap && TargetIndex<0)
+	//Continue to search the list while we have disabled options
+	do 
 	{
-		TargetIndex=GeneratedObjects.length-1;
-	}
+		TargetIndex--;
+
+		if(bWrap && TargetIndex<0)
+		{
+			TargetIndex=GeneratedObjects.length-1;
+		}
+
+		//Keep going until we find an enabled widget, we've exceed bounds or we wrapped back around
+	} until(GeneratedObjects[TargetIndex].OptionObj.IsEnabled(PlayerIndex) == true || TargetIndex < 0 || TargetIndex == CurrentIndex);
+
 
 	return SelectItem(TargetIndex, PlayerIndex);
 }
@@ -793,5 +816,10 @@ defaultproperties
 
 	SelectionImage=Texture2D'UI_HUD.HUD.UI_HUD_BaseD'
 	ArrowImage=Texture2D'UI_HUD.HUD.UI_HUD_BaseC'
+
+	DefaultOptionHeight=32.0
+	DefaultOptionPadding=12.0
+	DefaultOptionTopMargin=-3.0
+	DefaultOptionRightMargin=10.0
 }
 

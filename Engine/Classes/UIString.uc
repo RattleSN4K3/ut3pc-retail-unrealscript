@@ -26,7 +26,7 @@
  * @todo UIString is supposed to support persistence, so that designers can override the extents for individual nodes
  *	in the string, so it should not be marked transient
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIString extends UIRoot
 	within UIScreenObject
@@ -49,6 +49,10 @@ var transient			UICombinedStyleData			StringStyleData;
 
 /** the width and height of the entire string */
 var transient			Vector2D					StringExtent;
+
+/** Currently applied string scaling */ 
+var transient			Vector2D					StringScale;
+var transient			bool						bAdjustStringScale;
 
 /**
  * Parses a string containing optional markup (such as tokens and inline images) and stores the result in Nodes.

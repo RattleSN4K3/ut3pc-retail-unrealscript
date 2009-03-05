@@ -18,34 +18,32 @@ var transient bool bIgnoreChange;
 function PostInitialize()
 {
 	local UTPlayerController PC;
+	local bool bIsWarfareGame;
+
 	Super.PostInitialize();
 
     UTSceneOwner = UTUIScene_MidGameMenu(GetScene());
 
 	Map = UTDrawMapPanel(FindChild('MapPanel',true));
-	ObjectivePrefs = UTSimpleList(FindChild('ObjectivePrefs',true));
-	ObjectivePrefs.OnDrawItem = OnDrawItem;
 
     PopupMapOnDeath = UTUICollectionCheckBox( FindChild('PopupMapOnDeath',true));
     PopupMapOnDeath.OnValueChanged = PopupSaved;
 
-	if ( !ClassIsChildOf(UTSceneOwner.GetWorldInfo().GetGameClass(), class'UTOnslaughtGame' ) )
-	{
+	bIsWarfareGame = ClassIsChildOf(UTSceneOwner.GetWorldInfo().GetGameClass(), class'UTOnslaughtGame' );
+	FindChild('UILabel_1',true).SetVisibility(False);
+	FindChild('UILabel_0',true).SetVisibility(bIsWarfareGame);
+	UILabel(FindChild('UILabel_0',true)).SetDataStoreBinding("<Strings:UTGameUI.MidGameMenu.ChangePref>");
 		FindChild('SpawnOptions',true).SetVisibility(False);
+	FindChild('ObjectivePrefs',true).SetVisibility(bIsWarfareGame);
 		PopupMapOnDeath.SetVisibility(False);
-	}
 
+	ObjectivePrefs = UTSimpleList(FindChild('ObjectivePrefs',true));
+	ObjectivePrefs.OnDrawItem = OnDrawItem;
 	ObjectivePrefs.OnSelectionChange = None;
 	ObjectivePrefs.Empty();
-/*
-	ObjectivePrefs.AddItem("Disabled");
-	ObjectivePrefs.AddItem("No Preference");
-	ObjectivePrefs.AddItem("Attack");
-	ObjectivePrefs.AddItem("Defend");
-	ObjectivePrefs.AddItem("Orb Runner");
-	ObjectivePrefs.AddItem("Special Ops");
-*/
 
+	if ( bIsWarfareGame )
+	{
 	ObjectivePrefs.AddItem("<Strings:UTGameUI.MidGameMenu.ObjectivePrefsDisabled>");
 	ObjectivePrefs.AddItem("<Strings:UTGameUI.MidGameMenu.ObjectivePrefsNoPreference>");
 	ObjectivePrefs.AddItem("<Strings:UTGameUI.MidGameMenu.ObjectivePrefsAttack>");
@@ -53,13 +51,22 @@ function PostInitialize()
 	ObjectivePrefs.AddItem("<Strings:UTGameUI.MidGameMenu.ObjectivePrefsOrbRunner>");
 	ObjectivePrefs.AddItem("<Strings:UTGameUI.MidGameMenu.ObjectivePrefsSpecialOps>");
 
-
 	PC = UTSceneOwner.GetUTPlayerOwner();
 	ObjectivePrefs.SelectItem( int(PC.AutoObjectivePreference) );
 
 	// Set the Delegate
 	ObjectivePrefs.OnSelectionChange = SelectionChange;
 	ObjectivePrefs.OnDrawSelectionBar =  OnDrawSelectionBar;
+
+		if (class'Engine'.static.IsSplitScreen())	
+		{
+			// Force this here, or the text will be too small in splitscreen.
+			ObjectivePrefs.DefaultCellHeight *= 2;
+
+			// Update the size of the list box for the larger text.
+			ObjectivePrefs.SetPosition( 0.80, UIFACE_Bottom, EVALPOS_PercentageOwner);
+		}
+	}
 
 	OnPreRenderCallback = PreRenderCallback;
 
@@ -120,13 +127,11 @@ function bool OnDrawItem(UTSimpleList SimpleList, int ItemIndex, float XPos, out
 	}
 
 	// Draw the text
-
 	SimpleList.Canvas.StrLen(Text,XL,YL);
 	SimpleList.Canvas.SetPos(SimpleList.Canvas.ClipX - (23 * ImgScale) - (XL * TextScale),YPos);
 	SimpleList.Canvas.DrawTextClipped(Text,,TextScale,TextScale);
 
 	// Draw the Image
-
 	SimpleList.Canvas.SetPos(SimpleList.Canvas.ClipX - (21 * ImgScale), YPos + (CellHeight - (16 * ImgScale)) * 0.5);
 
 	if ( ItemIndex == SimpleList.Selection )
@@ -164,7 +169,11 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 {
 	Super.SetupButtonBar(ButtonBar);
 	MyButtonBar = ButtonBar;
-	ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.ChangePref>", OnChangePref);
+
+	if ( ClassIsChildOf(UTSceneOwner.GetWorldInfo().GetGameClass(), class'UTOnslaughtGame') )
+	{
+		ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.ChangePref>", OnChangePref);
+	}
 
 	if (bAllowTeleport)
 	{
@@ -179,6 +188,7 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 function AllowTeleporting()
 {
 	bAllowTeleport = true;
+	Map.bAllowTeleport = true;
 	MyButtonBar.SetButton(3,"<Strings:UTGameUI.OnslaughtMap.SelectionText>", OnSelectDest);
 	Map.OnActorSelected = MapActorSelected;
 	Map.SetFocus(none);
@@ -188,6 +198,7 @@ function AllowTeleporting()
 function AllowSpawning()
 {
 	bAllowSpawn = true;
+	Map.bAllowTeleport = false;
 	MyButtonBar.SetButton(3, "<Strings:UTGameUI.MidGameMenu.SetSpawnLoc>", OnSetSpawn);
 	Map.OnActorSelected = SpawnPointSelected;
 	Map.SetFocus(none);

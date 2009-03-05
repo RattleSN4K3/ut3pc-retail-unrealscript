@@ -53,7 +53,7 @@ static function string GetString(
 	local int i, PlayerCount;
 	local GameReplicationInfo GRI;
 
-	if ( (RelatedPRI_1 != None) && (RelatedPRI_1.WorldInfo.NetMode == NM_Standalone) )
+	if ( (RelatedPRI_1 != None) && (RelatedPRI_1.WorldInfo.NetMode == NM_Standalone) && !class'Engine'.static.IsSplitScreen() )
 	{
 		  if ( (UTGame(RelatedPRI_1.WorldInfo.Game) != None) && UTGame(RelatedPRI_1.WorldInfo.Game).bQuickstart )
 			  return "";

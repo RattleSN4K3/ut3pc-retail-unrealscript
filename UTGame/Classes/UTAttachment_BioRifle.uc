@@ -71,6 +71,32 @@ simulated event ThirdPersonFireEffects(vector HitLocation)
 	SetTimer(FireAnimDuration,false,'RestartIdle');
 }
 
+/** 
+*   Optimized equivalent of calling ThirdPersonFireEffects while in splitscreen
+*/
+simulated function SplitScreenEffects(vector HitLocation)
+{
+	local name Anim;
+	local UTPawn UTP;
+	Super.SplitScreenEffects(HitLocation);
+	UTP = UTPawn(Owner);
+	if(UTP==none || UTP.FiringMode == 0)
+	{
+		Anim = WeaponFireAnims[rand(3)];
+	}
+	else
+	{
+		Anim = WeaponAltFireAnim;
+	}
+
+	//This particular effect must be stopped here
+	ChargeComponent.DeactivateSystem();
+	ChargeComponent.KillParticlesForced();
+	Play3pAnimation(Anim,FireAnimDuration);
+	FireModeUpdated(0,false); // force bio back to 'base' state
+	SetTimer(FireAnimDuration,false,'RestartIdle');
+}
+
 simulated function RestartIdle()
 {
 //	`log("Idling with"@currentidleanim);

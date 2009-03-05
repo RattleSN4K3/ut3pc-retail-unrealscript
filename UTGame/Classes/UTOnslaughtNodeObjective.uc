@@ -7,6 +7,9 @@ class UTOnslaughtNodeObjective extends UTOnslaughtObjective
 	nativereplication
 	hidecategories(ObjectiveHealth,Collision,Display);
 
+/** True if node has associated Playerstarts */
+var bool bIsTeleportDestination;
+
 var		float               ConstructionTime;
 var		soundcue            DestroyedSound;
 var		soundcue			ConstructedSound;
@@ -18,6 +21,7 @@ var     repnotify bool      bSevered;			/**	true if active node is severed from 
 var		bool				bWasSevered;		/** utility - for determining transitions to being severed */
 
 var InterpCurveFloat AttackEffectCurve;
+
 
 /** if > 0, minimum number of players before this node is enabled (checked only when match begins, not during play) */
 var int MinPlayerCount;
@@ -114,7 +118,7 @@ var Texture2D LinkLineTexture;
 replication
 {
 	if ( bNetInitial )
-		LinkedNodes, NumLinks;
+		LinkedNodes, NumLinks, bIsTeleportDestination;
 
 	if (bNetDirty && Role == ROLE_Authority)
 		PrimeCore, bDualPrimeCore, NodeState, bSevered;
@@ -279,7 +283,7 @@ simulated event PostRenderFor(PlayerController PC, Canvas Canvas, vector CameraP
 	}
 	else
 	{
-		NodeName = ObjectiveName;
+		NodeName = (UTOnslaughtPowerCore(self) != None) ? default.ObjectiveName : ObjectiveName;
 	}
 
 	Canvas.Font = class'UTHUD'.static.GetFontSizeIndex(1);
@@ -966,7 +970,7 @@ simulated state DisabledNode
 	{
 		local int i;
 
-		bisDisabled = true;
+		bIsDisabled = true;
 		NodeState = GetStateName();
 		SetHidden(True);
 		if ( NodeBeamEffect != None )
@@ -1153,6 +1157,11 @@ event TakeDamage(int Damage, Controller InstigatedBy, vector HitLocation, vector
 	if (Damage <= 0 || WorldInfo.Game.bGameEnded || UTGame(WorldInfo.Game).ResetCountdown > 0)
 		return;
 
+	// Don't allow levi damage if no instigator
+	if ( (InstigatedBy == None) && (class<UTDamageType>(DamageType) != None) && (class<UTDamageType>(DamageType).default.KillStatsName == 'KILLS_LEVIATHANEXPLOSION') )
+	{
+		return;
+	}
 	ScaleDamage(Damage, InstigatedBy, DamageType);
 
 	if (InstigatedBy == None || (InstigatedBy.GetTeamNum() != DefenderTeamIndex && PoweredBy(InstigatedBy.GetTeamNum())))
@@ -1436,6 +1445,11 @@ function bool TellBotHowToDisable(UTBot B)
 			return B.Squad.FindPathToObjective(B, self);
 	}
 
+	if ( (UTVehicle(B.Pawn) != None) && UTVehicle(B.Pawn).ChargeAttackObjective(B, self) )
+	{
+		return true;
+	}
+
 	//take out defensive turrets first
 	VehicleEnemy = UTVehicle(B.Enemy);
 	if ( VehicleEnemy != None && (VehicleEnemy.bStationary || VehicleEnemy.bIsOnTrack) &&
@@ -1460,9 +1474,14 @@ function bool TellBotHowToDisable(UTBot B)
 		if (KillEnemyFirst(B))
 			return false;
 
-		B.GoalString = "Attack Objective";
-		B.DoRangedAttackOn(self);
-		return true;
+		if ( !B.bTargetAlternateLoc || (UTPawn(B.Pawn) == None) )
+		{
+			B.GoalString = "Attack Objective";
+			B.DoRangedAttackOn(self);
+			return true;
+		}
+		B.GoalString = "Charge Objective";
+		B.FireWeaponAt(self);
 	}
 	MarkShootSpotsFor(B.Pawn);
 	return Super.TellBotHowToDisable(B);
@@ -1481,7 +1500,6 @@ function bool KillEnemyFirst(UTBot B)
 	{
 		return true;
 	}
-	
 	
 	if ( WorldInfo.TimeSeconds - HealingTime < 1.0 && LastHealedBy != None && LastHealedBy.Pawn != None &&
 		LastHealedBy.Pawn.Health > 0 && B.Squad.SetEnemy(B, LastHealedBy.Pawn) && B.Enemy == LastHealedBy.Pawn )
@@ -1724,6 +1742,25 @@ function bool TeleportTo(UTPawn Traveler)
 		}
 	}
 	return false;
+}
+
+function OnToggle(SeqAct_Toggle inAction)
+{
+	super.OnToggle(inAction);
+	
+	if ( bBlocked )
+	{
+		if ( !bIsDisabled )
+		{
+		GotoState('DisabledNode');
+			FindNewObjectives();
+		}
+	}
+	else if ( bIsDisabled )
+	{
+		GotoState('NeutralNode');
+		FindNewObjectives();
+	}
 }
 
 defaultproperties

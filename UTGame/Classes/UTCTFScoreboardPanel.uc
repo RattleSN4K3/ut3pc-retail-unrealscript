@@ -66,20 +66,23 @@ simulated function DrawPlayerNum(UTPlayerReplicationInfo PRI, int PIndex, out fl
 	{
 		C = Canvas.DrawColor;
 
-    	// Figure out how much space we have
+    		// Figure out how much space we have
 
 		StrLen("00",XL,YL, FontIndex, FontScale);
 		W = XL * 0.8;
 		H = W * (FlagCoords.VL / FlagCoords.UL);
 
-        Y = YPos + (YL * 0.5) - (H * 0.5);
+       	 	Y = YPos + (YL * 0.5) - (H * 0.5);
 
 		Canvas.SetPos(0, Y);
 		Canvas.SetDrawColor(255,255,0,255);
 		Canvas.DrawTile(FlagTexture, W, H, FlagCoords.U, FlagCoords.V, FlagCoords.UL, FlagCoords.VL);
 
 		Canvas.DrawColor = C;
-
+	}
+	else
+	{
+		super.DrawPlayerNum(PRI, PIndex, YPos, FontIndex, FontScale);
 	}
 }
 
@@ -94,6 +97,5 @@ defaultproperties
 {
 	FlagTexture=Texture2D'UI_HUD.HUD.UI_HUD_BaseE'
 	FlagCoords=(U=756,V=0,UL=67,VL=40)
-	bDrawPlayerNum=true
 	HeaderTitle_Score="Score"
 }

@@ -304,4 +304,6 @@ defaultproperties
 
 	FireInterval(0)=+0.25
 	FireInterval(1)=+0.25
+	
+	IconCoordinates=(U=453,V=327,UL=135,VL=57)
 }

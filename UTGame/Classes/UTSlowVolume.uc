@@ -327,4 +327,5 @@ defaultproperties
 	RigidBodyDamping=3.5
 
 	bNetInitialRotation=true
+	NetUpdateFrequency=1.0
 }

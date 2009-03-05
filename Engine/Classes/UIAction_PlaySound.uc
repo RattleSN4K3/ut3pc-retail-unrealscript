@@ -2,7 +2,7 @@
  * This class allows the PlaySound action to be used in the UI.  The only change in this class is to force the Target array
  * to be a player variable.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_PlaySound extends SeqAct_PlaySound;
 

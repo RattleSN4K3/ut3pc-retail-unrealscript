@@ -13,32 +13,13 @@ class UTCheatManager extends CheatManager within PlayerController
 var class<LocalMessage> LMC;
 var SpeechRecognition RecogObject;
 
-exec function Glow(float F)
-{
-	local UTVehicle V;
-
-	ForEach DynamicActors(class'UTVehicle' , V)
-	{
-		V.LightEnvironment.AmbientGlow = MakeLinearColor(F,F,F,1.0);
-	}
-}
-
-exec function LM( string MessageClassName )
-{
-	LMC = class<LocalMessage>(DynamicLoadObject(MessageClassName, class'Class'));
-}
-
-exec function LMS( int switch )
-{
-	ReceiveLocalizedMessage(LMC, switch, PlayerReplicationInfo, PlayerReplicationInfo);
-}
-
 /** Summon a vehicle */
 exec function SummonV( string ClassName )
 {
 	local class<actor> NewClass;
 	local vector SpawnLoc;
 
+	class'Engine'.static.CheatWasEnabled();
 	`log( "Fabricate " $ ClassName );
 	NewClass = class<actor>( DynamicLoadObject( "UTGameContent.UTVehicle_"$ClassName, class'Class' ) );
 	if ( NewClass == None )
@@ -62,9 +43,11 @@ exec function AllWeapons()
 {
 	local bool bTranslocatorBanned;
 	local UTVehicleFactory VF;
+
 	if( (WorldInfo.NetMode!=NM_Standalone) || (Pawn == None) )
 		return;
 
+	class'Engine'.static.CheatWasEnabled();
 	GiveWeapon("UTGameContent.UTWeap_Avril_Content");
 	GiveWeapon("UTGameContent.UTWeap_BioRifle_Content");
 	GiveWeapon("UTGame.UTWeap_FlakCannon");
@@ -89,12 +72,14 @@ exec function DoubleUp()
 {
 	local UTWeap_Enforcer MyEnforcer;
 
+	class'Engine'.static.CheatWasEnabled();
 	MyEnforcer = UTWeap_Enforcer(Pawn.FindInventoryType(class'UTWeap_Enforcer'));
 	MyEnforcer.DenyPickupQuery(class'UTWeap_Enforcer', None);
 }
 
 exec function PhysicsGun()
 {
+	class'Engine'.static.CheatWasEnabled();
 	if (Pawn != None)
 	{
 		GiveWeapon("UTGameContent.UTWeap_PhysicsGun");
@@ -106,6 +91,7 @@ exec function PhysicsGun()
 */
 exec function AllAmmo()
 {
+	class'Engine'.static.CheatWasEnabled();
 	if ( (Pawn != None) && (UTInventoryManager(Pawn.InvManager) != None) )
 	{
 		UTInventoryManager(Pawn.InvManager).AllAmmo(true);
@@ -115,6 +101,7 @@ exec function AllAmmo()
 
 exec function Invisible(bool B)
 {
+	class'Engine'.static.CheatWasEnabled();
 	if ( UTPawn(Pawn) != None )
 	{
 		UTPawn(Pawn).SetInvisible(B);
@@ -123,6 +110,7 @@ exec function Invisible(bool B)
 
 exec function FreeCamera()
 {
+	class'Engine'.static.CheatWasEnabled();
 		UTPlayerController(Outer).bFreeCamera = !UTPlayerController(Outer).bFreeCamera;
 		UTPlayerController(Outer).SetBehindView(UTPlayerController(Outer).bFreeCamera);
 }
@@ -133,6 +121,7 @@ exec function ViewBot()
 	local bool bFound;
 	local AIController C;
 
+	class'Engine'.static.CheatWasEnabled();
 	foreach WorldInfo.AllControllers(class'AIController', C)
 	{
 		if (C.Pawn != None && C.PlayerReplicationInfo != None)
@@ -168,6 +157,7 @@ exec function KillBadGuys()
 	local playercontroller PC;
 	local UTPawn p;
 
+	class'Engine'.static.CheatWasEnabled();
 	PC = UTPlayerController(Outer);
 
 	if (PC!=none)
@@ -184,6 +174,7 @@ exec function KillBadGuys()
 
 exec function RBGrav(float NewGravityScaling)
 {
+	class'Engine'.static.CheatWasEnabled();
 	WorldInfo.RBPhysicsGravityScaling = NewGravityScaling;
 }
 
@@ -218,6 +209,8 @@ exec function EditWeapon(string WhichWeapon)
 	local array<string> weaps;
 	local string s;
 	local int i;
+
+	class'Engine'.static.CheatWasEnabled();
 	if (WhichWeapon != "")
 	{
 		ConsoleCommand("Editactor class="$WhichWeapon);
@@ -245,6 +238,7 @@ exec function DestroyPowerCore(optional byte Team)
 {
 	local UTOnslaughtGame Game;
 
+	class'Engine'.static.CheatWasEnabled();
 	Game = UTOnslaughtGame(WorldInfo.Game);
 	if (Game != None)
 	{
@@ -258,6 +252,7 @@ exec function KillOtherBots()
 {
 	local UTBot B;
 
+	class'Engine'.static.CheatWasEnabled();
 	UTGame(WorldInfo.Game).DesiredPlayerCount = WorldInfo.Game.NumPlayers + 1;
 	foreach WorldInfo.AllControllers(class'UTBot', B)
 	{
@@ -272,59 +267,6 @@ exec function KillOtherBots()
 	}
 }
 
-
-
-//// START:  Decal testing code
-exec function SpawnABloodDecal2()
-{
-	LeaveADecal2( Pawn.Location, vect(0,0,0) );
-}
-
-simulated function LeaveADecal2( vector HitLoc, vector HitNorm )
-{
-	local UTGib Gib;
-
-	Gib = Spawn( class'UTGib_HumanTorso',,, Pawn.location + vect(0,0,150),,, TRUE );
-	Gib.GibMeshComp.WakeRigidBody();
-}
-
-
-exec function SpawnABloodDecal()
-{
-	LeaveADecal( Pawn.Location, vect(0,0,0) );
-}
-
-simulated function LeaveADecal( vector HitLoc, vector HitNorm )
-{
-	local MaterialInstance MIC_Decal;
-	local Actor TraceActor;
-	local vector out_HitLocation;
-	local vector out_HitNormal;
-	local vector TraceDest;
-	local vector TraceStart;
-	local vector TraceExtent;
-	local TraceHitInfo HitInfo;
-
-	// these should be randomized
-	TraceStart = HitLoc + ( Vect(0,0,15));
-	TraceDest =  HitLoc - ( Vect(0,0,100));
-
-	TraceActor = Trace( out_HitLocation, out_HitNormal, TraceDest, TraceStart, false, TraceExtent, HitInfo, TRACEFLAG_PhysicsVolumes );
-
-	if( TraceActor != None )
-	{
-		MIC_Decal = new(Outer) class'MaterialInstanceTimeVarying';
-		MIC_Decal.SetParent( MaterialInstanceTimeVarying'CH_Gibs.Decals.BloodSplatter' );
-
-		WorldInfo.MyDecalManager.SpawnDecal(MIC_Decal, out_HitLocation, rotator(-out_HitNormal), 200, 200, 10, false,, HitInfo.HitComponent, true, false, HitInfo.BoneName, HitInfo.Item, HitInfo.LevelIndex);
-
-		MaterialInstanceTimeVarying(MIC_Decal).SetScalarStartTime( 'DissolveAmount',  3.0f );
-		MaterialInstanceTimeVarying(MIC_Decal).SetScalarStartTime( 'BloodAlpha',  3.0f );
-		MIC_Decal.SetScalarParameterValue( 'DissolveAmount',  3.0f );
-		MIC_Decal.SetScalarParameterValue( 'BloodAlpha',  3.0f );
-	}
-}
-
 /** Cheat that unocks all possible characters. */
 exec native function UnlockAllChars();
 
@@ -333,7 +275,6 @@ exec function TiltIt( bool bActive )
 {
 	SetControllerTiltActive( bActive );
 }
-
 
 exec function ShowStickBindings()
 {

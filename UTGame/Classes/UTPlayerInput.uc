@@ -9,10 +9,26 @@ var float LastDuckTime;
 var bool  bHoldDuck;
 var Actor.EDoubleClickDir ForcedDoubleClick;
 
+/** Multiplier used to scale the sensitivity of the controls. */
+var float SensitivityMultiplier;
+
 /**
  * Clears any pending inputs
  */
 native function ForceFlushOfInput();
+
+/**
+ * Overridden to add hooks for controller sensitivity.
+ */
+function PreProcessInput( float DeltaTime )
+{
+	// This will apply the sensitivity scaling to the controller inputs
+	if ( !WorldInfo.bWithinDemoPlayback || (Pawn == None) )
+	{
+		aTurn *= SensitivityMultiplier;
+		aLookUp *= SensitivityMultiplier;
+	}
+}
 
 simulated exec function Duck()
 {
@@ -76,6 +92,11 @@ event PlayerInput( float DeltaTime )
 	local UTHud Hud;
 	local array<QuickPickCell> Cells;
 
+	if ( WorldInfo.bWithinDemoPlayback && (Pawn != None) )
+	{
+		return;
+	}
+	
 	HUD = UTHud(MyHud);
 	if ( Hud != none && Hud.bShowQuickPick && (Hud.QuickPickDeltaAngle != 0.0) )
 	{
@@ -166,4 +187,5 @@ native function String GetUTBindNameFromCommand( String BindCommand );
 defaultproperties
 {
 	bEnableFOVScaling=true
+	SensitivityMultiplier=1.0f
 }

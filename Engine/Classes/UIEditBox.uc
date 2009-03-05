@@ -1,7 +1,7 @@
 ﻿/**
  * This basic widget allows the user to type text into an input field.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * @todo - auto-complete
  * @todo - multi-line support

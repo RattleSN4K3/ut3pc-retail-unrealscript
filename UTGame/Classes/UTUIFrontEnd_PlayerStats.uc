@@ -60,14 +60,18 @@ event PostInitialize()
 		TabControl.InsertPage(RewardsTab, 0, 4, false);
 	}
 
-	if(IsGame())
-	{
-		//@todo: Remove tabs depending on the current game mode.
-	}
-
 	StatsDataStore = UTDataStore_OnlineStats(FindDataStore('UTLeaderboards', GetPlayerOwner()));
 
 	PlayerNameLabel.SetDataStoreBinding(StatsDataStore.DetailsPlayerNick);
+}
+
+/** Scene activated event, sets up the title for the scene. */
+event SceneActivated(bool bInitialActivation)
+{
+	Super.SceneActivated(bInitialActivation);
+
+    //Make sure the stats list is active for scroll wheel support
+	UTUITabPage_StatsPage(TabControl.ActivePage).StatsList.SetFocus(none);
 }
 
 /** Setup the scene's button bar. */

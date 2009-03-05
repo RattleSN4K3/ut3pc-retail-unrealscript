@@ -37,6 +37,9 @@ var transient string ToastMessage;
 /** The time the toast message was displayed at. */
 var transient float	ShowStartTime;
 
+/** The priority of the currently displaying toast message */
+var transient int CurrentPriority;
+
 /**
  * This is true if the first frame of the toast message has been drawn.
  * We need to know this because sometimes toast messages are shown durring movies (meaning they aren't displayed)
@@ -154,43 +157,46 @@ function UTUIScene_SaveProfile ShowSaveProfileScene(UTPlayerController PlayerOwn
  * @param Message		Message to display
  * @param ToastTime		How long to display the message for.  A value of < 0 will make the message stay up forever until hidden manually, and any subsequent calls wont override the existing message.
  */
-function SetToastMessage(string Message, optional float ToastTime=6.0f)
+function SetToastMessage(string Message, optional float ToastTime=6.0f, optional int Priority=0)
 {
 	if(bToastVisible==false)
 	{
-		bToastVisible=true;
-		bHidingToast=false;
-		ToastDuration=ToastTime;
+		bToastVisible = true;
+		bHidingToast = false;
+		ToastDuration = ToastTime;
 		ToastMessage = Message;
 		ShowStartTime = GetWorldInfo().RealTimeSeconds;
 		bFirstFrame = false;
+        CurrentPriority = Priority;
 	}
-	else if(ToastDuration > 0.0f)
+	else if(ToastDuration > 0.0f && Priority >= CurrentPriority)
 	{
 		ToastMessage = Message;
 		ShowStartTime = GetWorldInfo().RealTimeSeconds + ToastTransitionTime;
+		CurrentPriority = Priority;
 	}
 }
 
 /** Called when the toast is complete and ready to be hidden. */
 event FinishToast()
 {
-	HideStartTime=GetWorldInfo().RealTimeSeconds;
-	bHidingToast=true;
+	HideStartTime = GetWorldInfo().RealTimeSeconds;
+	bHidingToast = true;
 	bFirstFrame = false;
+	CurrentPriority = 0;
 }
 
 
 defaultproperties
 {
 	ToastTransitionTime = 0.125f;
-	ToastColor=(R=0.95f,G=0.95f,B=0.95f,A=1.0f)
-	ToastTextColor=(R=0.5f,G=0.0f,B=0.0f,A=1.0f)
-	ToastImage=Texture2D'UI_HUD.UI.UI_Box01'
+	ToastColor=(R=0.15f,G=0.15f,B=0.15f,A=.75f)
+	ToastTextColor=(R=0.9f,G=0.9f,B=0.9f,A=1.0f)
+	ToastImage=Texture2D'UI_HUD.UI.T_UI_tutorial'
 	ToastImageU=0
-	ToastImageUL=32
+	ToastImageUL=1024
 	ToastImageV=0
-	ToastImageVL=32
+	ToastImageVL=512
 	ToastFont=Font'UI_Fonts_Final.Menus.Fonts_Positec'
 	ToastScale=1.5
 

@@ -12,6 +12,15 @@ const SERVERTYPE_RANKED = 2;
 //@todo: This should probably be INI set.
 const MAXIMUM_PLAYER_COUNT = 24;
 
+enum EBotCombatants
+{
+	BC_Disabled,
+	BC_Enabled,
+	BC_1_1,
+	BC_3_2,
+	BC_2_1
+};
+
 /** Tab page references for this scene. */
 var transient UTUITabPage_Options ServerSettingsTab;
 
@@ -44,6 +53,9 @@ event PostInitialize()
 	SetupButtonBar();
 
 	bForceRefreshOptionList=true;
+
+	// Force the goal score option to update its subsciber value.
+	RefreshGoalScoreOption();
 }
 
 /**
@@ -208,6 +220,10 @@ function string GenerateMutatorURLString()
 
 	if ( MutatorURLString != "" )
 	{
+		// Store the mutator list so that the mutator selection menu is persistent
+		// NOTE: PROPERTY_CUSTOMMUTCLASSES was primarily implemented for mutator filtering, but it can be reused here
+		UTGameSettingsCommon(SettingsDataStore.GetCurrentGameSettings()).SetStringProperty(PROPERTY_CUSTOMMUTCLASSES, MutatorURLString);
+
 		MutatorURLString = "?Mutator=" $ MutatorURLString;
 	}
 
@@ -276,6 +292,86 @@ function OnGameModeSelected(string InGameMode, string InDefaultMap, string GameS
 	SetDataStoreStringValue("<UTGameSettings:NumBots>", "0");
 }
 
+/** Goal score needs to be refreshed because it has different settings depending on game type. */
+function RefreshGoalScoreOption()
+{
+	local UIObject GoalScoreOption;
+
+	GoalScoreOption = FindChild('GoalScore', true);
+	if ( GoalScoreOption != None )
+	{
+		UIDataStoreSubscriber(GoalScoreOption).RefreshSubscriberValue();
+	}
+}
+
+/** Refresh the subscriber value on splitscreen when manual sets to the datastore occur */
+function RefreshSplitScreenOption()
+{
+	local UIObject SplitScreenOption;
+
+	SplitScreenOption = FindChild('SplitScreen', true);
+	if ( SplitScreenOption != None )
+	{
+		UIDataStoreSubscriber(SplitScreenOption).RefreshSubscriberValue();
+	}
+}
+
+/** Setup the number of bots and VS ratios depending on how the bot combatants option is configured */
+function SetupBotCombatants()
+{
+//	local UIObject BotCombatantOption;
+	local int ValueIndex;
+	local UTGameSettingsCommon GameSettings;
+	local name OptionName;
+	local string GameModeString;
+	local int CurrentMaxPlayers;
+
+	ValueIndex = 0;
+
+	GetDataStoreStringValue("<Registry:SelectedGameMode>", GameModeString);
+	OptionName = (GameModeString ~= "UTGame.UTDeathmatch" || GameModeString ~= "UTGame.UTBetrayalGame") ? 'BotCombatants' : 'BotCombatantsRatio';
+
+	// pbd-rly: This control may not exist on this page.  Just use the string list data store values.
+//	BotCombatantOption = FindChild(OptionName, true);
+//	if ( BotCombatantOption != None )
+//	{
+		ValueIndex = StringListDataStore.GetCurrentValueIndex(OptionName);
+//	}
+
+	// Setup the bot game settings depending on the results of the bot combatants selection.
+	GameSettings = UTGameSettingsCommon(SettingsDataStore.GetCurrentGameSettings());
+
+	if( ValueIndex == BC_Disabled )
+	{
+		SetDataStoreStringValue("<UTGameSettings:NumBots>", "0");
+		GameSettings.SetStringSettingValue(CONTEXT_VSBOTS, CONTEXT_VSBOTS_NONE, false);
+		//`log( "SetupBotCombatants - BC_Disabled" );
+	}
+	else if ( ValueIndex == BC_Enabled )
+	{
+		// If enabled, set the number of bots to the max players but no more than 32.
+		CurrentMaxPlayers = Clamp(GameSettings.MaxPlayers, 0, 16);
+		SetDataStoreStringValue("<UTGameSettings:NumBots>", string(CurrentMaxPlayers));
+		GameSettings.SetStringSettingValue(CONTEXT_VSBOTS, CONTEXT_VSBOTS_NONE, false);
+		//`log( "SetupBotCombatants - BC_Enabled" );
+	}
+	else if ( ValueIndex == BC_1_1 )
+	{
+		GameSettings.SetStringSettingValue(CONTEXT_VSBOTS, CONTEXT_VSBOTS_1_TO_1, false);
+		GameSettings.MaxPlayers = Min(GameSettings.MaxPlayers,16);
+	}
+	else if ( ValueIndex == BC_3_2 )
+	{
+		GameSettings.SetStringSettingValue(CONTEXT_VSBOTS, CONTEXT_VSBOTS_3_TO_2, false);
+		GameSettings.MaxPlayers = Min(GameSettings.MaxPlayers,12);
+	}
+	else if ( ValueIndex == BC_2_1 )
+	{
+		GameSettings.SetStringSettingValue(CONTEXT_VSBOTS, CONTEXT_VSBOTS_2_TO_1, false);
+		GameSettings.MaxPlayers = Min(GameSettings.MaxPlayers,10);
+	}
+}
+
 /** Sets up the game settings object using the current options. */
 function SetupGameSettings()
 {
@@ -315,6 +411,15 @@ function SetupGameSettings()
 		break;
 	}
 
+	// Setup the number of bots
+	SetupBotCombatants();
+
+	// Up the max player count by 1 for a dedicated server
+	if (StringListDataStore.GetCurrentValueIndex('DedicatedServer') == 1)
+	{
+		GameSettings.MaxPlayers += 1;
+	}
+
 	GameSettings.NumPrivateConnections = Clamp(GameSettings.NumPrivateConnections, 0, GameSettings.MaxPlayers-1);
 	GameSettings.NumPublicConnections = GameSettings.MaxPlayers - GameSettings.NumPrivateConnections;
 
@@ -325,6 +430,11 @@ function SetupGameSettings()
 
 	// apply the selected mutators to the game settings object
 	MutatorURLString = GenerateMutatorURLString();
+
+	// Store the current mutators before 'SetMutators' overrides PROPERTY_CUSTOMMUTCLASSES (which is used to save mutators in the .ini)
+	if (SettingsDataStore != none)
+		SettingsDataStore.StoreCurrentSettings(SettingsProfileName);
+
 	GameSettings.SetMutators(MutatorURLString);
 
 	// Set the map name we are playing on.
@@ -418,8 +528,20 @@ function OnGameCreated(bool bWasSuccessful)
 				// Setup server options based on server type.
 				GameSettings = SettingsDataStore.GetCurrentGameSettings();
 
-				// append options from the OnlineGameSettings class
+				// Append server password if we have one
+				if(GetDataStoreStringValue("<Registry:ServerPassword>", OutStringValue) && Len(OutStringValue)>0)
+					GameSettings.SetStringSettingValue(CONTEXT_LOCKEDSERVER, CONTEXT_LOCKEDSERVER_YES, false);
+				else
+					GameSettings.SetStringSettingValue(CONTEXT_LOCKEDSERVER, CONTEXT_LOCKEDSERVER_NO, false);
+
+
+				// append options from the OnlineGameSettings class (must be done after 'lockedserver' is set above)
 				GameSettings.BuildURL(TravelURL);
+
+
+				// If a password value was set, append it to the URL
+				if (OutStringValue != "")
+					TravelURL $= "?GamePassword=" $ StripInvalidPasswordCharacters(OutStringValue);
 
 				if(IsConsole(CONSOLE_Ps3))
 				{
@@ -429,21 +551,10 @@ function OnGameCreated(bool bWasSuccessful)
 					}
 				}
 
-				// Append server password if we have one
-				if(GetDataStoreStringValue("<Registry:ServerPassword>", OutStringValue) && Len(OutStringValue)>0)
-				{
-					TravelURL $= "?GamePassword=" $ StripInvalidPasswordCharacters(OutStringValue);
-					GameSettings.SetStringSettingValue(CONTEXT_LOCKEDSERVER, CONTEXT_LOCKEDSERVER_YES, false);
-				}
-				else
-				{
-					GameSettings.SetStringSettingValue(CONTEXT_LOCKEDSERVER, CONTEXT_LOCKEDSERVER_NO, false);
-				}
-
 				// Num play needs to be the number of bots + 1 (the player).
 				if(GameSettings.GetIntProperty(PROPERTY_NUMBOTS, OutValue))
 				{
-					TravelURL $= "?NumPlay=" $ (OutValue+1);
+					TravelURL $= "?NumPlay=" $OutValue;
 				}
 
 				// append the game mode
@@ -462,6 +573,9 @@ function OnGameCreated(bool bWasSuccessful)
 				TravelURL = "open " $ MapTab.GetFirstMap() $ TravelURL $ "?listen";
 
 				`Log("UTUIFrontEnd_HostGame::OnGameCreated - Game Created, Traveling: " $ TravelURL);
+
+				// Enable/disable LAN server bandwidth optimizations
+				SetLanPlay(GameSettings.bIsLanMatch);
 
 				// Do the server travel.
 				ConsoleCommand(TravelURL);
@@ -539,24 +653,23 @@ function FinishStartDedicated()
 	// Setup the game settings object with basic settings
 	SetupGameSettings();
 
-	// @todo: Is this the correct URL to use?
-	GameSettings.BuildURL(TravelURL);
-
 	// Append server password if we have one
 	if(GetDataStoreStringValue("<Registry:ServerPassword>", Password) && Len(Password)>0)
-	{
-		TravelURL $= "?GamePassword=" $ StripInvalidPasswordCharacters(Password);
 		GameSettings.SetStringSettingValue(CONTEXT_LOCKEDSERVER, CONTEXT_LOCKEDSERVER_YES, false);
-	}
 	else
-	{
 		GameSettings.SetStringSettingValue(CONTEXT_LOCKEDSERVER, CONTEXT_LOCKEDSERVER_NO, false);
-	}
+
+
+	GameSettings.BuildURL(TravelURL);
+
+
+	if (Password != "")
+		TravelURL $= "?GamePassword=" $ StripInvalidPasswordCharacters(Password);
 
 	// Num play needs to be the number of bots + 1 (the player).
 	if(GameSettings.GetIntProperty(PROPERTY_NUMBOTS, OutValue))
 	{
-		TravelURL $= "?NumPlay=" $ (OutValue+1);
+		TravelURL $= "?NumPlay=" $OutValue;
 	}
 
 	TravelURL $= "?game=" $ GameMode;
@@ -570,6 +683,10 @@ function FinishStartDedicated()
 
 	// Append Extra Common Options (i.e. name,
 	TravelURL $= GetCommonOptionsURL();
+
+	// If a LAN server is being setup, then enable LAN server bandwidth optimizations
+	if (GameSettings.bIsLANMatch)
+		TravelURL @= "-lanplay";
 
 	// Setup dedicated server
 	StartDedicatedServer(MapTab.GetFirstMap() $ TravelURL);
@@ -656,4 +773,5 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 defaultproperties
 {
 	bRequiresNetwork=true
+	SettingsProfileName="HostGameMenu"
 }

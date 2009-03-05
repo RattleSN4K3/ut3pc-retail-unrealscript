@@ -251,7 +251,7 @@ event NextObjective()
 	}
 }
 
-function PlaySound(SoundCue SoundToPlay)
+function PlaySound(SoundCue SoundToPlay, optional bool bIsUISound)
 {
 	//`log( "!!!!!!!!!!!!!!!!!!!!!!!MISSIONBRIEFING PLAYSOUND:" @ SoundToPlay );
 	AudioPlayer.SoundCue = SoundToPlay;

@@ -51,6 +51,9 @@ var	CylinderComponent		CylinderComponent;
 /** If true, this projectile will have its rotation updated each frame to match its velocity */
 var bool bRotationFollowsVelocity;
 
+/** If true, init projectiles rotation when a velocity is received */
+var bool bInitRotationFromVelocity;
+
 /** if true, not blocked by vehicle shields with bIgnoreFlaggedProjectiles*/
 var bool bNotBlockedByShield;
 

@@ -153,11 +153,16 @@ var					bool	bOnlyDirtyReplication;		// if true, only replicate actor if bNetDir
 
 
 /** Demo recording variables */
-var transient				bool	bDemoRecording;	/** set when we are currently replicating this Actor into a demo */
+var transient				bool	bDemoRecording;		/** set when we are currently replicating this Actor into a demo */
+var transient				bool	bClientDemoRecording;	/** set when we are recording a clientside demo */
+var transient				bool	bRepClientDemo;		/** set if remote client is recording a clientside demo */
 var					bool	bDemoOwner;					// Demo recording driver owns this actor.
 
 /** Should replicate initial rotation.  This property should never be changed during execution, as the client and server rely on the default value of this property always being the same. */
 var const           bool    bNetInitialRotation;
+
+/** If true, never replicate rotation */
+var					bool	bNeverReplicateRotation;
 
 var					bool	bReplicateRigidBodyLocation;	// replicate Location property even when in PHYS_RigidBody
 var					bool	bKillDuringLevelTransition;	// If set, actor and its components are marked as pending kill during seamless map transitions

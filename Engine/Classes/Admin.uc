@@ -45,6 +45,13 @@ reliable server function ServerKick( string S )
 	WorldInfo.Game.Kick(S);
 }
 
+exec function SessionBan(string S)
+{
+	ServerSessionBan(S);
+}
+
+
+
 exec function PlayerList()
 {
 	local PlayerReplicationInfo PRI;
@@ -72,6 +79,11 @@ exec function Switch( string URL )
 reliable server function ServerSwitch(string URL)
 {
 	WorldInfo.ServerTravel(URL);
+}
+
+reliable server function ServerSessionBan(string S)
+{
+	WorldInfo.Game.SessionBan(S);
 }
 
 defaultproperties

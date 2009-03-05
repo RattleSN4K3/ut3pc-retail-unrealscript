@@ -3,7 +3,7 @@
  */
 class OnlineSubsystemGameSpy extends OnlineSubsystemCommonImpl
 	native
-	implements(OnlinePlayerInterface,OnlineVoiceInterface,OnlineStatsInterface,OnlineSystemInterface,OnlineAccountInterface,OnlineNewsInterface)
+	implements(OnlinePlayerInterface,OnlineVoiceInterface,OnlineStatsInterface,OnlineSystemInterface,OnlineAccountInterface,OnlineNewsInterface,OnlinePlayerInterfaceEx)
 	config(Engine);
 
 /** Pointer to the object that handles the game interface */
@@ -60,11 +60,21 @@ struct native PerUserProfileDelegates
 	var array<delegate<OnReadProfileSettingsComplete> > Delegates;
 };
 
-/** Holds callbacks for upto 4 splitscreen players */
+/** Holds callbacks for up to 4 splitscreen players */
 var PerUserProfileDelegates PerUserReadProfileSettings[4];
 
 /** The array of delegates that notify write completion of profile data */
 var array<delegate<OnWriteProfileSettingsComplete> > WriteProfileSettingsDelegates;
+
+/** Since the static array of dynamic array syntax appears to be broken */
+struct native PerUserDelegateLists
+{
+	/** The array of delegates for notifying when an achievement write has completed */
+	var array<delegate<OnUnlockAchievementComplete> > AchievementDelegates;
+};
+
+/** Per user array of array of delegates */
+var PerUserDelegateLists PerUserDelegates[4];
 
 /** The cached profile for the player */
 var OnlineProfileSettings CachedProfile;
@@ -352,7 +362,7 @@ var const int ServerLocalId;
 var const array<UniqueNetId> MuteList;
 
 /** The IP address of the STUN server to talk to */
-var const config string StunServerAddress;
+var const config array<string> StunServerAddress;
 
 /** The STUN object to query for NAT information */
 var const native transient pointer StunClient{FSTUNClient};
@@ -2401,6 +2411,296 @@ native function bool IsKeyValid();
  * @return true if the key was stored successfully, false otherwise
  */
 native function bool SaveKey(string ProductKey);
+
+/************************************************************************/
+/*   UT3G implementation for trophies                                   */
+/************************************************************************/
+
+/**
+* Displays the UI that allows a player to give feedback on another player
+*
+* @param LocalUserNum the controller number of the associated user
+* @param PlayerId the id of the player having feedback given for
+*
+* @return TRUE if it was able to show the UI, FALSE if it failed
+*/
+function bool ShowFeedbackUI(byte LocalUserNum,UniqueNetId PlayerId)  //should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ShowFeedbackUI");
+	return false;
+}
+
+/**
+* Displays the gamer card UI for the specified player
+*
+* @param LocalUserNum the controller number of the associated user
+* @param PlayerId the id of the player to show the gamer card of
+*
+* @return TRUE if it was able to show the UI, FALSE if it failed
+*/
+function bool ShowGamerCardUI(byte LocalUserNum,UniqueNetId PlayerId) //should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ShowGamerCardUI");
+	return false;
+}
+
+/**
+* Displays the messages UI for a player
+*
+* @param LocalUserNum the controller number of the associated user
+*
+* @return TRUE if it was able to show the UI, FALSE if it failed
+*/
+function bool ShowMessagesUI(byte LocalUserNum)	//should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ShowMessagesUI");
+	return false;
+}
+
+/**
+* Displays the achievements UI for a player
+*
+* @param LocalUserNum the controller number of the associated user
+*
+* @return TRUE if it was able to show the UI, FALSE if it failed
+*/
+function bool ShowAchievementsUI(byte LocalUserNum)  //should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ShowAchievementsUI");
+	return false;
+}
+
+/**
+* Displays the invite ui
+*
+* @param LocalUserNum the local user sending the invite
+* @param InviteText the string to prefill the UI with
+*/
+function bool ShowInviteUI(byte LocalUserNum,optional string InviteText)   //should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ShowInviteUI");
+	return false;
+}
+
+/**
+* Displays the marketplace UI for content
+*
+* @param LocalUserNum the local user viewing available content
+*/
+function bool ShowContentMarketplaceUI(byte LocalUserNum) //should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ShowContentMarketplaceUI");
+	return false;
+}
+
+/**
+* Displays the marketplace UI for memberships
+*
+* @param LocalUserNum the local user viewing available memberships
+*/
+function bool ShowMembershipMarketplaceUI(byte LocalUserNum)   //should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ShowMembershipMarketplaceUI");
+	return false;
+}
+
+/**
+* Displays the UI that allows the user to choose which device to save content to
+*
+* @param LocalUserNum the controller number of the associated user
+* @param SizeNeeded the size of the data to be saved in bytes
+* @param bForceShowUI true to always show the UI, false to only show the
+*		  UI if there are multiple valid choices
+*
+* @return TRUE if it was able to show the UI, FALSE if it failed
+*/
+function bool ShowDeviceSelectionUI(byte LocalUserNum,int SizeNeeded,bool bForceShowUI = false) //should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ShowDeviceSelectionUI");
+	return false;
+}
+
+/**
+* Adds the delegate used to notify the gameplay code that the user has completed
+* their device selection
+*
+* @param DeviceDelegate the delegate to use for notifications
+*/
+function AddDeviceSelectionDoneDelegate(byte LocalUserNum,delegate<OnDeviceSelectionComplete> DeviceDelegate) //should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!AddDeviceSelectionDoneDelegate");
+}
+
+/**
+* Removes the specified delegate from the list of callbacks
+*
+* @param DeviceDelegate the delegate to use for notifications
+*/
+function ClearDeviceSelectionDoneDelegate(byte LocalUserNum,delegate<OnDeviceSelectionComplete> DeviceDelegate)  //should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ClearDeviceSelectionDoneDelegate");
+}
+/**
+* Fetches the results of the device selection
+*
+* @param LocalUserNum the player to check the results for
+* @param DeviceName out param that gets a copy of the string
+*
+* @return the ID of the device that was selected
+* NOTE: Zero means the user hasn't selected one
+*/
+function int GetDeviceSelectionResults(byte LocalUserNum,out string DeviceName) //should do nothing 
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!GetDeviceSelectionResults");
+	return 0;
+}
+/**
+* Delegate used when the device selection request has completed
+*
+* @param bWasSuccessful true if the async action completed without error, false if there was an error
+*/
+delegate OnDeviceSelectionComplete(bool bWasSuccessful);  //should do nothing
+
+/**
+* Checks the device id to determine if it is still valid (could be removed)
+*
+* @param DeviceId the device to check
+*
+* @return true if valid, false otherwise
+*/
+function bool IsDeviceValid(int DeviceId)	//should do nothing
+{
+	`log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!IsDeviceValid");
+	return false;
+}
+/**
+* Unlocks the specified achievement for the specified user
+*
+* @param LocalUserNum the controller number of the associated user
+* @param AchievementId the id of the achievement to unlock
+*
+* @return TRUE if the call worked, FALSE otherwise
+*/
+native function bool UnlockAchievement(byte LocalUserNum,int AchievementId);
+
+/**
+* Adds the delegate used to notify the gameplay code that the achievement unlocking has completed
+*
+* @param LocalUserNum which user to watch for read complete notifications
+* @param UnlockAchievementCompleteDelegate the delegate to use for notifications
+*/
+function AddUnlockAchievementCompleteDelegate(byte LocalUserNum,delegate<OnUnlockAchievementComplete> UnlockAchievementCompleteDelegate)
+{
+	// Make sure the user is valid
+	if (LocalUserNum >= 0 && LocalUserNum < 4)
+	{
+		if (PerUserDelegates[LocalUserNum].AchievementDelegates.Find(UnlockAchievementCompleteDelegate) == INDEX_NONE)
+		{
+			PerUserDelegates[LocalUserNum].AchievementDelegates[PerUserDelegates[LocalUserNum].AchievementDelegates.Length] = UnlockAchievementCompleteDelegate;
+		}
+	}
+	else
+	{
+		`warn("Invalid index ("$LocalUserNum$") passed to AddUnlockAchievementCompleteDelegate()");
+	}
+}
+
+/**
+* Clears the delegate used to notify the gameplay code that the achievement unlocking has completed
+*
+* @param LocalUserNum which user to watch for read complete notifications
+* @param UnlockAchievementCompleteDelegate the delegate to use for notifications
+*/
+function ClearUnlockAchievementCompleteDelegate(byte LocalUserNum,delegate<OnUnlockAchievementComplete> UnlockAchievementCompleteDelegate)
+{
+	local int RemoveIndex;
+
+	// Make sure the user is valid
+	if (LocalUserNum >= 0 && LocalUserNum < 4)
+	{
+		RemoveIndex = PerUserDelegates[LocalUserNum].AchievementDelegates.Find(UnlockAchievementCompleteDelegate);
+		if (RemoveIndex != INDEX_NONE)
+		{
+			PerUserDelegates[LocalUserNum].AchievementDelegates.Remove(RemoveIndex,1);
+		}
+	}
+	else
+	{
+		`warn("Invalid index ("$LocalUserNum$") passed to ClearUnlockAchievementCompleteDelegate()");
+	}
+}
+
+/**
+* Delegate used when the achievement unlocking has completed
+*
+* @param bWasSuccessful true if the async action completed without error, false if there was an error
+*/
+delegate OnUnlockAchievementComplete(bool bWasSuccessful);
+
+/**
+* Returns whether or not an achievement has been unlocked
+*
+* @return true if the achievement is already unlocked, false otherwise
+*/
+native function bool IsAchievementUnlocked(int AchievementId);
+
+/**
+* Unlocks a gamer picture for the local user
+*
+* @param LocalUserNum the user to unlock the picture for
+* @param PictureId the id of the picture to unlock
+*/
+function bool UnlockGamerPicture(byte LocalUserNum,int PictureId) //should do nothing
+{
+	return false;
+}
+
+/**
+* Called when an external change to player profile data has occured
+*/
+delegate OnProfileDataChanged();  //should do nothing
+
+/**
+* Sets the delegate used to notify the gameplay code that someone has changed their profile data externally
+*
+* @param LocalUserNum the user the delegate is interested in
+* @param ProfileDataChangedDelegate the delegate to use for notifications
+*/
+function AddProfileDataChangedDelegate(byte LocalUserNum,delegate<OnProfileDataChanged> ProfileDataChangedDelegate) //should do nothing
+{
+}
+/**
+* Clears the delegate used to notify the gameplay code that someone has changed their profile data externally
+*
+* @param LocalUserNum the user the delegate is interested in
+* @param ProfileDataChangedDelegate the delegate to use for notifications
+*/
+function ClearProfileDataChangedDelegate(byte LocalUserNum,delegate<OnProfileDataChanged> ProfileDataChangedDelegate)   //should do nothing
+{
+}
+/**
+* Displays the UI that shows a user's list of friends
+*
+* @param LocalUserNum the controller number of the associated user
+* @param PlayerId the id of the player being invited
+*
+* @return TRUE if it was able to show the UI, FALSE if it failed
+*/
+function bool ShowFriendsInviteUI(byte LocalUserNum,UniqueNetId PlayerId)    //should do nothing
+{
+	return false;
+}
+/**
+* Displays the UI that shows the player list
+*
+* @param LocalUserNum the controller number of the associated user
+*
+* @return TRUE if it was able to show the UI, FALSE if it failed
+*/
+function bool ShowPlayersUI(byte LocalUserNum) //should do nothing
+{
+	return false;
+}
 
 defaultproperties
 {

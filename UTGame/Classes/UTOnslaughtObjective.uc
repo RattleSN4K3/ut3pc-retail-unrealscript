@@ -25,6 +25,9 @@ var(ObjectiveHealth) float LinkHealMult;			// If > 0, Link Gun secondary heals a
 /** true when in Neutral state */
 var bool bIsNeutral;
 
+/** If true, associate playerstarts with this objective */
+var() bool bAssociatePlayerStarts;
+
 
 
 replication
@@ -158,6 +161,12 @@ function bool StandGuard(UTBot B)
 		return false;
 	}
 
+	// heroes can't trigger nodes
+	if ( (UTPawn(B.Pawn) != None) && UTPawn(B.Pawn).IsHero() )
+	{
+		return true;
+	}
+
 	BotVehicle = UTVehicle(B.Pawn);
 	if (BotVehicle != None && BotVehicle.ImportantVehicle())
 	{
@@ -224,6 +233,7 @@ simulated event bool IsCritical()
 defaultproperties
 {
 	bStatic=false
+	bAssociatePlayerStarts=true
 }
 
 

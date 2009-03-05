@@ -11,6 +11,11 @@ var ParticleSystemComponent BaseGlow;
 /** Used to scale weapon pickup drawscale */
 var float WeaponPickupScaling;
 
+var array<PawnToucher> Customers;
+
+/** clientside flag - whether the locker should be displayed as active and having weapons available */
+var bool bIsActive;
+
 
 
 simulated function InitializePickup()
@@ -100,7 +105,6 @@ function bool CheckForErrors()
 /**
  * If our charge is not a super weapon and weaponstay is on, set weapon stay
  */
-
 function SetWeaponStay()
 {
 	bWeaponStay = ( !WeaponPickupClass.Default.bSuperWeapon && UTGame(WorldInfo.Game).bWeaponStay );
@@ -114,13 +118,83 @@ function StartSleeping()
 
 function bool AllowRepeatPickup()
 {
-    return !bWeaponStay;
+    return true;
+}
+
+function bool AddCustomer(Pawn P)
+{
+	local int			i;
+	local PawnToucher	PT;
+
+	if ( UTInventoryManager(P.InvManager) == None )
+		return false;
+
+	if ( Customers.Length > 0 )
+		for ( i=0; i<Customers.Length; i++ )
+		{
+			if ( Customers[i].NextTouchTime < WorldInfo.TimeSeconds )
+			{
+				if ( Customers[i].P == P )
+				{
+					Customers[i].NextTouchTime = WorldInfo.TimeSeconds + 30;
+					return true;
+				}
+				Customers.Remove(i,1);
+				i--;
+			}
+			else if ( Customers[i].P == P )
+			{
+				return false;
+			}
+		}
+
+	PT.P = P;
+	PT.NextTouchTime = WorldInfo.TimeSeconds + 30;
+	Customers[Customers.Length] = PT;
+	return true;
+}
+
+function bool HasCustomer(Pawn P)
+{
+	local int i;
+	local bool bFoundCustomer;
+
+	if ( Customers.Length > 0 )
+	{
+		for ( i=0; i<Customers.Length; i++ )
+		{
+			bFoundCustomer = (Customers[i].P == P);
+			if ( Customers[i].NextTouchTime < WorldInfo.TimeSeconds )
+			{
+				Customers.Remove(i,1);
+				i--;
+				if ( bFoundCustomer )
+					return false;
+			}
+			else if ( bFoundCustomer )
+				return true;
+		}
+	}
+	return false;
+}
+function bool AllowPickup(UTBot Bot)
+{
+    return false; 
 }
 
 function PickedUpBy(Pawn P)
 {
 	local UTPlayerController PC;
 
+	if ( bWeaponStay )
+	{
+		AddCustomer(P);
+		if ( (P.Controller != None) && P.Controller.IsLocalPlayerController() )
+		{
+			ShowHidden();
+			SetTimer(30,false,'ShowActive');
+		}
+	}
 	Super.PickedUpBy(P);
 	if ( WeaponPickupClass.Default.bCanDestroyBarricades )
 	{
@@ -150,6 +224,104 @@ function SpawnCopyFor( Pawn Recipient )
 	}
 	Recipient.MakeNoise(0.2);
 	super.SpawnCopyFor(Recipient);
+}
+
+simulated function ShowActive();
+
+simulated function ShowHidden()
+{
+	BaseGlow.DeactivateSystem();
+	if ( PickupMesh != None )
+		PickupMesh.SetHidden(true);
+	bIsActive = false;
+}
+
+simulated function NotifyLocalPlayerDead(PlayerController PC);
+
+auto state Pickup
+{
+	function bool AllowPickup(UTBot Bot)
+	{
+		return !bWeaponStay || !HasCustomer(Bot.Pawn);
+	}
+
+	simulated function ShowActive()
+	{
+		BaseGlow.SetActive(true);
+		bIsActive = true;
+		if ( PickupMesh != None )
+			PickupMesh.SetHidden(false);
+	}
+
+	simulated function NotifyLocalPlayerDead(PlayerController PC)
+	{
+		if ( bWeaponStay )
+		{
+			ShowActive();
+		}
+	}
+
+	// When touched by an actor.
+	simulated event Touch( actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
+	{
+		local Pawn Recipient;
+		local Controller PickupController;
+
+		if ( !bWeaponStay )
+		{
+			super.Touch(Other, OtherComp, HitLocation, HitNormal);
+			return;
+		}
+		// If touched by a player pawn, let him pick this up.
+		Recipient = Pawn(Other);
+		if( (Recipient != None) && !HasCustomer(Recipient) && ValidTouch(Recipient) )
+		{	
+			if ( bIsActive )
+			{
+				PickupController = Recipient.Controller;
+				if ( (PickupController == None) && (Recipient.DrivenVehicle != None) )
+				{
+					PickupController = Recipient.DrivenVehicle.Controller;
+				}
+				if ( (PickupController != None) && PickupController.IsLocalPlayerController() )
+				{
+					ShowHidden();
+					SetTimer(30,false,'ShowActive');
+				}
+			}
+			if ( Role == ROLE_Authority )
+			{
+				if ( !AddCustomer(Recipient) )
+					return;
+				GiveTo(Recipient);
+			}
+		}
+	}
+
+	/*
+	 Validate touch (if valid return true to let other pick me up and trigger event).
+	*/
+	simulated function bool ValidTouch( Pawn Other )
+	{
+		if ( Role == ROLE_Authority )
+		{
+			return Super.ValidTouch(Other);
+		}
+
+		// make sure its a live player
+		if (Other == None || !Other.bCanPickupInventory || Other.Controller == None || !FastTrace(Other.Location, Location) )
+		{
+			return false;
+		}
+		return true;
+	}
+
+	simulated event BeginState(name PreviousStateName)
+	{
+		Super.BeginState(PreviousStateName);
+
+		ShowActive();
+	}
 }
 
 defaultproperties

@@ -61,6 +61,8 @@ var float CheckRadius;
 
 /** If true, attach explosion effect to vehicles */
 var bool bAttachExplosionToVehicles;
+/** If true, attach explosion effect to pawns */
+var bool bAttachExplosionToPawns;
 
 /** Make true if want to spawn ProjectileLight.  Set false in TickSpecial() once it's been determined whether Instigator is local player.  Done there to make sure instigator has been replicated */
 var bool bCheckProjectileLight;
@@ -171,7 +173,7 @@ simulated function PostBeginPlay()
 	// Set its Ambient Sound
 	if (AmbientSound != None && WorldInfo.NetMode != NM_DedicatedServer && !bSuppressSounds)
 	{
-		if ( bImportantAmbientSound || (!WorldInfo.bDropDetail && (WorldInfo.GetDetailMode() != DM_Low)) )
+		if ( bImportantAmbientSound || (!WorldInfo.bDropDetail && (WorldInfo.GetDetailMode() != DM_Low) && !class'Engine'.static.IsSplitScreen()) )
 		{
 			AmbientComponent = CreateAudioComponent(AmbientSound, true, true);
 			if ( AmbientComponent != None )
@@ -179,6 +181,12 @@ simulated function PostBeginPlay()
 				AmbientComponent.bShouldRemainActiveIfDropped = true;
 			}
 		}
+	}
+
+	// hack the leviathan shock projectile to use the normal shock ball (leviathan ball is ugly with detail dropping)
+	if (class.name == 'UTProj_LeviathanShockBall')
+	{
+		ProjFlightTemplate = class'UTProj_ShockBall'.default.ProjFlightTemplate;
 	}
 
 	// Spawn any effects needed for flight
@@ -255,7 +263,7 @@ simulated function bool ProjectileHurtRadius( float DamageAmount, float InDamage
 	local vector AltOrigin;
 
 	// Prevent HurtRadius() from being reentrant.
-	if ( bHurtEntry )
+	if ( bHurtEntry || bShuttingDown )
 		return false;
 
 	bHurtEntry = true;
@@ -383,6 +391,7 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 	local ParticleSystemComponent ProjExplosion;
 	local Actor EffectAttachActor;
 	local MaterialInstanceTimeVarying MITV_Decal;
+	local bool bIsPawn, bIsVehicle;
 
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
@@ -393,7 +402,11 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 		}
 		if (ProjExplosionTemplate != None && EffectIsRelevant(Location, false, MaxEffectDistance))
 		{
-			EffectAttachActor = (bAttachExplosionToVehicles || (UTVehicle(ImpactedActor) == None)) ? ImpactedActor : None;
+			//Attach to non-pawns, pawns if we allow it, or vehicles if we allow it
+			bIsPawn = (Pawn(ImpactedActor) != None) ? True : False;
+			bIsVehicle = (UTVehicle(ImpactedActor) != None) ? True : False;
+			EffectAttachActor = (!bIsPawn || (bAttachExplosionToPawns && !bIsVehicle) || (bAttachExplosionToVehicles && bIsVehicle)) ? ImpactedActor : None;
+
 			if (!bAdvanceExplosionEffect)
 			{
 				ProjExplosion = WorldInfo.MyEmitterPool.SpawnEmitter(ProjExplosionTemplate, HitLocation, rotator(HitNormal), EffectAttachActor);
@@ -709,6 +722,9 @@ defaultproperties
 	bSwitchToZeroCollision=true
 	CustomGravityScaling=1.0
 	bAttachExplosionToVehicles=true
+	bAttachExplosionToPawns=true
+	bNeverReplicateRotation=true
+	bInitRotationFromVelocity=true
 
 	Components.Remove(Sprite)
 	bShuttingDown=false

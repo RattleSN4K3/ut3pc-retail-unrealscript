@@ -892,4 +892,5 @@ defaultproperties
 	NonPreferredVehiclePathMultiplier=2.0
 
 	HornIndex=3
+	VehicleIndex=14
 }

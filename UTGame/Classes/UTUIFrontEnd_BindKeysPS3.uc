@@ -629,7 +629,7 @@ defaultproperties
 	Preset1(UTPS3Button_L2)=DBA_AltFire;
 	Preset1(UTPS3Button_L3)=DBA_Jump;
 
-	Preset1(UTPS3Button_DPadUp)=DBA_ToggleMinimap;
+	Preset1(UTPS3Button_DPadUp)=DBA_TriggerHero;
 	Preset1(UTPS3Button_DPadDown)=DBA_FeignDeath;
 	Preset1(UTPS3Button_DPadLeft)=DBA_ShowCommandMenu;
 	Preset1(UTPS3Button_DPadRight)=DBA_ToggleSpeaking;
@@ -650,7 +650,7 @@ defaultproperties
 	Preset2(UTPS3Button_L2)=DBA_WeaponPicker;
 	Preset2(UTPS3Button_L3)=DBA_Jump;
 
-	Preset2(UTPS3Button_DPadUp)=DBA_ToggleMinimap;
+	Preset2(UTPS3Button_DPadUp)=DBA_TriggerHero;
 	Preset2(UTPS3Button_DPadDown)=DBA_FeignDeath;
 	Preset2(UTPS3Button_DPadLeft)=DBA_ShowCommandMenu;
 	Preset2(UTPS3Button_DPadRight)=DBA_ToggleSpeaking;
@@ -671,7 +671,7 @@ defaultproperties
 	Preset3(UTPS3Button_L2)=DBA_NextWeapon;
 	Preset3(UTPS3Button_L3)=DBA_Jump;
 
-	Preset3(UTPS3Button_DPadUp)=DBA_ToggleMinimap;
+	Preset3(UTPS3Button_DPadUp)=DBA_TriggerHero;
 	Preset3(UTPS3Button_DPadDown)=DBA_FeignDeath;
 	Preset3(UTPS3Button_DPadLeft)=DBA_ShowCommandMenu;
 	Preset3(UTPS3Button_DPadRight)=DBA_ToggleSpeaking;
@@ -724,4 +724,5 @@ defaultproperties
 	CrucialBindValues(DBA_NextWeapon)=true
 	CrucialBindValues(DBA_BestWeapon)=false
 	CrucialBindValues(DBA_PrevWeapon)=false
+	CrucialBindValues(DBA_TriggerHero)=true
 }

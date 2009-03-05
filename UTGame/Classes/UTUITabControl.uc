@@ -44,6 +44,29 @@ event PostInitialize()
  */
 function bool ActivateBestTab( int PlayerIndex, optional bool bFocusPage=true, optional int StartIndex=0 )
 {
+	local UTUIScene Parent;
+	local WorldInfo WI;
+	local UTGameReplicationInfo GRI;
+
+	//Force the score tab to be the active tab instead of gametab in non-campaign scenarios
+	if (DefaultTabWidgetTag == 'GameTab')
+	{
+		Parent = UTUIScene(GetScene());
+		if (Parent != None)
+		{
+			WI = Parent.GetWorldInfo();
+
+			if (WI != none)
+			{
+				GRI = UTGameReplicationInfo(WI.GRI);
+				if ((WI.NetMode == NM_Standalone) || (GRI != None && !GRI.bStoryMode)) 
+				{
+					DefaultTabWidgetTag = 'ScoreTab';
+				}
+			}
+		}
+	}
+
 	if ( DefaultTabWidgetTag != '' && ActivateTabByTag( DefaultTabWidgetTag ) )
 	{
 		return true;

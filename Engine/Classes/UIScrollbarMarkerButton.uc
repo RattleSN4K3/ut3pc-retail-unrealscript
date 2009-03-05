@@ -2,7 +2,7 @@
  * A special button used as the marker in the UIScrollbar class.  It processes input axis events while in the pressed state and
  * sends notifications to the owning scrollbar widget.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIScrollbarMarkerButton extends UIScrollbarButton
 	native(inherit)

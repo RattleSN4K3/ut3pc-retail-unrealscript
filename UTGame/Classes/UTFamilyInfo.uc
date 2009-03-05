@@ -156,6 +156,21 @@ var float BaseTranslationOffset;
 /** death camera blood effect */
 var class<UTEmitCameraEffect> DeathCameraEffect;
 
+/** Camera offsets for Hero */
+var float ExtraCameraZOffset;
+var float CameraXOffset, CameraYOffset;
+var float MinCameraDistSq;
+
+/** Projectile offsets for Hero */
+var vector HeroFireOffset;
+var vector SuperHeroFireOffset;
+
+/** AnimSet for this family's Hero Melee attack */
+var AnimSet HeroMeleeAnimSet;
+
+/** How likely bot associated with this family is to betray teammates */
+var float TrustWorthiness;
+
 /**
  * Returns the # of emotes in a given group
  */
@@ -234,12 +249,16 @@ defaultproperties
 	FamilyEmotes[8]=(CategoryName="Order",EmoteTag="OrderC",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true,Command="Hold",bRequiresPlayer=true)
 	FamilyEmotes[9]=(CategoryName="Order",EmoteTag="OrderD",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true,Command="Follow",bRequiresPlayer=true)
 	FamilyEmotes[10]=(CategoryName="Order",EmoteTag="OrderE",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true,Command="Freelance",bRequiresPlayer=true)
+	FamilyEmotes[11]=(CategoryName="Order",EmoteTag="OrderF",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true,Command="DropFlag",bRequiresPlayer=false)
+	FamilyEmotes[12]=(CategoryName="UnusedOrder",EmoteTag="OrderG",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true,Command="DropOrb",bRequiresPlayer=false)
 
-	FamilyEmotes[11]=(CategoryName="Status",EmoteTag="Encouragement",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
-	FamilyEmotes[12]=(CategoryName="Status",EmoteTag="Ack",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
-	FamilyEmotes[13]=(CategoryName="Status",EmoteTag="InPosition",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
-	FamilyEmotes[14]=(CategoryName="Status",EmoteTag="UnderAttack",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
-	FamilyEmotes[15]=(CategoryName="Status",EmoteTag="AreaSecure",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+	FamilyEmotes[13]=(CategoryName="SpecialMove",EmoteTag="MeleeA",EmoteAnim="GroundPound_A")
+
+	FamilyEmotes[14]=(CategoryName="Status",EmoteTag="Encouragement",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+	FamilyEmotes[15]=(CategoryName="Status",EmoteTag="Ack",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+	FamilyEmotes[16]=(CategoryName="Status",EmoteTag="InPosition",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+	FamilyEmotes[17]=(CategoryName="Status",EmoteTag="UnderAttack",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
+	FamilyEmotes[18]=(CategoryName="Status",EmoteTag="AreaSecure",EmoteAnim="Taunt_UB_Flag_Pickup",bTopHalfEmote=true)
 
 	NonTeamEmissiveColor=(R=10.0,G=0.2,B=0.2)
 	NonTeamTintColor=(R=4.0,G=2.0,B=0.5)
@@ -266,4 +285,16 @@ defaultproperties
 	BaseTranslationOffset=7.0
 
 	DeathCameraEffect=class'UTEmitCameraEffect_BloodSplatter'
+
+	ExtraCameraZOffset=-10.0
+	CameraXOffset=0.2
+	CameraYOffset=-1.0
+	MinCameraDistSq=1.0
+
+	HeroFireOffset=(X=180.0,Y=-10.0,Z=-20.0)
+	SuperHeroFireOffset=(X=380.0,Y=-10.0,Z=-30.0)
+
+	HeroMeleeAnimSet=AnimSet'CH_AnimHuman_Hero.Anims.K_AnimHuman_Hero'
+
+	TrustWorthiness=0.0
 }

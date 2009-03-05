@@ -1,7 +1,7 @@
 ﻿/**
  * Replaces a tab page with a different tab page.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_ReplacePage extends UIAction_TabControl;
 

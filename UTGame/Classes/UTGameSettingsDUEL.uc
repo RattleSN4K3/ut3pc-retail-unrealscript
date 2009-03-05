@@ -13,6 +13,7 @@ defaultproperties
 	Properties(2)=(PropertyId=PROPERTY_GOALSCORE,Data=(Type=SDT_Int32,Value1=0),AdvertisementType=ODAT_OnlineService)
 	Properties(3)=(PropertyId=PROPERTY_TIMELIMIT,Data=(Type=SDT_Int32,Value1=5),AdvertisementType=ODAT_OnlineService)
 	// Default numbots for duel to 1
-	Properties(4)=(PropertyId=PROPERTY_NUMBOTS,Data=(Type=SDT_Int32,Value1=1),AdvertisementType=ODAT_OnlineService)
+	Properties(4)=(PropertyId=PROPERTY_NUMBOTS,Data=(Type=SDT_Int32,Value1=2),AdvertisementType=ODAT_OnlineService)
+	Properties(9)=(PropertyId=PROPERTY_NUMBOTSIA,Data=(Type=SDT_Int32,Value1=2),AdvertisementType=ODAT_DontAdvertise)
 
 }

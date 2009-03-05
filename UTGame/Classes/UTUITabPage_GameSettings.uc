@@ -16,6 +16,9 @@ var transient string MutatorScene;
 /** Whether or not we have the bot settings button visible. */
 var transient bool bAllowBotSelection;
 
+/** If a mod gametype has been selected, and the mod has specified a custom settings scene; this holds the value for loading that scene */
+var transient string CurModSettingsScene;
+
 /** Post initialization event - Setup widget delegates.*/
 event PostInitialize()
 {
@@ -71,6 +74,10 @@ function SetupButtonBar(UTUIButtonBar ButtonBar)
 	if(UTUIScene(GetScene()).GetWorldInfo().IsDemoBuild()==false)
 	{
 		ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.SelectMutators>", OnButtonBar_Mutators);
+
+		// Setup the mod settings button (if necessary)
+		if (CurModSettingsScene != "")
+			ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ModSettings>", OnButtonBar_ModSettings);
 	}
 }
 
@@ -131,6 +138,13 @@ function bool OnButtonBar_Mutators(UIScreenObject InButton, int PlayerIndex)
 	OnShowMutators();
 
 	return true;
+}
+
+function bool OnButtonBar_ModSettings(UIScreenObject InButton, int PlayerIndex)
+{
+	UTUIScene(GetScene()).OpenSceneByName(CurModSettingsScene, false);
+
+	return True;
 }
 
 

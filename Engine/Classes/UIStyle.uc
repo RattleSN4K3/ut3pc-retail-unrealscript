@@ -1,7 +1,7 @@
 ﻿/**
  * Contains a mapping of UIStyle_Data to the UIState each style is associated with.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIStyle extends UIRoot
 	within UISkin

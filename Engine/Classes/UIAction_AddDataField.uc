@@ -1,7 +1,7 @@
 ﻿/**
  * This action allows designers to add additional fields to
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_AddDataField extends UIAction_DataStoreField
 	native(inherit);

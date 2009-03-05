@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for all actions that manipulate data store bindings.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_DataStore extends UIAction
 	native(inherit)

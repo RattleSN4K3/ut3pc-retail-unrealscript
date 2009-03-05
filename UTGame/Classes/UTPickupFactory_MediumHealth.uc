@@ -47,4 +47,6 @@ defaultproperties
 	Glow=Glowcomp
 	Components.Add(Glowcomp)
 
+	bTrackPickup=false;
+
 }

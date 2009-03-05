@@ -413,7 +413,6 @@ simulated function StartMatch()
 	}
 
 	bMatchHasBegun = true;
-
 }
 
 /**

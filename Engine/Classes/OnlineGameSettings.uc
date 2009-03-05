@@ -91,6 +91,10 @@ var databinding const int EngineVersion;
 /** The minimum network version that is compatibile with the server */
 var databinding const int MinNetVersion;
 
+/** The IP:Port of the server (set clientside when receiving server data) */
+var databinding const string ServerIP;
+
+
 struct native PlayerRecord
 {
 	/** The player name */

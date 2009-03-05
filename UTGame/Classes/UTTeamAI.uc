@@ -557,6 +557,7 @@ function SetBotOrders(UTBot NewBot)
 function SetOrders(UTBot B, name NewOrders, Controller OrderGiver)
 {
 	local UTPlayerReplicationInfo PRI;
+	local UTCarriedObject CarriedObject;
 
 	PRI = UTPlayerReplicationInfo(B.PlayerReplicationInfo);
 	if ( UTHoldSpot(B.DefensePoint) != None )
@@ -588,6 +589,14 @@ function SetOrders(UTBot B, name NewOrders, Controller OrderGiver)
 	{
 		PutOnFreelance(B);
 		return;
+	}
+	else if ( NewOrders == 'DropFlag' )
+	{
+		CarriedObject = PRI.GetFlag();
+		if ( CarriedObject != None )
+		{
+			B.TossFlagToPlayer(OrderGiver);
+		}
 	}
 }
 

@@ -4,7 +4,7 @@
  * This  widget defines a region in which its child widgets can be placed. If any of its children lay outside of its
  * defined region then a scroll bar will be made visible to allow the region to be scrolled to the outside widgets.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  */
 class UIScrollFrame extends UIContainer

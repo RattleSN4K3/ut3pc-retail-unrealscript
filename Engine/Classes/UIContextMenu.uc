@@ -5,7 +5,7 @@
  * context menus, and the list of available options are context sensitive.  Items can be either static (using static data
  * providers) or modified at runtime.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIContextMenu extends UIList
 	native(inherit)

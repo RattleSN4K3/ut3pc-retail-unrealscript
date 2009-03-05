@@ -36,6 +36,7 @@ exec function WriteToLog( string Param )
 
 exec function KillViewedActor()
 {
+	class'Engine'.static.CheatWasEnabled();
 	if ( ViewTarget != None )
 	{
 		if ( (Pawn(ViewTarget) != None) && (Pawn(ViewTarget).Controller != None) )
@@ -55,6 +56,7 @@ exec function Teleport()
 	local vector	ViewLocation;
 	local rotator	ViewRotation;
 
+	class'Engine'.static.CheatWasEnabled();
 	GetPlayerViewPoint( ViewLocation, ViewRotation );
 
 	HitActor = Trace(HitLocation, HitNormal, ViewLocation + 1000000 * vector(ViewRotation), ViewLocation, true);
@@ -145,6 +147,7 @@ Scale the player's size to be F * default size
 */
 exec function ChangeSize( float F )
 {
+	class'Engine'.static.CheatWasEnabled();
 	Pawn.CylinderComponent.SetCylinderSize( Pawn.Default.CylinderComponent.CollisionRadius * F, Pawn.Default.CylinderComponent.CollisionHeight * F );
 	Pawn.SetDrawScale(F);
 	Pawn.SetLocation(Pawn.Location);
@@ -158,11 +161,13 @@ exec function EndPath()
 
 exec function Amphibious()
 {
+	class'Engine'.static.CheatWasEnabled();
 	Pawn.UnderwaterTime = +999999.0;
 }
 
 exec function Fly()
 {
+	class'Engine'.static.CheatWasEnabled();
 	if ( (Pawn != None) && Pawn.CheatFly() )
 	{
 		ClientMessage("You feel much lighter");
@@ -182,6 +187,7 @@ exec function Walk()
 
 exec function Ghost()
 {
+	class'Engine'.static.CheatWasEnabled();
 	if ( (Pawn != None) && Pawn.CheatGhost() )
 	{
 		bCheatFlying = true;
@@ -211,6 +217,7 @@ exec function God()
 
 	bGodMode = true;
 	ClientMessage("God Mode on");
+	class'Engine'.static.CheatWasEnabled();
 }
 
 /**
@@ -228,34 +235,42 @@ exec function AffectedByHitEffects()
 
 	bAffectedByHitEffects = true;
 	ClientMessage("EffectsAffect Mode on");
+	class'Engine'.static.CheatWasEnabled();
 }
 
 exec function SloMo( float T )
 {
 	WorldInfo.Game.SetGameSpeed(T);
+	class'Engine'.static.CheatWasEnabled();
 }
 
 exec function SetJumpZ( float F )
 {
 	Pawn.JumpZ = F;
+	class'Engine'.static.CheatWasEnabled();
 }
 
 exec function SetGravity( float F )
 {
 	WorldInfo.WorldGravityZ = F;
+	class'Engine'.static.CheatWasEnabled();
 }
 
 exec function SetSpeed( float F )
 {
 	Pawn.GroundSpeed = Pawn.Default.GroundSpeed * f;
 	Pawn.WaterSpeed = Pawn.Default.WaterSpeed * f;
+	class'Engine'.static.CheatWasEnabled();
 }
 
 exec function KillAll(class<actor> aClass)
 {
 	local Actor A;
+
 `if(`notdefined(FINAL_RELEASE))
 	local PlayerController PC;
+
+	class'Engine'.static.CheatWasEnabled();
 
 	foreach WorldInfo.AllControllers(class'PlayerController', PC)
 	{
@@ -283,6 +298,7 @@ function KillAllPawns(class<Pawn> aClass)
 {
 	local Pawn P;
 
+	class'Engine'.static.CheatWasEnabled();
 	WorldInfo.Game.KillBots();
 	ForEach DynamicActors(class'Pawn', P)
 		if ( ClassIsChildOf(P.Class, aClass)
@@ -307,6 +323,7 @@ exec function Avatar( name ClassName )
 	local Pawn			P, TargetPawn, FirstPawn, OldPawn;
 	local bool			bPickNextPawn;
 
+	class'Engine'.static.CheatWasEnabled();
 	Foreach DynamicActors(class'Pawn', P)
 	{
 		if( P == Pawn )
@@ -365,6 +382,7 @@ exec function Summon( string ClassName )
 	local class<actor> NewClass;
 	local vector SpawnLoc;
 
+	class'Engine'.static.CheatWasEnabled();
 	`log( "Fabricate " $ ClassName );
 	NewClass = class<actor>( DynamicLoadObject( ClassName, class'Class' ) );
 	if( NewClass!=None )
@@ -377,6 +395,21 @@ exec function Summon( string ClassName )
 	}
 }
 
+exec function Inventory GivePickup( String PickupClassStr )
+{
+	local Inventory Pickup;
+	local class<Inventory> PickupClass;
+
+	class'Engine'.static.CheatWasEnabled();
+	PickupClass = class<Inventory>(DynamicLoadObject(PickupClassStr, class'Class'));
+	Pickup = Pawn.FindInventoryType(PickupClass);
+	if( Pickup != None )
+	{
+		return Pickup;
+	}
+	return Pawn.CreateInventory(PickupClass);
+}
+
 /**
  * Give a specified weapon to the Pawn.
  * If weapon is not carried by player, then it is created.
@@ -387,6 +420,7 @@ exec function Weapon GiveWeapon( String WeaponClassStr )
 	Local Weapon		Weap;
 	local class<Weapon> WeaponClass;
 
+	class'Engine'.static.CheatWasEnabled();
 	WeaponClass = class<Weapon>(DynamicLoadObject(WeaponClassStr, class'Class'));
 	Weap		= Weapon(Pawn.FindInventoryType(WeaponClass));
 	if( Weap != None )
@@ -398,6 +432,7 @@ exec function Weapon GiveWeapon( String WeaponClassStr )
 
 exec function PlayersOnly()
 {
+	class'Engine'.static.CheatWasEnabled();
 	WorldInfo.bPlayersOnly = !WorldInfo.bPlayersOnly;
 }
 
@@ -433,6 +468,7 @@ exec function ViewPlayer( string S )
 {
 	local Controller P;
 
+	class'Engine'.static.CheatWasEnabled();
 	foreach WorldInfo.AllControllers(class'Controller', P)
 	{
 		if ( P.bIsPlayer && (P.PlayerReplicationInfo.GetPlayerAlias() ~= S ) )
@@ -452,6 +488,7 @@ exec function ViewActor( name ActorName)
 {
 	local Actor A;
 
+	class'Engine'.static.CheatWasEnabled();
 	ForEach AllActors(class'Actor', A)
 		if ( A.Name == ActorName )
 		{
@@ -465,6 +502,7 @@ exec function ViewFlag()
 {
 	local AIController C;
 
+	class'Engine'.static.CheatWasEnabled();
 	foreach WorldInfo.AllControllers(class'AIController', C)
 	{
 		if (C.PlayerReplicationInfo != None && C.PlayerReplicationInfo.bHasFlag)
@@ -481,6 +519,7 @@ exec function ViewBot()
 	local bool bFound;
 	local AIController C;
 
+	class'Engine'.static.CheatWasEnabled();
 	foreach WorldInfo.AllControllers(class'AIController', C)
 	{
 		if (C.Pawn != None && C.PlayerReplicationInfo != None)
@@ -516,6 +555,7 @@ exec function ViewClass( class<actor> aClass )
 	local actor other, first;
 	local bool bFound;
 
+	class'Engine'.static.CheatWasEnabled();
 	first = None;
 
 	ForEach AllActors( aClass, other )
@@ -545,6 +585,7 @@ exec function ViewClass( class<actor> aClass )
 
 exec function Loaded()
 {
+	class'Engine'.static.CheatWasEnabled();
 	if( WorldInfo.Netmode!=NM_Standalone )
 		return;
 

@@ -572,6 +572,26 @@ native final function int FindStyleSubscriberIndex( const out UIStyleResolver Su
  */
 native final function int FindStyleSubscriberIndexById( name StyleSubscriberId );
 
+/**
+* Sets a style in the widget using the name of the style.
+*
+* @param	StyleResolverTagToSet	the tag associated with the UIStyleResolver to set
+* @param	StyleFriendlyName		the name of the style to set the widget to
+*
+* @return	TRUE if the style was successfully applied to this widget
+*/
+native final function bool SetWidgetStyleByName( name StyleResolverTagToSet, name StyleFriendlyName );
+
+
+/**
+ * Resolves the style references contained by this widget from the currently active skin.
+ *
+ * @param	bClearExistingValue		if TRUE, style references will be invalidated first.
+ *
+ * @return	TRUE if all style references were successfully resolved.
+ */
+native final noexport function bool ResolveStyles(optional bool bClearExistingValue);
+
 
 /** --------- Animations ------------- */
 

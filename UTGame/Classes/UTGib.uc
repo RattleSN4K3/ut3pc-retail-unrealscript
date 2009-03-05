@@ -163,7 +163,7 @@ simulated function ChooseGib()
 	{
 		Index = Rand(GibMeshesData.length);
 		// don't allow skeletal gibs if low detail
-		if (WorldInfo.bDropDetail || WorldInfo.GetDetailMode() == DM_Low)
+		if ( WorldInfo.bDropDetail || WorldInfo.GetDetailMode() == DM_Low || class'Engine'.static.IsSplitScreen() )
 		{
 			StartIndex = Index;
 			while (GibMeshesData[Index].ThePhysAsset != None)

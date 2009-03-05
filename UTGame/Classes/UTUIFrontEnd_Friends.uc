@@ -8,6 +8,7 @@ class UTUIFrontEnd_Friends extends UTUIFrontEnd;
 /** Tab page references for this scene. */
 var UTUITabPage_FriendsList FriendsListTab;
 var UTUITabPage_Messages MessagesTab;
+var UTUITabPage_AchievementList AchievementsTab;
 
 /** PostInitialize event - Sets delegates for the scene. */
 event PostInitialize()
@@ -28,8 +29,45 @@ event PostInitialize()
 		TabControl.InsertPage(MessagesTab, 0, INDEX_NONE, false);
 	}
 
+	// Achievements
+	AchievementsTab = UTUITabPage_AchievementList(FindChild('pnlAchievements', true));
+	if(AchievementsTab != none)
+	{
+		TabControl.InsertPage(AchievementsTab, 0, INDEX_NONE, false);
+	}
+
 	// Let the currently active page setup the button bar.
 	SetupButtonBar();
+}
+
+/** Called when a tab page has finished showing. */
+function OnMainRegion_Show_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnimationSeq AnimSeq)
+{
+	local int PlayerIndex, ControllerId;
+
+	Super.OnMainRegion_Show_UIAnimEnd(AnimTarget, AnimIndex, AnimSeq);
+
+	PlayerIndex = GetPlayerIndex();
+	ControllerId = GetPlayerControllerId(PlayerIndex);
+
+	// Disable friends and messages tabs if not logged in
+	if ( IsGame() )
+	{
+		// in case the tab pages were added in the editor, attempt to remove them again if we're not logged in
+		if ( !IsLoggedIn(ControllerId, true) )
+		{
+			if (TabControl.ActivePage == AchievementsTab)
+			{
+				MessagesTab.StopUIAnimation('TabPageExitLeft', , true);
+				MessagesTab.StopUIAnimation('TabPageExitRight', , true);
+				TabControl.RemovePage(MessagesTab, PlayerIndex);
+
+				FriendsListTab.StopUIAnimation('TabPageExitLeft', , true);
+				FriendsListTab.StopUIAnimation('TabPageExitRight', , true);
+				TabControl.RemovePage(FriendsListTab, PlayerIndex);
+			}
+		}
+	}
 }
 
 /** Sets up the button bar for the scene. */
@@ -94,4 +132,10 @@ function bool HandleInputKey( const out InputEventParameters EventParms )
 	}
 
 	return bResult;
+}
+
+defaultproperties
+{
+	bRequiresNetwork=true
+	bRequiresOnlineService=true
 }

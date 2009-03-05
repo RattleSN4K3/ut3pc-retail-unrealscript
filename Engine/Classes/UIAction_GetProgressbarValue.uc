@@ -1,7 +1,7 @@
 ﻿/**
  * This action retrieves the current value of the progressbar which is the target of this action.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIAction_GetProgressBarValue extends UIAction_GetValue;
 

@@ -9,7 +9,7 @@
  * stores might track stuff like the name that was entered into some UI value widget.  Data stores can provide static
  * information, such as the names of all gametypes, or dynamic information, such as the name of the current gametype.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIDataStore extends UIDataProvider
 	native(inherit)

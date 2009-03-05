@@ -19,6 +19,10 @@ static simulated function ClientReceive( PlayerController P, optional int Switch
 
 static function SoundNodeWave AnnouncementSound(int MessageIndex, Object OptionalObject, PlayerController PC)
 {
+	if ( (PC.PlayerReplicationInfo != None) && !PC.PlayerReplicationInfo.bHasFlag )
+	{
+		return None;
+	}
 	return (MessageIndex == 0) ? default.FlagAnnouncement : default.OrbAnnouncement;
 }
 

@@ -135,7 +135,7 @@ var() float LandingEventHeight;
 
 replication
 {
-	if (bNetDirty && !bNetOwner && Role==ROLE_Authority)
+	if (bNetDirty && (!bNetOwner || bDemoRecording) && Role==ROLE_Authority)
 		BoostStatus;
 
 	if (bNetDirty && Role==ROLE_Authority)
@@ -345,6 +345,11 @@ simulated function VehicleWeaponFired( bool bViaReplication, vector HitLocation,
 			}
 			SetBeamEmitterHidden(false);
 		}
+
+		if (Seats[SeatIndex].Gun != None)
+		{
+			Seats[SeatIndex].Gun.ShakeView();
+		}
 	}
 }
 
@@ -448,6 +453,9 @@ simulated function bool OverrideEndFire(byte FireModeNum)
 
 reliable server function ServerBoost(EBoostDir BoostType)
 {
+	if (WorldInfo.TimeSeconds <= BoostEndTime || WorldInfo.TimeSeconds - BoostDisabledTimer <= BoostInterval)
+		return;
+
 	BoostAttempt = BoostType;
 }
 
@@ -543,6 +551,9 @@ simulated event DeactivateRocketBoosters()
 
 	BoosterIndex = BoostStatus - 1;
 
+	if (BoosterIndex >= 0)
+		BoostDisabledTimer = WorldInfo.TimeSeconds;
+
 	BoostStatus = EBD_None;
 	EnableFullSteering();
 
@@ -556,10 +567,7 @@ simulated event DeactivateRocketBoosters()
 	}
 
 	if(BoosterIndex >= 0)
-	{
 		VehicleEffects[0].EffectRef.SetFloatParameter(BoosterNames[BoosterIndex],0.0);
-		BoostDisabledTimer = WorldInfo.TimeSeconds;
-	}
 }
 
 simulated event PlayLanding();
@@ -705,4 +713,7 @@ defaultproperties
 	bIsNecrisVehicle=true
 
 	HornIndex=3
+	VehicleIndex=2
+
+	ChargeBarPosY=6
 }

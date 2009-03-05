@@ -38,7 +38,7 @@ static function DoCustomDamageEffects(UTPawn ThePawn, class<UTDamageType> TheDam
 /** allows special effects when gibs are spawned via DoCustomDamageEffects() instead of the normal way */
 simulated static function SpawnExtraGibEffects(UTGib TheGib)
 {
-	if ( (TheGib.WorldInfo.GetDetailMode() != DM_Low) && !TheGib.WorldInfo.bDropDetail && FRand() < 0.70f )
+	if ( (TheGib.WorldInfo.GetDetailMode() != DM_Low) && !TheGib.WorldInfo.bDropDetail && !class'Engine'.static.IsSplitScreen() && FRand() < 0.70f )
 	{
 		TheGib.PSC_GibEffect = new(TheGib) class'UTParticleSystemComponent';
 		TheGib.PSC_GibEffect.SetTemplate(default.PS_AttachToGib);

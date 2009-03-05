@@ -1,7 +1,7 @@
 ﻿/**
  * Provides the UI with read/write access to settings from the GameInfo class.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class SessionSettingsProvider_GameInfo extends SessionSettingsProvider;
 

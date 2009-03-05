@@ -116,6 +116,8 @@ enum EDigitalButtonActions
 	DBA_JumpPC,
 	DBA_BestWeaponPC,
 	DBA_Horn,
+
+	DBA_TriggerHero,
 };
 
 /** Mapping of action enum to actually exec commands. */
@@ -319,6 +321,7 @@ const UTPID_SpeechRecognition = 408;
 const UTPID_ServerDescription = 409;
 const UTPID_AllowCustomCharacters = 410;
 const UTPID_FirstTimeMultiplayer = 411;
+const UTPID_AlwaysLoadCustomCharacters = 412;
 
 // Input
 const UTPID_MouseSmoothing = 420;
@@ -443,7 +446,8 @@ const UTPID_KeyAction_49 = 	549;
 enum EUTUnlockType
 {
 	EUnlockType_Count,
-	EUnlockType_Bitmask
+	EUnlockType_Bitmask,
+	EUnlockType_ByteCount
 };
 
 //Onslaught/Warfare
@@ -465,66 +469,64 @@ struct native AchievementData
 var array<AchievementData> AchievementsArray;
 
 const UTAID_Achievement_Start = 800;
-const UTAID_ACHIEVEMENT_CAMPAIGN_CompleteAllTraining = 801;
-const UTAID_ACHIEVEMENT_CAMPAIGN_DeployLeviathan = 802;
-const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLauren = 803;
-const UTAID_ACHIEVEMENT_CAMPAIGN_SignTreaty = 804;
-const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatSelig = 805;
-const UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframe = 806;
-const UTAID_ACHIEVEMENT_CAMPAIGN_HijackDarkwalker = 807;
-const UTAID_ACHIEVEMENT_CAMPAIGN_ControlTarydium = 808;
-const UTAID_ACHIEVEMENT_CAMPAIGN_StealNecrisTech = 809;
-const UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicron = 810;
-const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoque = 811;
-const UTAID_ACHIEVEMENT_CAMPAIGN_SignTreatyExpert = 812;
-const UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframeExpert = 813;
-const UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicronExpert = 814;
-const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoqueExpert = 815;
-const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLaurenGodlike = 816;
-const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatSeligGodlike = 817;
-const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatMatrixGodlike = 818;
-const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoqueGodlike = 819;
-const UTAID_ACHIEVEMENT_COOP_Complete1 = 820;
-const UTAID_ACHIEVEMENT_COOP_Complete10 = 821;
-const UTAID_ACHIEVEMENT_COOP_CompleteCampaign = 822;
-const UTAID_ACHIEVEMENT_IA_EveryGameMode = 823;
-const UTAID_ACHIEVEMENT_IA_Untouchable = 824;
-const UTAID_ACHIEVEMENT_EXPLORE_AllPowerups = 825;
-const UTAID_ACHIEVEMENT_EXPLORE_EveryMutator = 826;
-const UTAID_ACHIEVEMENT_EXPLORE_EveryWeaponKill = 827;
-const UTAID_ACHIEVEMENT_WEAPON_BrainSurgeon = 828;
-const UTAID_ACHIEVEMENT_WEAPON_ShockTherapy = 829;
-const UTAID_ACHIEVEMENT_WEAPON_GooGod = 830;
-const UTAID_ACHIEVEMENT_WEAPON_Pistolero = 831;
-const UTAID_ACHIEVEMENT_WEAPON_Hammerhead = 832;
-const UTAID_ACHIEVEMENT_WEAPON_StrongestLink = 833;
-const UTAID_ACHIEVEMENT_WEAPON_BombSquad = 834;
-const UTAID_ACHIEVEMENT_WEAPON_BigGameHunter = 835;
-const UTAID_ACHIEVEMENT_VEHICLE_Hoverboard = 836;
-const UTAID_ACHIEVEMENT_VEHICLE_Armadillo = 837;
-const UTAID_ACHIEVEMENT_VEHICLE_Gunner = 838;
-const UTAID_ACHIEVEMENT_VEHICLE_Ace = 839;
-const UTAID_ACHIEVEMENT_VEHICLE_Deathwish = 840;
-const UTAID_ACHIEVEMENT_HUMILIATION_SerialKiller = 841;
-const UTAID_ACHIEVEMENT_HUMILIATION_SirSlaysALot = 842;
-const UTAID_ACHIEVEMENT_HUMILIATION_PathOfDestruction = 843;
-const UTAID_ACHIEVEMENT_HUMILIATION_Deity = 844;
-const UTAID_ACHIEVEMENT_VERSUS_GetItOn = 845;
-const UTAID_ACHIEVEMENT_VERSUS_SameTeam = 846;
-const UTAID_ACHIEVEMENT_VERSUS_Nemecide = 847;
-const UTAID_ACHIEVEMENT_VERSUS_AroundTheWorld = 848;
-const UTAID_ACHIEVEMENT_VERSUS_Dedication = 849;
-const UTAID_ACHIEVEMENT_VERSUS_MeetInterestingPeople = 850;
-const UTAID_ACHIEVEMENT_VERSUS_GetALife = 851;
-const UTAID_ACHIEVEMENT_VERSUS_KillGetALifers = 852;
-const UTAID_ACHIEVEMENT_RANKED_RememberYourFirst = 853;
-const UTAID_ACHIEVEMENT_RANKED_DontHateThePlayer = 854;
-const UTAID_ACHIEVEMENT_RANKED_MixItUp = 855;
-const UTAID_ACHIEVEMENT_RANKED_HatTrick = 856;
-const UTAID_ACHIEVEMENT_RANKED_BloodSweatTears = 857;
-const UTAID_ACHIEVEMENT_RANKED_TenFootPole = 858;
-const UTAID_Achievement_End = 859;
-
+const UTAID_ACHIEVEMENT_CAMPAIGN_Chapter1 = 801;
+const UTAID_ACHIEVEMENT_CAMPAIGN_SignTreaty = 802;
+const UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframe = 803;
+const UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicron = 804;
+const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatAkasha = 805;
+const UTAID_ACHIEVEMENT_CAMPAIGN_SignTreatyExpert = 806;
+const UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframeExpert = 807;
+const UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicronExpert = 808;
+const UTAID_ACHIEVEMENT_CAMPAIGN_DefeatAkashaExpert = 809;
+const UTAID_ACHIEVEMENT_COOP_Complete1 = 810;
+const UTAID_ACHIEVEMENT_COOP_Complete10 = 811;
+const UTAID_ACHIEVEMENT_COOP_CompleteCampaign = 812;
+const UTAID_ACHIEVEMENT_IA_EveryGameMode = 813;
+const UTAID_ACHIEVEMENT_IA_Untouchable = 814;
+const UTAID_ACHIEVEMENT_EXPLORE_AllPowerups = 815;
+const UTAID_ACHIEVEMENT_EXPLORE_EveryMutator = 816;
+const UTAID_ACHIEVEMENT_WEAPON_BrainSurgeon = 817;
+const UTAID_ACHIEVEMENT_WEAPON_DontTaseMeBro = 818;
+const UTAID_ACHIEVEMENT_WEAPON_GooGod = 819;
+const UTAID_ACHIEVEMENT_WEAPON_Pistolero = 820;
+const UTAID_ACHIEVEMENT_WEAPON_ShardOMatic = 821;
+const UTAID_ACHIEVEMENT_WEAPON_Hammerhead = 822;
+const UTAID_ACHIEVEMENT_WEAPON_StrongestLink = 823;
+const UTAID_ACHIEVEMENT_WEAPON_HaveANiceDay = 824;
+const UTAID_ACHIEVEMENT_WEAPON_BigGameHunter = 825;
+const UTAID_ACHIEVEMENT_VEHICLE_Armadillo = 826;
+const UTAID_ACHIEVEMENT_VEHICLE_JackOfAllTrades = 827;
+const UTAID_ACHIEVEMENT_VEHICLE_Ace = 828;
+const UTAID_ACHIEVEMENT_VEHICLE_Deathwish = 829;
+const UTAID_ACHIEVEMENT_POWERUP_SeeingRed = 830;
+const UTAID_ACHIEVEMENT_POWERUP_NeverSawItComing = 831;
+const UTAID_ACHIEVEMENT_POWERUP_SurvivalFittest = 832;
+const UTAID_ACHIEVEMENT_POWERUP_DeliveringTheHurt = 833;
+const UTAID_ACHIEVEMENT_GAME_HatTrick = 834;
+const UTAID_ACHIEVEMENT_GAME_BeingAHero = 835;
+const UTAID_ACHIEVEMENT_GAME_FlagWaver = 836;
+const UTAID_ACHIEVEMENT_GAME_30MinOrLess = 837;
+const UTAID_ACHIEVEMENT_GAME_PaintTownRed = 838;
+const UTAID_ACHIEVEMENT_GAME_ConnectTheDots = 839;
+const UTAID_ACHIEVEMENT_HUMILIATION_SerialKiller = 840;
+const UTAID_ACHIEVEMENT_HUMILIATION_SirSlaysALot = 841;
+const UTAID_ACHIEVEMENT_HUMILIATION_KillJoy = 842;
+const UTAID_ACHIEVEMENT_HUMILIATION_OffToAGoodStart = 843;
+const UTAID_ACHIEVEMENT_VERSUS_GetItOn = 844;
+const UTAID_ACHIEVEMENT_VERSUS_AroundTheWorld = 845;
+const UTAID_ACHIEVEMENT_VERSUS_GetALife = 846;
+const UTAID_ACHIEVEMENT_RANKED_BloodSweatTears = 847;
+const UTAID_ACHIEVEMENT_UT3GOLD_CantBeTrusted = 848;
+const UTAID_ACHIEVEMENT_UT3GOLD_Avenger = 849;
+const UTAID_ACHIEVEMENT_UT3GOLD_BagOfBones = 850;
+const UTAID_ACHIEVEMENT_UT3GOLD_SkullCollector = 851;
+const UTAID_ACHIEVEMENT_UT3GOLD_Titanic = 852;
+const UTAID_ACHIEVEMENT_UT3GOLD_Behemoth = 853;
+const UTAID_ACHIEVEMENT_UT3GOLD_Unholy = 854;
+const UTAID_ACHIEVEMENT_UT3GOLD_TheSlowLane = 855;
+const UTAID_ACHIEVEMENT_UT3GOLD_Eradication = 856;
+const UTAID_ACHIEVEMENT_UT3GOLD_Arachnophobia = 857;
+const UTAID_Achievement_End = 861;
 
 
 // ===================================================================
@@ -865,6 +867,7 @@ function AddModifierCard(name Card)
 	local bool bUnique;
 	local string work;
 
+	`log("Profile AddModifierCard"@Card);
 	TargetID = class'UTGameModifierCard'.static.GetProfileIndexFor(Card);
 	bUnique = class'UTGameModifierCard'.static.IsUnique(Card);
 
@@ -877,7 +880,7 @@ function AddModifierCard(name Card)
 			GetProfileSettingValueInt( i, CardID);
 			if (CardID == TargetID && bUnique )
 			{
-//				`log("[SinglePlayer] The Modifier card"@CardID@" is unique and you already have it");
+				`log("[SinglePlayer] The Modifier card"@CardID@" is unique and you already have it");
 				return;
 			}
 		}
@@ -889,21 +892,21 @@ function AddModifierCard(name Card)
 			GetProfileSettingValueInt( i, CardID);
 			if (CardID == INDEX_None)
 			{
-//				`log("[SinglePlayer] Adding Modifier card"@CardID);
+				`log("[SinglePlayer] Adding Modifier card"@CardID);
 				SetProfileSettingValueInt(i, TargetID);
 				Work = "CardTitle"$Card;
 				Work = Localize("CardDesc",Work,"UTGameUI");
-				class'UTUIScene'.static.ShowOnlineToast(Work);
+				class'UTUIScene'.static.ShowOnlineToast(Work,,5);
 				return;
 			}
 		}
 
-//		`log("[SinglePlayer] Attempted to add Modifier card"@CardID@"failed!");
+		`log("[SinglePlayer] Attempted to add Modifier card"@CardID@"failed!");
 
 	}
 	else
 	{
-//		`log("[SinglePlayer] Attempted to add Modifier card"@CardID@"failed because TargetID = NONE!");
+		`log("[SinglePlayer] Attempted to add Modifier card"@CardID@"failed because TargetID = NONE!");
 	}
 
 }
@@ -992,6 +995,10 @@ native function bool UpdateAchievementBitMask(int AchievementId, int BitMask);
 // basically maintains a count of how many times this achievement was accomplished
 native function bool UpdateAchievementCount(int AchievementId, optional int Count=1);
 
+// Increment the particular achievement by Count
+// basically maintains a count of how many times this achievement was accomplished
+native function bool UpdateAchievementByteCount(int AchievementId, int Value);
+
 // Returns the value stored with this particular achievement
 native function bool GetAchievementValue(int AchievementId, out int Value);
 
@@ -1001,15 +1008,40 @@ native function bool SetAchievementValue(int AchievementId, int Value);
 // Get the unlock criteria for this achievement
 native function bool GetAchievementUnlockCriteria(int AchievementId, out int UnlockCriteria);
 
+// Get the unlock type for this achievement
+native function bool GetAchievementUnlockType(int AchievementId, out int UnlockType);
+
+// Returns the total number of bits within the value stored with this particular achievement
+native function int CountBits64InAchivementValue(int AchievementId);
+
 // Set the map that was just won for the 'Around the World' Achievement
 native function bool UpdateAroundTheWorld(INT MapContextId);
 
-// Set the gametype just won for 'Mix It Up' Achievement
-native function bool IncrementMixItUp(INT GameType);
+// Set the map that was just won for the 'Like the Back of My Hand' Achievement
+native function bool UpdateLikeTheBackOfMyHand(INT MapContextId);
 
-// Set the gametype just played for 'Get It On' Achivement
+// Returns true if the map has been completed for the 'Like the Back of My Hand' Achievement
+native function bool CheckLikeTheBackOfMyHandMap(INT MapContextId);
+
+// Returns true if the map has been completed for the 'Around The World' Achievement
+native function bool CheckAroundTheWorldMap(INT MapContextId);
+
+// Set the gametype just won for 'Mix It Up' Achievement
+native function bool IncrementMixItUp(INT GameType, INT AchievementType);
+
+// Returns true if the gametype has been played for the mix it up achievements
+native function bool CheckMixItUp(INT GameType, INT AchievementType);
+
+// Returns true if the vehicle has been used for the jack of all trades achievement
+native function bool CheckJackOfAllTradesBitmask(int VehicleIndex);
+
+// Returns true if the vehicle has been used for the jack of all trades achievement
+native function bool CheckSpiceOfLifeBitmask(int MutatorIndex);
+
+// Set the gametype just played for 'Get It On' Achievement
 native function bool UpdateGetItOn(INT MapContextId);
 
+native function bool IncrementGetALife();
 
 /**
  * @Param MissionID		- Returns the Mission ID for the current mission
@@ -1077,80 +1109,28 @@ function NewGame()
  *
  * @return Whether or not the value was retrieved
  */
-function bool GetProfileSettingValueIntByName(name SettingName, out int OutValue)
-{
-	local bool bResult;
-	local int SettingId;
-
-	bResult = FALSE;
-
-	if(GetProfileSettingId(SettingName,SettingId))
-	{
-		bResult = GetProfileSettingValueInt(SettingId, OutValue);
-	}
-
-	return bResult;
-}
+native function bool GetProfileSettingValueIntByName(name SettingName, out int OutValue);
 
 /**
  * Returns the float value of a profile setting given its name.
  *
  * @return Whether or not the value was retrieved
  */
-function bool GetProfileSettingValueFloatByName(name SettingName, out float OutValue)
-{
-	local bool bResult;
-	local int SettingId;
-
-	bResult = FALSE;
-
-	if(GetProfileSettingId(SettingName,SettingId))
-	{
-		bResult = GetProfileSettingValueFloat(SettingId, OutValue);
-	}
-
-	return bResult;
-}
+native function bool GetProfileSettingValueFloatByName(name SettingName, out float OutValue);
 
 /**
  * Returns the string value of a profile setting given its name.
  *
  * @return Whether or not the value was retrieved
  */
-function bool GetProfileSettingValueStringByName(name SettingName, out string OutValue)
-{
-	local bool bResult;
-	local int SettingId;
-
-	bResult = FALSE;
-
-	if(GetProfileSettingId(SettingName,SettingId))
-	{
-		bResult = GetProfileSettingValue(SettingId, OutValue);
-	}
-
-	return bResult;
-}
+native function bool GetProfileSettingValueStringByName(name SettingName, out string OutValue);
 
 /**
  * Returns the Id mapped value of a profile setting given its name.
  *
  * @return Whether or not the value was retrieved
  */
-function bool GetProfileSettingValueIdByName(name SettingName, out int OutValue)
-{
-	local bool bResult;
-	local int SettingId;
-
-	bResult = FALSE;
-
-	if(GetProfileSettingId(SettingName,SettingId))
-	{
-		bResult = GetProfileSettingValueId(SettingId, OutValue);
-	}
-
-	return bResult;
-}
+native function bool GetProfileSettingValueIdByName(name SettingName, out int OutValue);
 
 /**
  * Sets the specified profile id back to its default value.
@@ -1483,7 +1463,100 @@ function ApplyAllKeyBindings(PlayerInput PInput)
 			ApplyKeyBinding(PInput, EDigitalButtonActions(BindingIdx));
 		}
 	}
+
+	PatchDefaultKeyBindings(PInput);
 }
+
+function PatchDefaultKeyBindings(PlayerInput PInput)
+{
+	local int KeyBindBitmask;
+
+	// For existing profiles that are upgrading to UT3G, make sure Titan transformation is bound
+	if ( GetProfileSettingValueInt(GetProfileIDForDBA(DBA_TriggerHero), KeyBindBitmask) )
+	{
+		if ( KeyBindBitmask == 0 )
+		{
+			if ( PInput.GetBind('R') == "" )
+			{
+				SetKeyBinding(DBA_TriggerHero, 'R', 'XboxTypeS_DPad_Up');
+			}
+			else if ( PInput.GetBind('P') == "" )
+			{
+				SetKeyBinding(DBA_TriggerHero, 'P', 'XboxTypeS_DPad_Up');
+			}
+			else if ( PInput.GetBind('O') == "" )
+			{
+				SetKeyBinding(DBA_TriggerHero, 'O', 'XboxTypeS_DPad_Up');
+			}
+			ApplyKeyBinding(PInput, DBA_TriggerHero);
+		}	
+	}
+
+	// Bind gamepad defaults
+	if ( PInput.GetBind('XboxTypeS_LeftThumbstick') == "" )
+	{
+		PInput.SetBind('XboxTypeS_LeftThumbstick', "GBA_Duck");
+	}
+	if ( PInput.GetBind('XboxTypeS_Start') == "" )
+	{
+		PInput.SetBind('XboxTypeS_Start', "GBA_ShowMenu");
+	}
+	if ( PInput.GetBind('XboxTypeS_RightShoulder') == "" )
+	{
+		PInput.SetBind('XboxTypeS_RightShoulder', "GBA_NextWeapon");
+	}
+	if ( PInput.GetBind('XboxTypeS_RightTrigger') == "" )
+	{
+		PInput.SetBind('XboxTypeS_RightTrigger', "GBA_Fire");
+	}
+	if ( PInput.GetBind('XboxTypeS_LeftShoulder') == "" )
+	{
+		PInput.SetBind('XboxTypeS_LeftShoulder', "GBA_WeaponPicker");
+	}
+	if ( PInput.GetBind('XboxTypeS_LeftTrigger') == "" )
+	{
+		PInput.SetBind('XboxTypeS_LeftTrigger', "GBA_AltFire");
+	}
+	if ( PInput.GetBind('XboxTypeS_RightThumbstick') == "" )
+	{
+		PInput.SetBind('XboxTypeS_RightThumbstick', "GBA_SwitchToBestWeapon_Gamepad");
+	}
+	if ( PInput.GetBind('XboxTypeS_A') == "" )
+	{
+		PInput.SetBind('XboxTypeS_A', "GBA_Jump_Gamepad");
+	}
+	if ( PInput.GetBind('XboxTypeS_B') == "" )
+	{
+		PInput.SetBind('XboxTypeS_B', "GBA_ToggleMelee");
+	}
+	if ( PInput.GetBind('XboxTypeS_Y') == "" )
+	{
+		PInput.SetBind('XboxTypeS_Y', "GBA_ShowMap");
+	}
+	if ( PInput.GetBind('XboxTypeS_X') == "" )
+	{
+		PInput.SetBind('XboxTypeS_X', "GBA_Use_Gamepad");
+	}
+	if ( PInput.GetBind('XboxTypeS_Back') == "" )
+	{
+		PInput.SetBind('XboxTypeS_Back', "GBA_ShowScores");
+	}
+	if ( PInput.GetBind('XboxTypeS_DPad_Down') == "" )
+	{
+		PInput.SetBind('XboxTypeS_DPad_Down', "GBA_FeignDeath");
+	}
+	if ( PInput.GetBind('XboxTypeS_DPad_Left') == "" )
+	{
+		PInput.SetBind('XboxTypeS_DPad_Left', "GBA_ShowCommandMenu");
+	}
+	if ( PInput.GetBind('XboxTypeS_DPad_Right') == "" )
+	{
+		PInput.SetBind('XboxTypeS_DPad_Right', "GBA_ToggleSpeaking");
+	}
+
+	UTPlayerController(PInput.Outer).SaveProfile();
+}
+
 
 /**
  * Applies a key binding to the given player input, rebinds keys that are already bound, doesn't unbind keys already assigned to the action.
@@ -1582,6 +1655,8 @@ function string GetActionName(EDigitalButtonActions ActionIdx)
 	return ActionName;
 }
 
+
+
 defaultproperties
 {
 	// If you change any profile ids, increment this number!!!!
@@ -1636,6 +1711,7 @@ defaultproperties
 	ProfileSettingIds.Add(UTPID_ServerDescription)
 	ProfileSettingIds.Add(UTPID_AllowCustomCharacters)
 	ProfileSettingIds.Add(UTPID_FirstTimeMultiplayer)
+	ProfileSettingIds.Add(UTPID_AlwaysLoadCustomCharacters)
 
 	// Input
 	ProfileSettingIds.Add(UTPID_MouseSmoothing)
@@ -1868,21 +1944,21 @@ defaultproperties
 	ProfileMappings[43]=(Id=UTPID_DodgeDoubleClickTime)
 	ProfileMappings[44]=(Id=UTPID_TurningAccelerationFactor)
 
-	ProfileMappings[45]=(Id=UTPID_GamepadBinding_ButtonA,Name="GamepadBinding_ButtonA",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[46]=(Id=UTPID_GamepadBinding_ButtonB,Name="GamepadBinding_ButtonB",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[47]=(Id=UTPID_GamepadBinding_ButtonX,Name="GamepadBinding_ButtonX",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[48]=(Id=UTPID_GamepadBinding_ButtonY,Name="GamepadBinding_ButtonY",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[49]=(Id=UTPID_GamepadBinding_Back,Name="GamepadBinding_Back",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[50]=(Id=UTPID_GamepadBinding_RightBumper,Name="GamepadBinding_RightBumper",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[51]=(Id=UTPID_GamepadBinding_LeftBumper,Name="GamepadBinding_LeftBumper",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[52]=(Id=UTPID_GamepadBinding_RightTrigger,Name="GamepadBinding_RightTrigger",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[53]=(Id=UTPID_GamepadBinding_LeftTrigger,Name="GamepadBinding_LeftTrigger",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[54]=(Id=UTPID_GamepadBinding_RightThumbstickPressed,Name="GamepadBinding_RightThumbstickPressed",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[55]=(Id=UTPID_GamepadBinding_LeftThumbstickPressed,Name="GamepadBinding_LeftThumbstickPressed",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[56]=(Id=UTPID_GamepadBinding_DPadUp,Name="GamepadBinding_DPadUp",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[57]=(Id=UTPID_GamepadBinding_DPadDown,Name="GamepadBinding_DPadDown",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[58]=(Id=UTPID_GamepadBinding_DPadLeft,Name="GamepadBinding_DPadLeft",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
-	ProfileMappings[59]=(Id=UTPID_GamepadBinding_DPadRight,Name="GamepadBinding_DPadRight",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon)))
+	ProfileMappings[45]=(Id=UTPID_GamepadBinding_ButtonA,Name="GamepadBinding_ButtonA",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[46]=(Id=UTPID_GamepadBinding_ButtonB,Name="GamepadBinding_ButtonB",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[47]=(Id=UTPID_GamepadBinding_ButtonX,Name="GamepadBinding_ButtonX",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[48]=(Id=UTPID_GamepadBinding_ButtonY,Name="GamepadBinding_ButtonY",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[49]=(Id=UTPID_GamepadBinding_Back,Name="GamepadBinding_Back",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[50]=(Id=UTPID_GamepadBinding_RightBumper,Name="GamepadBinding_RightBumper",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[51]=(Id=UTPID_GamepadBinding_LeftBumper,Name="GamepadBinding_LeftBumper",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[52]=(Id=UTPID_GamepadBinding_RightTrigger,Name="GamepadBinding_RightTrigger",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[53]=(Id=UTPID_GamepadBinding_LeftTrigger,Name="GamepadBinding_LeftTrigger",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[54]=(Id=UTPID_GamepadBinding_RightThumbstickPressed,Name="GamepadBinding_RightThumbstickPressed",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[55]=(Id=UTPID_GamepadBinding_LeftThumbstickPressed,Name="GamepadBinding_LeftThumbstickPressed",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[56]=(Id=UTPID_GamepadBinding_DPadUp,Name="GamepadBinding_DPadUp",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[57]=(Id=UTPID_GamepadBinding_DPadDown,Name="GamepadBinding_DPadDown",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[58]=(Id=UTPID_GamepadBinding_DPadLeft,Name="GamepadBinding_DPadLeft",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
+	ProfileMappings[59]=(Id=UTPID_GamepadBinding_DPadRight,Name="GamepadBinding_DPadRight",MappingType=PVMT_IdMapped,ValueMappings=((Id=DBA_None),(Id=DBA_Fire),(Id=DBA_AltFire),(Id=DBA_Jump),(Id=DBA_Use),(Id=DBA_ToggleMelee),(Id=DBA_ShowScores),(Id=DBA_ShowMap),(Id=DBA_FeignDeath),(Id=DBA_ToggleSpeaking),(Id=DBA_ShowCommandMenu),(Id=DBA_ToggleMinimap),(Id=DBA_WeaponPicker),(Id=DBA_NextWeapon),(Id=DBA_BestWeapon),(Id=DBA_PrevWeapon),(Id=DBA_TriggerHero)))
 	ProfileMappings[60]=(Id=UTPID_GamepadBinding_AnalogStickPreset,Name="GamepadBinding_AnalogStickPreset",MappingType=PVMT_IdMapped,ValueMappings=((Id=ESA_Normal),(Id=ESA_SouthPaw),(Id=ESA_Legacy),(Id=ESA_LegacySouthPaw)))
 
 	ProfileMappings[61]=(Id=UTPID_AutoCenterPitch,Name="AutoCenterPitch",MappingType=PVMT_IdMapped,ValueMappings=((Id=UTPID_VALUE_NO),(Id=UTPID_VALUE_YES)))
@@ -1925,7 +2001,7 @@ defaultproperties
 	ProfileMappings[89]=(Id=UTPID_AllowCustomCharacters,Name="AllowCustomCharacters",MappingType=PVMT_IdMapped,ValueMappings=((Id=UTPID_VALUE_NO),(Id=UTPID_VALUE_YES)))
 	ProfileMappings[90]=(Id=UTPID_CrosshairType,Name="CrosshairType",MappingType=PVMT_IdMapped,ValueMappings=((Id=CHT_Normal),(Id=CHT_Simple),(Id=CHT_None)))
 	ProfileMappings[91]=(Id=UTPID_Subtitles,Name="Subtitles",MappingType=PVMT_IdMapped,ValueMappings=((Id=UTPID_VALUE_NO),(Id=UTPID_VALUE_YES)))
-
+	 
 	// Single Player
 	ProfileMappings[92]=(Id=PSI_SinglePlayerSkillLevel,Name="SkillLevel",MappingType=PVMT_RawValue))
 
@@ -1933,6 +2009,9 @@ defaultproperties
 	// Onslaught/Warfare
 
 	ProfileMappings[93]=(Id=UTPID_PopupMapOnDeath,Name="PopupMapOnDeath",MappingType=PVMT_IdMapped,ValueMappings=((Id=UTPID_VALUE_NO),(Id=UTPID_VALUE_YES)))
+
+	// Other cont'd
+	ProfileMappings[94]=(Id=UTPID_AlwaysLoadCustomCharacters,Name="AlwaysLoadCustomCharacters",MappingType=PVMT_IdMapped,ValueMappings=((Id=UTPID_VALUE_NO),(Id=UTPID_VALUE_YES)))
 
 	// Chapter Mask
 
@@ -2092,7 +2171,8 @@ defaultproperties
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_ClanTag,Data=(Type=SDT_String))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_ServerDescription,Data=(Type=SDT_String))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_AllowCustomCharacters,Data=(Type=SDT_Int32,Value1=UTPID_VALUE_YES))))
-
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_AlwaysLoadCustomCharacters,Data=(Type=SDT_Int32,Value1=UTPID_VALUE_NO))))
+	
 	// Input
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_MouseSmoothing,Data=(Type=SDT_Int32,Value1=UTPID_VALUE_YES))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_ReduceMouseLag,Data=(Type=SDT_Int32,Value1=UTPID_VALUE_YES))))
@@ -2115,7 +2195,7 @@ defaultproperties
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_GamepadBinding_LeftTrigger,Data=(Type=SDT_Int32,Value1=DBA_WeaponPicker))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_GamepadBinding_RightThumbstickPressed,Data=(Type=SDT_Int32,Value1=DBA_BestWeapon))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_GamepadBinding_LeftThumbstickPressed,Data=(Type=SDT_Int32,Value1=DBA_Jump))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_GamepadBinding_DPadUp,Data=(Type=SDT_Int32,Value1=DBA_ToggleMinimap))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_GamepadBinding_DPadUp,Data=(Type=SDT_Int32,Value1=DBA_TriggerHero))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_GamepadBinding_DPadDown,Data=(Type=SDT_Int32,Value1=DBA_FeignDeath))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_GamepadBinding_DPadLeft,Data=(Type=SDT_Int32,Value1=DBA_ShowCommandMenu))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTPID_GamepadBinding_DPadRight,Data=(Type=SDT_Int32,Value1=DBA_ToggleSpeaking))))
@@ -2444,244 +2524,243 @@ defaultproperties
 	DigitalButtonActionsToCommandMapping[DBA_ToggleTranslocator]="GBA_ToggleTranslocator";
 	DigitalButtonActionsToCommandMapping[DBA_JumpPC]="GBA_Jump";
 	DigitalButtonActionsToCommandMapping[DBA_BestWeaponPC]="GBA_SwitchToBestWeapon";
+	DigitalButtonActionsToCommandMapping[DBA_TriggerHero]="GBA_TriggerHero";
 
 	//Achievements
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_CompleteAllTraining)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DeployLeviathan)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLauren)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_SignTreaty)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatSelig)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframe)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_HijackDarkwalker)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_ControlTarydium)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_StealNecrisTech)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicron)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoque)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_SignTreatyExpert)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframeExpert)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicronExpert)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoqueExpert)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLaurenGodlike)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatSeligGodlike)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatMatrixGodlike)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoqueGodlike)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_COOP_Complete1)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_COOP_Complete10)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_COOP_CompleteCampaign)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_IA_EveryGameMode)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_IA_Untouchable)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_EXPLORE_AllPowerups)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_EXPLORE_EveryMutator)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_EXPLORE_EveryWeaponKill)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_BrainSurgeon)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_ShockTherapy)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_GooGod)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_Pistolero)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_Hammerhead)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_StrongestLink)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_BombSquad)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_BigGameHunter)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VEHICLE_Hoverboard)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VEHICLE_Armadillo)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VEHICLE_Gunner)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VEHICLE_Ace)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VEHICLE_Deathwish)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_HUMILIATION_SerialKiller)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_HUMILIATION_SirSlaysALot)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_HUMILIATION_PathOfDestruction)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_HUMILIATION_Deity)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_GetItOn)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_SameTeam)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_Nemecide)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_AroundTheWorld)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_Dedication)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_MeetInterestingPeople)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_GetALife)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_KillGetALifers)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_RANKED_RememberYourFirst)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_RANKED_DontHateThePlayer)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_RANKED_MixItUp)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_RANKED_HatTrick)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_RANKED_BloodSweatTears)
-	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_RANKED_TenFootPole)
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_SignTreaty);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframe);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicron);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_SignTreatyExpert);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframeExpert);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicronExpert);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_COOP_Complete1);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_COOP_Complete10);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_COOP_CompleteCampaign);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_IA_EveryGameMode);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_IA_Untouchable);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_EXPLORE_AllPowerups);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_EXPLORE_EveryMutator);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_BrainSurgeon);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_DontTaseMeBro);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_GooGod);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_Pistolero);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_Hammerhead);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_StrongestLink);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_HaveANiceDay);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_BigGameHunter);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VEHICLE_Armadillo);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VEHICLE_JackOfAllTrades);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VEHICLE_Ace);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VEHICLE_Deathwish);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_HUMILIATION_SerialKiller);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_HUMILIATION_SirSlaysALot);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_HUMILIATION_KillJoy);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_GetItOn);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_AroundTheWorld);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_VERSUS_GetALife);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_GAME_HatTrick);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_RANKED_BloodSweatTears);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatAkashaExpert);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_DefeatAkasha);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_HUMILIATION_OffToAGoodStart);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_CAMPAIGN_Chapter1);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_WEAPON_ShardOMatic);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_POWERUP_SeeingRed);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_POWERUP_NeverSawItComing);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_POWERUP_SurvivalFittest);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_POWERUP_DeliveringTheHurt);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_GAME_BeingAHero);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_GAME_FlagWaver);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_GAME_30MinOrLess);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_GAME_PaintTownRed);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_GAME_ConnectTheDots);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_CantBeTrusted);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_Avenger);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_BagOfBones);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_SkullCollector);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_Titanic);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_Behemoth);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_Unholy);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_TheSlowLane);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_Eradication);
+	ProfileSettingIDs.Add(UTAID_ACHIEVEMENT_UT3GOLD_Arachnophobia);
+	ProfileSettingIDs.Add(UTAID_Achievement_Start);
 
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_CompleteAllTraining,Name="CompleteAllTraining",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DeployLeviathan,Name="DeployLeviathan",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLauren,Name="DefeatLauren",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_SignTreaty,Name="SignTreaty",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatSelig,Name="DefeatSelig",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframe,Name="LiandriMainframe",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_HijackDarkwalker,Name="HijackDarkwalker",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_ControlTarydium,Name="ControlTarydium",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_StealNecrisTech,Name="StealNecrisTech",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicron,Name="ReachOmicron",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoque,Name="DefeatLoque",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_SignTreatyExpert,Name="SignTreatyExpert",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_SignTreatyExpert,Name="SignTreaty",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframeExpert,Name="LiandriMainframeExpert",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicronExpert,Name="ReachOmicronExpert",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoqueExpert,Name="DefeatLoqueExpert",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLaurenGodlike,Name="DefeatLaurenGodlike",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatSeligGodlike,Name="DefeatSeligGodlike",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatMatrixGodlike,Name="DefeatMatrixGodlike",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoqueGodlike,Name="DefeatLoqueGodlike",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_COOP_Complete1,Name="Complete1",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_COOP_Complete10,Name="Complete10",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_COOP_CompleteCampaign,Name="CompleteCampaign",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_IA_EveryGameMode,Name="EveryGameMode",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_IA_EveryGameMode,Name="EveryGameMod",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_IA_Untouchable,Name="Untouchable",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_EXPLORE_AllPowerups,Name="AllPowerups",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_EXPLORE_EveryMutator,Name="EveryMutator",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_EXPLORE_EveryWeaponKill,Name="EveryWeaponKill",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_BrainSurgeon,Name="BrainSurgeon",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_ShockTherapy,Name="ShockTherapy",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_DontTaseMeBro,Name="DontTaseMeBro",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_GooGod,Name="GooGod",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_Pistolero,Name="Pistolero",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_Hammerhead,Name="Hammerhead",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_StrongestLink,Name="StrongestLink",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_BombSquad,Name="BombSquad",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_HaveANiceDay,Name="HaveANiceDay",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_BigGameHunter,Name="BigGameHunter",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VEHICLE_Hoverboard,Name="Hoverboard",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VEHICLE_Armadillo,Name="Armadillo",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VEHICLE_Gunner,Name="Gunner",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VEHICLE_JackOfAllTrades,Name="JackOfAllTrades",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VEHICLE_Ace,Name="Ace",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VEHICLE_Deathwish,Name="Deathwish",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_HUMILIATION_SerialKiller,Name="SerialKiller",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_HUMILIATION_SirSlaysALot,Name="SirSlaysALot",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_HUMILIATION_PathOfDestruction,Name="PathOfDestruction",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_HUMILIATION_Deity,Name="Deity",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_HUMILIATION_KillJoy,Name="KillJoy",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VERSUS_GetItOn,Name="GetItOn",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VERSUS_SameTeam,Name="SameTeam",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VERSUS_Nemecide,Name="Nemecide",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VERSUS_AroundTheWorld,Name="AroundTheWorld",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VERSUS_Dedication,Name="Dedication",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VERSUS_MeetInterestingPeople,Name="MeetInterestingPeople",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VERSUS_GetALife,Name="GetALife",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_VERSUS_KillGetALifers,Name="KillGetALifers",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_RANKED_RememberYourFirst,Name="RememberYourFirst",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_RANKED_DontHateThePlayer,Name="DontHateThePlayer",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_RANKED_MixItUp,Name="MixItUp",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_RANKED_HatTrick,Name="HatTrick",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_GAME_HatTrick,Name="HatTrick",MappingType=PVMT_RawValue))
 	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_RANKED_BloodSweatTears,Name="BloodSweatTears",MappingType=PVMT_RawValue))
-	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_RANKED_TenFootPole,Name="TenFootPole",MappingType=PVMT_RawValue))
-
-    DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_CompleteAllTraining,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DeployLeviathan,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLauren,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_SignTreaty,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatSelig,Data=(Type=SDT_Int32,Value1=0))))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatAkashaExpert,Name="DefeatAkashaExpert",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatAkasha,Name="DefeatAkasha",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_HUMILIATION_OffToAGoodStart,Name="OffToAGoodStart",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_CAMPAIGN_Chapter1,Name="Chapter1",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_WEAPON_ShardOMatic,Name="ShardOMatic",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_POWERUP_SeeingRed,Name="SeeingRed",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_POWERUP_NeverSawItComing,Name="NeverSawItComing",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_POWERUP_SurvivalFittest,Name="SurvivalFittest",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_POWERUP_DeliveringTheHurt,Name="DeliveringTheHurt",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_GAME_BeingAHero,Name="BeingAHero",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_GAME_FlagWaver,Name="FlagWaver",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_GAME_30MinOrLess,Name="30MinOrLess",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_GAME_PaintTownRed,Name="PaintTownRed",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_GAME_ConnectTheDots,Name="ConnectTheDots",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_CantBeTrusted,Name="CantBeTrusted",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_Avenger,Name="Avenger",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_BagOfBones,Name="BagOfBones",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_SkullCollector,Name="SkullCollector",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_Titanic,Name="Titanic",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_Behemoth,Name="Behemoth",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_Unholy,Name="Unholy",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_TheSlowLane,Name="TheSlowLane",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_Eradication,Name="Eradication",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_ACHIEVEMENT_UT3GOLD_Arachnophobia,Name="Arachnophobia",MappingType=PVMT_RawValue))
+	ProfileMappings.Add((Id=UTAID_Achievement_Start,Name="BitMask",MappingType=PVMT_RawValue))
+	  
+    DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_SignTreaty,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframe,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_HijackDarkwalker,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_ControlTarydium,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_StealNecrisTech,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicron,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoque,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_SignTreatyExpert,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_LiandriMainframeExpert,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_ReachOmicronExpert,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoqueExpert,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLaurenGodlike,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatSeligGodlike,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatMatrixGodlike,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatLoqueGodlike,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_COOP_Complete1,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_COOP_Complete10,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_COOP_CompleteCampaign,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_IA_EveryGameMode,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_IA_Untouchable,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_EXPLORE_AllPowerups,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_EXPLORE_AllPowerups,Data=(Type=SDT_Int64,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_EXPLORE_EveryMutator,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_EXPLORE_EveryWeaponKill,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_BrainSurgeon,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_ShockTherapy,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_DontTaseMeBro,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_GooGod,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_Pistolero,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_Hammerhead,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_StrongestLink,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_BombSquad,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_HaveANiceDay,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_BigGameHunter,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VEHICLE_Hoverboard,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VEHICLE_Armadillo,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VEHICLE_Gunner,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VEHICLE_JackOfAllTrades,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VEHICLE_Ace,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VEHICLE_Deathwish,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_HUMILIATION_SerialKiller,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_HUMILIATION_SirSlaysALot,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_HUMILIATION_PathOfDestruction,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_HUMILIATION_Deity,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_HUMILIATION_KillJoy,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VERSUS_GetItOn,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VERSUS_SameTeam,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VERSUS_Nemecide,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VERSUS_AroundTheWorld,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VERSUS_Dedication,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VERSUS_MeetInterestingPeople,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VERSUS_AroundTheWorld,Data=(Type=SDT_Int64,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VERSUS_GetALife,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_VERSUS_KillGetALifers,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_RANKED_RememberYourFirst,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_RANKED_DontHateThePlayer,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_RANKED_MixItUp,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_RANKED_HatTrick,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_GAME_HatTrick,Data=(Type=SDT_Int32,Value1=0))))
 	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_RANKED_BloodSweatTears,Data=(Type=SDT_Int32,Value1=0))))
-	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_RANKED_TenFootPole,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatAkashaExpert,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_DefeatAkasha,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_HUMILIATION_OffToAGoodStart,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_CAMPAIGN_Chapter1,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_WEAPON_ShardOMatic,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_POWERUP_SeeingRed,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_POWERUP_NeverSawItComing,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_POWERUP_SurvivalFittest,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_POWERUP_DeliveringTheHurt,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_GAME_BeingAHero,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_GAME_FlagWaver,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_GAME_30MinOrLess,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_GAME_PaintTownRed,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_GAME_ConnectTheDots,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_CantBeTrusted,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_Avenger,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_BagOfBones,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_SkullCollector,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_Titanic,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_Behemoth,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_Unholy,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_TheSlowLane,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_Eradication,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_ACHIEVEMENT_UT3GOLD_Arachnophobia,Data=(Type=SDT_Int32,Value1=0))))
+	DefaultSettings.Add((Owner=OPPO_Game,ProfileSetting=(PropertyId=UTAID_Achievement_Start,Data=(Type=SDT_Int64,Value1=0))))
 
-    AchievementsArray.Add((Id=EUTA_CAMPAIGN_CompleteAllTraining,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xfffffff))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_DeployLeviathan,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatLauren,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_SignTreaty,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatSelig,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_LiandriMainframe,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_HijackDarkwalker,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_ControlTarydium,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_StealNecrisTech,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_ReachOmicron,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatLoque,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_SignTreatyExpert,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_LiandriMainframeExpert,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_ReachOmicronExpert,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatLoqueExpert,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatLaurenGodlike,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatSeligGodlike,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatMatrixGodlike,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatLoqueGodlike,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_COOP_Complete1,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_COOP_Complete10,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_COOP_CompleteCampaign,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_IA_EveryGameMode,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffffffff))
-	AchievementsArray.Add((Id=EUTA_IA_Untouchable,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_EXPLORE_AllPowerups,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffffffff))
-	AchievementsArray.Add((Id=EUTA_EXPLORE_EveryMutator,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffffffff))
-	AchievementsArray.Add((Id=EUTA_EXPLORE_EveryWeaponKill,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffffffff))
-	AchievementsArray.Add((Id=EUTA_WEAPON_BrainSurgeon,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_WEAPON_ShockTherapy,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_WEAPON_GooGod,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_WEAPON_Pistolero,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_WEAPON_Hammerhead,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_WEAPON_StrongestLink,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_WEAPON_BombSquad,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_WEAPON_BigGameHunter,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_VEHICLE_Hoverboard,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_VEHICLE_Armadillo,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_VEHICLE_Gunner,UnlockType=EUnlockType_Count,UnlockCriteria=1000))
-	AchievementsArray.Add((Id=EUTA_VEHICLE_Ace,UnlockType=EUnlockType_Count,UnlockCriteria=20))
-	AchievementsArray.Add((Id=EUTA_VEHICLE_Deathwish,UnlockType=EUnlockType_Count,UnlockCriteria=20))
-	AchievementsArray.Add((Id=EUTA_HUMILIATION_SerialKiller,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_HUMILIATION_SirSlaysALot,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_HUMILIATION_PathOfDestruction,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_HUMILIATION_Deity,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_VERSUS_GetItOn,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffffffff))
-	AchievementsArray.Add((Id=EUTA_VERSUS_SameTeam,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_VERSUS_Nemecide,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_VERSUS_AroundTheWorld,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffffffff))
-	AchievementsArray.Add((Id=EUTA_VERSUS_Dedication,UnlockType=EUnlockType_Count,UnlockCriteria=1000))
-	AchievementsArray.Add((Id=EUTA_VERSUS_MeetInterestingPeople,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffffffff))
-	AchievementsArray.Add((Id=EUTA_VERSUS_GetALife,UnlockType=EUnlockType_Count,UnlockCriteria=50))
-	AchievementsArray.Add((Id=EUTA_VERSUS_KillGetALifers,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_RANKED_RememberYourFirst,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_RANKED_DontHateThePlayer,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-	AchievementsArray.Add((Id=EUTA_RANKED_MixItUp,UnlockType=EUnlockType_BitMask,UnlockCriteria=0x00ffffff))
-	AchievementsArray.Add((Id=EUTA_RANKED_HatTrick,UnlockType=EUnlockType_Count,UnlockCriteria=10))
-	AchievementsArray.Add((Id=EUTA_RANKED_BloodSweatTears,UnlockType=EUnlockType_Count,UnlockCriteria=500))
-	AchievementsArray.Add((Id=EUTA_RANKED_TenFootPole,UnlockType=EUnlockType_Count,UnlockCriteria=1))
-
+    AchievementsArray.Add((Id=EUTA_CAMPAIGN_SignTreaty,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_CAMPAIGN_LiandriMainframe,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_CAMPAIGN_ReachOmicron,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_CAMPAIGN_SignTreatyExpert,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_CAMPAIGN_LiandriMainframeExpert,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_CAMPAIGN_ReachOmicronExpert,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_COOP_Complete1,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_COOP_Complete10,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_COOP_CompleteCampaign,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_IA_EveryGameMode,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xff))
+    AchievementsArray.Add((Id=EUTA_IA_Untouchable,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_EXPLORE_AllPowerups,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffffffff))
+    AchievementsArray.Add((Id=EUTA_EXPLORE_EveryMutator,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffff))
+    AchievementsArray.Add((Id=EUTA_WEAPON_BrainSurgeon,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_WEAPON_DontTaseMeBro,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_WEAPON_GooGod,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_WEAPON_Pistolero,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_WEAPON_Hammerhead,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_WEAPON_StrongestLink,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_WEAPON_HaveANiceDay,UnlockType=EUnlockType_ByteCount,UnlockCriteria=0x0a0a))
+    AchievementsArray.Add((Id=EUTA_WEAPON_BigGameHunter,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_VEHICLE_Armadillo,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_VEHICLE_JackOfAllTrades,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffff))
+    AchievementsArray.Add((Id=EUTA_VEHICLE_Ace,UnlockType=EUnlockType_Count,UnlockCriteria=20))
+    AchievementsArray.Add((Id=EUTA_VEHICLE_Deathwish,UnlockType=EUnlockType_Count,UnlockCriteria=20))
+    AchievementsArray.Add((Id=EUTA_HUMILIATION_SerialKiller,UnlockType=EUnlockType_Count,UnlockCriteria=20))
+    AchievementsArray.Add((Id=EUTA_HUMILIATION_SirSlaysALot,UnlockType=EUnlockType_Count,UnlockCriteria=20))
+    AchievementsArray.Add((Id=EUTA_HUMILIATION_KillJoy,UnlockType=EUnlockType_Count,UnlockCriteria=20))
+    AchievementsArray.Add((Id=EUTA_VERSUS_GetItOn,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xff))
+    AchievementsArray.Add((Id=EUTA_VERSUS_AroundTheWorld,UnlockType=EUnlockType_BitMask,UnlockCriteria=0xffffffff))
+    AchievementsArray.Add((Id=EUTA_VERSUS_GetALife,UnlockType=EUnlockType_ByteCount,UnlockCriteria=0x0000c832))
+    AchievementsArray.Add((Id=EUTA_GAME_HatTrick,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_RANKED_BloodSweatTears,UnlockType=EUnlockType_Count,UnlockCriteria=500))
+    AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatAkashaExpert,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_CAMPAIGN_DefeatAkasha,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_HUMILIATION_OffToAGoodStart,UnlockType=EUnlockType_Count,UnlockCriteria=40))
+    AchievementsArray.Add((Id=EUTA_CAMPAIGN_Chapter1,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+    AchievementsArray.Add((Id=EUTA_WEAPON_ShardOMatic,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+    AchievementsArray.Add((Id=EUTA_POWERUP_SeeingRed,UnlockType=EUnlockType_Count,UnlockCriteria=1200))
+    AchievementsArray.Add((Id=EUTA_POWERUP_NeverSawItComing,UnlockType=EUnlockType_Count,UnlockCriteria=1200))
+    AchievementsArray.Add((Id=EUTA_POWERUP_SurvivalFittest,UnlockType=EUnlockType_Count,UnlockCriteria=600))
+    AchievementsArray.Add((Id=EUTA_POWERUP_DeliveringTheHurt,UnlockType=EUnlockType_Count,UnlockCriteria=1200))
+    AchievementsArray.Add((Id=EUTA_GAME_BeingAHero,UnlockType=EUnlockType_Count,UnlockCriteria=100))
+    AchievementsArray.Add((Id=EUTA_GAME_FlagWaver,UnlockType=EUnlockType_Count,UnlockCriteria=100))
+    AchievementsArray.Add((Id=EUTA_GAME_30MinOrLess,UnlockType=EUnlockType_Count,UnlockCriteria=100))
+    AchievementsArray.Add((Id=EUTA_GAME_PaintTownRed,UnlockType=EUnlockType_Count,UnlockCriteria=100))
+    AchievementsArray.Add((Id=EUTA_GAME_ConnectTheDots,UnlockType=EUnlockType_Count,UnlockCriteria=100))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_CantBeTrusted,UnlockType=EUnlockType_Count,UnlockCriteria=200))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_Avenger,UnlockType=EUnlockType_Count,UnlockCriteria=20))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_BagOfBones,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_SkullCollector,UnlockType=EUnlockType_Count,UnlockCriteria=500))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_Titanic,UnlockType=EUnlockType_Count,UnlockCriteria=20))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_Behemoth,UnlockType=EUnlockType_Count,UnlockCriteria=10))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_Unholy,UnlockType=EUnlockType_Count,UnlockCriteria=1))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_TheSlowLane,UnlockType=EUnlockType_Count,UnlockCriteria=600))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_Eradication,UnlockType=EUnlockType_Count,UnlockCriteria=100))
+	AchievementsArray.Add((Id=EUTA_UT3GOLD_Arachnophobia,UnlockType=EUnlockType_Count,UnlockCriteria=10))
 
 	CampaignBoneNames.Add(B_CTFStrident)
 	CampaignBoneNames.Add(B_DMCarbonfire)
@@ -2721,6 +2800,5 @@ defaultproperties
 	CampaignBoneNames.Add(B_DMRevenant)
 	CampaignBoneNames.Add(B_DMBabel)
 	CampaignBoneNames.Add(B_CTFSteamlight)
-
 }
 

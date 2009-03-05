@@ -62,6 +62,8 @@ event PostInitialize()
 
 	// Get reference to the player interface
 	PlayerInt = GetPlayerInterface();
+
+	MenuList.SetFocus(None);
 }
 
 /** Setup the scene's buttonbar. */
@@ -144,10 +146,15 @@ function GenerateOptions(bool bIncludeKickOption, bool bIncludeBanOption)
 	local UniqueNetId LocalNetId;
 	local UTPlayerController UTPC;
 	local LocalPlayer LP;
-	local int FriendIdx;
+	local int FriendIdx, i;
 	local bool bIsFriend;
+	local bool bIsInOurGame;
 
 	CurrentOptions.length=0;
+
+	//Empty the list because StringData[11] is Listen/Dedicated which has nothing to do with PlayerCard
+	//easiest fix without worrying about who might be using StringData[11]
+	StringListDataStore.Empty('PlayerCardOptions', true);
 
 	UTPC = GetUTPlayerOwner();
 	LP = LocalPlayer(UTPC.Player);
@@ -155,8 +162,6 @@ function GenerateOptions(bool bIncludeKickOption, bool bIncludeBanOption)
 	{
 		if(PlayerInt.GetUniquePlayerId(LP.ControllerId, LocalNetId))
 		{
-			StringListDataStore.Empty('PlayerCardOptions', true);
-
 			if(LocalNetId != PlayerNetId)
 			{
 				bIsFriend = PlayerInt.IsFriend(LP.ControllerId, PlayerNetId);
@@ -172,8 +177,24 @@ function GenerateOptions(bool bIncludeKickOption, bool bIncludeBanOption)
 				// Only allow the ability invite people if we aren't in a standalone game
 				if(UTPC.WorldInfo.NetMode != NM_Standalone)
 				{
-					CurrentOptions[CurrentOptions.length]=PCO_InviteToGame;
-					StringListDataStore.AddStr('PlayerCardOptions', Localize("PlayerCard","InviteToGame","UTGameUI"), true);
+					bIsInOurGame = false;
+					if (UTPC.WorldInfo.GRI != None)
+					{
+						for (i=0; i<UTPC.WorldInfo.GRI.PRIArray.length; i++)
+						{
+							if (UTPC.WorldInfo.GRI.PRIArray[i].UniqueId == PlayerNetId)
+							{
+								bIsInOurGame = true;
+								break;
+							}
+						}
+					}
+
+					if (!bIsInOurGame)
+					{
+						CurrentOptions[CurrentOptions.length]=PCO_InviteToGame;
+						StringListDataStore.AddStr('PlayerCardOptions', Localize("PlayerCard","InviteToGame","UTGameUI"), true);
+					}
 				}
 
 				// Only allow the ability to follow players if they are on our friends list.
@@ -379,11 +400,19 @@ function OnFollow( optional string ServerPassword )
 }
 private function ProcessFollow()
 {
+	local UTPlayerController OwnerPC;
+
 	if(PlayerInt != None)
 	{
 		`Log("UTUIScene_PlayerCard::OnFollow() - Joining friend's game...");
 
 		PlayerInt.AddJoinFriendGameCompleteDelegate(OnFollowComplete);
+
+		//Set the friend followed variable
+		OwnerPC = GetUTPlayerOwner();
+		OwnerPC.PlayerReplicationInfo.FriendFollowedId = PlayerNetId;
+
+		//Join the game
 		if(PlayerInt.JoinFriendGame(GetPlayerOwner().ControllerId, PlayerNetId)==false)
 		{
 			OnFollowComplete(false);
@@ -398,8 +427,20 @@ private function ProcessFollow()
  */
 function OnFollowComplete(bool bWasSuccessful)
 {
+	local UTPlayerController OwnerPC;
+	local UniqueNetId ZeroNetId;
+
 	PlayerInt.ClearJoinFriendGameCompleteDelegate(OnFollowComplete);
 	bWasAbleToJoin = bWasSuccessful;
+
+	if ( !bWasSuccessful )
+	{
+		//Clear the friend followed variable
+		OwnerPC = GetUTPlayerOwner();
+		OwnerPC.PlayerReplicationInfo.FriendFollowedId = ZeroNetId;
+
+		DisplayMessageBox("<Strings:UTGameUI.Errors.ConnectionLost_Message>","<Strings:UTGameUI.Errors.ConnectionLost_Title>");
+	}
 }
 
 /** Callback for when the joining messagebox has closed. */

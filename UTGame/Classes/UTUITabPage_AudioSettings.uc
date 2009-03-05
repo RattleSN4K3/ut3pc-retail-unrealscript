@@ -71,7 +71,7 @@ function OnOptionList_OptionChanged(UIScreenObject InObject, name OptionName, in
 		if(OptionName=='SFXVolume')
 		{
 			bSaveAndRefresh=true;
-			UTScene.PlaySound(SFXVolumeCue);
+			UTScene.PlaySound(SFXVolumeCue, true);
 		}
 		else if(OptionName=='MusicVolume')
 		{
@@ -80,17 +80,17 @@ function OnOptionList_OptionChanged(UIScreenObject InObject, name OptionName, in
 		else if(OptionName=='VoiceVolume')
 		{
 			bSaveAndRefresh=true;
-			UTScene.PlaySound(VoiceVolumeCue);
+			UTScene.PlaySound(VoiceVolumeCue, true);
 		}
 		else if(OptionName=='AmbianceVolume')
 		{
 			bSaveAndRefresh=true;
-			UTScene.PlaySound(AmbianceVolumeCue);
+			UTScene.PlaySound(AmbianceVolumeCue, true);
 		}
 		else if(OptionName=='AnnouncerVolume')
 		{
 			bSaveAndRefresh=true;
-			UTScene.PlaySound(AnnouncerVolumeCue);
+			UTScene.PlaySound(AnnouncerVolumeCue, true);
 		}
 		else if(OptionName=='HardwareOpenAL')
 		{

@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for all condition sequence objects which act as switch constructs.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class SeqCond_SwitchBase extends SequenceCondition
 	native(inherit)

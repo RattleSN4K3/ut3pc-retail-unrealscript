@@ -136,8 +136,6 @@ event bool SubmitGameSearch(byte ControllerIndex, optional bool bInvalidateExist
 				return true;
 			}
 
-			// invalidate the results for this search
-			InvalidateCurrentSearchResults();
 			return GameInterface.FindOnlineGames(ControllerIndex,GameSearchCfgList[ActiveSearchIndex].Search);
 		}
 		else
@@ -255,6 +253,11 @@ event bool ShowHostGamercard(byte ControllerIndex,int ListIndex)
 * @param ServerName the description of the server (last known)
 */
 native function AddOfflineServer(const out string OwningPlayerId, const out string ServerName);
+
+/**
+ * As above, but allows you to provide an IP address for the server; which can be used to attempt a direct connect
+ */
+native function AddJoinableOfflineServer(const out string OwningPlayerId, const out string ServerName, const out string ServerIP);
 
 /** Tells this provider to rebuild it's array data */
 native function BuildSearchResults();

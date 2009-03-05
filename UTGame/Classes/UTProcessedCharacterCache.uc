@@ -13,6 +13,12 @@ var CustomCharData CharacterData;
 var SkeletalMesh CharacterMesh;
 /** Texture of render of custom character head. */
 var Texture CharPortrait;
+/** Materials related to team skins */
+var MaterialInstanceConstant RedHeadMIC;
+var MaterialInstanceConstant RedBodyMIC;
+var MaterialInstanceConstant BlueHeadMIC;
+var MaterialInstanceConstant BlueBodyMIC;
+
 /** Mesh to use for first person arms. Should only be present for local players! */
 var SkeletalMesh FirstPersonArmMesh;
 /** Material applied to first person arms. Should only be present for local players! */
@@ -31,6 +37,10 @@ function CachePRICharacter(UTPlayerReplicationInfo PRI)
 {
 	CharacterData = PRI.CharacterData;
 	CharacterMesh = PRI.CharacterMesh;
+	RedBodyMIC = PRI.RedBodyMIC;
+	RedHeadMIC = PRI.RedHeadMIC;
+	BlueBodyMIC = PRI.BlueBodyMIC;
+	BlueHeadMIC = PRI.BlueHeadMIC;
 	CharPortrait = PRI.CharPortrait;
 	FirstPersonArmMesh = PRI.FirstPersonArmMesh;
 	FirstPersonArmMaterial = PRI.FirstPersonArmMaterial;
@@ -62,6 +72,13 @@ function bool GetCachedCharacter(UTPlayerReplicationInfo PRI)
 	else
 	{
 		PRI.SetCharacterMesh(CharacterMesh);
+
+		//Restore materials after setting the character mesh (SetCharacterMesh will None them)
+		PRI.RedBodyMIC = RedBodyMIC;
+		PRI.RedHeadMIC = RedHeadMIC;
+		PRI.BlueBodyMIC = BlueBodyMIC;
+		PRI.BlueHeadMIC = BlueHeadMIC;
+
 		PRI.CharPortrait = CharPortrait;
 		PRI.SetFirstPersonArmInfo(FirstPersonArmMesh, FirstPersonArmMaterial);
 		Destroy();

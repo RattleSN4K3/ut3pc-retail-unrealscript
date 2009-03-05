@@ -350,8 +350,18 @@ function Reset()
 
 function SetTeam(int TeamIndex)
 {
+	local UTTeamInfo OldTeam;
+
+	OldTeam = Team;
 	Team = UTOnslaughtGame(WorldInfo.Game).Teams[TeamIndex];
 	Team.TeamFlag = self;
+
+	// If the team has changed, clear the old team's flag reference
+	if ( OldTeam != Team )
+	{
+		OldTeam.TeamFlag = None;
+	}
+
 	UpdateTeamEffects();
 }
 

@@ -23,6 +23,85 @@ simulated function CreateDamageMaterialInstance()
 }
 
 /**
+* This function returns the aim for the weapon
+* overloaded here to take into account the stealthbender turret is not near the camera
+*/
+function rotator GetWeaponAim(UTVehicleWeapon VWeapon)
+{
+	local vector SocketLocation, CameraLocation, RealAimPoint, DesiredAimPoint, HitLocation, HitRotation, DirA, DirB;
+	local rotator CameraRotation, SocketRotation, ControllerAim, AdjustedAim;
+	local float DiffAngle, MaxAdjust;
+	local Controller C;
+	local PlayerController PC;
+	local Quat Q;
+
+	if ( VWeapon != none )
+	{
+		C = Seats[VWeapon.SeatIndex].SeatPawn.Controller;
+
+		PC = PlayerController(C);
+		if (PC != None)
+		{
+			PC.GetPlayerViewPoint(CameraLocation, CameraRotation);
+			DesiredAimPoint = CameraLocation + Vector(CameraRotation) * 2.0 * VWeapon.GetTraceRange();
+			if (Trace(HitLocation, HitRotation, DesiredAimPoint, CameraLocation) != None)
+			{
+				DesiredAimPoint = HitLocation;
+			}
+		}
+		else if (C != None)
+		{
+			DesiredAimPoint = C.FocalPoint;
+		}
+
+		if ( Seats[VWeapon.SeatIndex].GunSocket.Length>0 )
+		{
+			GetBarrelLocationAndRotation(VWeapon.SeatIndex, SocketLocation, SocketRotation);
+			if(VWeapon.bIgnoreSocketPitchRotation || ((DesiredAimPoint.Z - Location.Z)<0 && VWeapon.bIgnoreDownwardPitch))
+			{
+				SocketRotation.Pitch = Rotator(DesiredAimPoint - Location).Pitch;
+			}
+		}
+		else
+		{
+			SocketLocation = Location;
+			SocketRotation = Rotator(DesiredAimPoint - Location);
+		}
+
+		RealAimPoint = SocketLocation + Vector(SocketRotation) * VWeapon.GetTraceRange();
+		DirA = normal(DesiredAimPoint - SocketLocation);
+		DirB = normal(RealAimPoint - SocketLocation);
+		DiffAngle = ( DirA dot DirB );
+		MaxAdjust = VWeapon.GetMaxFinalAimAdjustment();
+		if ( DiffAngle >= MaxAdjust )
+		{
+			// bit of a hack here to make bot aiming and single player autoaim work
+			ControllerAim = (C != None) ? C.Rotation : Rotation;
+			AdjustedAim = VWeapon.GetAdjustedAim(SocketLocation);
+			if (AdjustedAim == VWeapon.Instigator.GetBaseAimRotation() || AdjustedAim == ControllerAim)
+			{
+				// no adjustment
+				return rotator(DesiredAimPoint - SocketLocation);
+			}
+			else
+			{
+				// FIXME: AdjustedAim.Pitch = Instigator.LimitPitch(AdjustedAim.Pitch);
+				return AdjustedAim;
+			}
+		}
+		else
+		{
+			Q = QuatFromAxisAndAngle(Normal(DirB cross DirA), ACos(MaxAdjust));
+			return Rotator( QuatRotateVector(Q,DirB));
+		}
+	}
+	else
+	{
+		return Rotation;
+	}
+}
+
+/**
  * function cloaks or decloaks the vehicle.
  */
 simulated function ToggleCloak()
@@ -118,6 +197,10 @@ defaultproperties
 	AirSpeed=1000
 	MaxSpeed=1300
 	ObjectiveGetOutDist=1500.0
+	LookSteerSensitivity=2.2
+	LookSteerDamping=0.04
+	ConsoleSteerScale=0.9
+	DeflectionReverseThresh=-0.3
 	bLookSteerOnNormalControls=true
 	bLookSteerOnSimpleControls=true
 
@@ -138,6 +221,7 @@ defaultproperties
 		BoneName="Rt_Rear_Tire"
 		BoneOffset=(X=0.0,Y=42.0,Z=0.0)
 		SkelControlName="Rt_Rear_Control"
+		LatSlipFactor=2.0
 	End Object
 	Wheels(0)=RRWheel
 
@@ -145,6 +229,7 @@ defaultproperties
 		BoneName="Lt_Rear_Tire"
 		BoneOffset=(X=0.0,Y=-42.0,Z=0.0)
 		SkelControlName="Lt_Rear_Control"
+		LatSlipFactor=2.0
 	End Object
 	Wheels(1)=LRWheel
 
@@ -153,7 +238,10 @@ defaultproperties
 		BoneOffset=(X=0.0,Y=42.0,Z=0.0)
 		SteerFactor=1.0
 		SkelControlName="RT_Front_Control"
-		HandbrakeLatSlipFactor=1000
+		LongSlipFactor=2.0
+		LatSlipFactor=2.0
+		HandbrakeLongSlipFactor=0.8
+		HandbrakeLatSlipFactor=0.8
 	End Object
 	Wheels(2)=RFWheel
 
@@ -162,7 +250,10 @@ defaultproperties
 		BoneOffset=(X=0.0,Y=-42.0,Z=0.0)
 		SteerFactor=1.0
 		SkelControlName="Lt_Front_Control"
-		HandbrakeLatSlipFactor=1000
+		LongSlipFactor=2.0
+		LatSlipFactor=2.0
+		HandbrakeLongSlipFactor=0.8
+		HandbrakeLatSlipFactor=0.8
 	End Object
 	Wheels(3)=LFWheel
 
@@ -174,8 +265,11 @@ defaultproperties
 	BaseEyeheight=0
 	Eyeheight=0
 	bStickDeflectionThrottle=true
+	HeavySuspensionShiftPercent=0.2
 
 	MomentumMult=1.0
+	NonPreferredVehiclePathMultiplier=2.0
 
 	HornIndex=1
+	VehicleIndex=12
 }

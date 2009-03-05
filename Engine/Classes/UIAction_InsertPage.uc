@@ -1,7 +1,7 @@
 ﻿/**
  * Adds a new page to a tab control at the specified location.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIAction_InsertPage extends UIAction_TabControl;
 

@@ -646,3 +646,23 @@ native function BuildURL(out string URL);
  * @param URL the URL to parse for settings
  */
 native function UpdateFromURL(const out string URL, GameInfo Game);
+
+
+/**
+ * Outputs the names of properties in the class which are databinding, and which can be manipulated using GetDataBindingValue and SetDataBindingValue.
+ * Property types which are not returned are: Object, Delegate, Array and Struct
+ */
+native final function GetDataBindingProperties(out array<name> DataBindingProperties);
+
+/**
+ * Outputs the value of the specified databinding property, returning True if successful
+ * NOTE: This has the same restrictions on property types as 'GetDataBindingProperties'
+ * @param bIgnoreDefaults	If true, then the function returns false and does not output a value if the property is still at it's default value
+ */
+native final function bool GetDataBindingValue(name Property, out string Value, optional bool bIgnoreDefaults);
+
+/**
+ * Sets the value of the specified databinding property to the specified input value, returning True if successful
+ * NOTE: This has the same restrictions on property types as 'GetDataBindingProperties'
+ */
+native final function bool SetDataBindingValue(name Property, string Value);

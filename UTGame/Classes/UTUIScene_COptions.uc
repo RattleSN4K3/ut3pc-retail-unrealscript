@@ -249,6 +249,16 @@ function SetupButtonBar()
 		{
 			ButtonBar.Buttons[1].SetFocus(none);
 		}
+
+
+		// Setup mouse boundaries, based upon the first button bar button
+		// NOTE: This is done through code instead of the UIEditor, to avoid patching the campaign packages
+		if (ButtonBar.Buttons[0] != none)
+		{
+			MouseBounds.bFullscreenOnly = False;
+			SetMouseBounds(UIFACE_Right,,, ButtonBar.Buttons[0]);
+			SetMouseBounds(UIFACE_Bottom,,, ButtonBar.Buttons[0]);
+		}
 	}
 }
 

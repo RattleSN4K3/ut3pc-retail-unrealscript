@@ -1,7 +1,7 @@
 ﻿/**
  * Provides the UI with read/write access to settings which affect gameplay, such as gameinfo, mutator, and maplist settings.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * @todo - make this class also expose a copy of all settings as an array called "Settings" so that the UI can autogenerate lists
  * of menu options, ala GUIMultiOptionList in UT2004.

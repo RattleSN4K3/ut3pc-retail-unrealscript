@@ -2,7 +2,7 @@
  * A special button used by the UIScrollbar class for incrementing or decrementing the current position of the scrollbar's
  * marker button.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class UIScrollbarButton extends UIButton
 	within UIScrollbar

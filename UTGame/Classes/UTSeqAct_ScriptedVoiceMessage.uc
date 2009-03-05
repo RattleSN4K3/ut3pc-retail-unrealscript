@@ -1,4 +1,8 @@
-﻿class UTSeqAct_ScriptedVoiceMessage extends SequenceAction;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTSeqAct_ScriptedVoiceMessage extends SequenceAction;
 
 var() SoundNodeWave VoiceToPlay;
 var() string SpeakingCharacterName;

@@ -1,7 +1,7 @@
 ﻿/**
  * This data store class is responsible for parsing and applying inline font changes.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIDataStore_Fonts extends UIDataStore
 	native(inherit);

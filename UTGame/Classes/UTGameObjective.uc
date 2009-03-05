@@ -117,6 +117,12 @@ var LinearColor AttackLinearColor;
 
 var bool bScriptRenderAdditionalMinimap;
 
+/** Locker to get weapons from for spawning player */
+var UTWeaponLocker BestLocker;
+
+/** True if tried and failed to find a best locker */
+var bool bNoLockerFound;
+
 
 
 replication
@@ -183,6 +189,28 @@ simulated function PostBeginPlay()
 			i++;
 		}
 	}
+}
+
+function UTWeaponLocker GetBestLocker()
+{
+	local UTWeaponLocker Locker;
+	local float Dist, BestDist;
+
+	if ( (BestLocker == None) && !bNoLockerFound )
+	{
+		// find nearest weapon locker and provide the weapons
+		ForEach DynamicActors(class'UTWeaponLocker', Locker)
+		{
+			Dist = VSizeSq(Location - Locker.Location);
+			if ( (BestLocker == None) || (BestDist > Dist) )
+			{
+				BestDist = Dist;
+				BestLocker = Locker;
+			}
+		}
+		bNoLockerFound = ( BestLocker == None );
+	}
+	return BestLocker;
 }
 
 simulated function bool IsStandalone()

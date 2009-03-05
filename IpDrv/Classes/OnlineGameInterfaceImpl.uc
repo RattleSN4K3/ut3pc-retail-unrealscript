@@ -105,7 +105,7 @@ function OnlineGameSearch GetGameSearch()
  * @param HostingPlayerNum the index of the player hosting the match
  * @param NewGameSettings the settings to use for the new game session
  *
- * @return true if successful creating the session, false otherwsie
+ * @return true if successful creating the session, false otherwise
  */
 native function bool CreateOnlineGame(byte HostingPlayerNum,OnlineGameSettings NewGameSettings);
 
@@ -201,6 +201,9 @@ function ClearDestroyOnlineGameCompleteDelegate(delegate<OnDestroyOnlineGameComp
 		DestroyOnlineGameCompleteDelegates.Remove(RemoveIndex,1);
 	}
 }
+
+/** Query an individual server for additional information */
+function bool QueryAuxServerInfo(byte SearchingPlayerNum,OnlineGameSearch SearchSettings,const out OnlineGameSearchResult Server);
 
 /**
  * Searches for games matching the settings specified

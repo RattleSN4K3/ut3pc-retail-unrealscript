@@ -110,6 +110,9 @@ var LinearColor HitEffectColor;
 /** whether getting gibbed with this damage type attaches the camera to the head gib */
 var bool bHeadGibCamera;
 
+/** Scaling applied to kills obtained with this damage type */
+var float HeroPointsMultiplier;
+
 /**
  * Possibly spawn a custom hit effect
  */
@@ -458,4 +461,17 @@ defaultproperties
 	CustomTauntIndex=-1
 	bComplainFriendlyFire=true
 	bHeadGibCamera=true
+
+	HeroPointsMultiplier=1.0
+
+	// Short "pop" of damage
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform0
+		Samples(0)=(LeftAmplitude=64,RightAmplitude=96,LeftFunction=WF_LinearDecreasing,RightFunction=WF_LinearDecreasing,Duration=0.25)
+	End Object
+	DamagedFFWaveform=ForceFeedbackWaveform0
+	// Pretty violent rumble
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveform1
+		Samples(0)=(LeftAmplitude=100,RightAmplitude=100,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=0.75)
+	End Object
+	KilledFFWaveform=ForceFeedbackWaveform1
 }

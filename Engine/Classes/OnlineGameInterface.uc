@@ -87,6 +87,9 @@ function AddDestroyOnlineGameCompleteDelegate(delegate<OnDestroyOnlineGameComple
  */
 function ClearDestroyOnlineGameCompleteDelegate(delegate<OnDestroyOnlineGameComplete> DestroyOnlineGameCompleteDelegate);
 
+/** Query an individual server for additional information */
+function bool QueryAuxServerInfo(byte SearchingPlayerNum,OnlineGameSearch SearchSettings,const out OnlineGameSearchResult Server);
+
 /**
  * Searches for games matching the settings specified
  *

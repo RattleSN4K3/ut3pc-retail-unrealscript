@@ -21,6 +21,32 @@ enum EPossibleVideoSettings
 	PVS_SmoothFramerate,
 	PVS_PlayerFOV,
 	PVS_EnableMotionBlur,
+
+	PVS_FirstDirectWorldDetailSetting,
+		PVS_StaticDecals,
+		PVS_DynamicDecals,
+		PVS_DynamicLights,
+		PVS_DynamicShadows,
+		PVS_LightEnvironmentShadows,
+		PVS_CompositeDynamicLights,
+		PVS_DirectionalLightmaps,
+		PVS_DepthOfField,
+		PVS_Bloom,
+		PVS_QualityBloom,
+		PVS_Distortion,
+		PVS_DropParticleDistortion,
+		PVS_SpeedTreeLeaves,
+		PVS_SpeedTreeFronds,
+		PVS_DetailMode,
+		PVS_LensFlares,
+		PVS_FogVolumes,
+		PVS_FloatingPointRenderTargets,
+		PVS_OneFrameThreadLag,
+		PVS_SkeletalMeshLODBias,
+		PVS_HighPolyChars,
+		PVS_ParticleLODBias,
+		PVS_ShadowFilterQualityBias,
+	PVS_LastDirectWorldDetailSetting,
 };
 
 /** Array of setting types to widget names. */
@@ -31,6 +57,18 @@ var transient UTUITabPage_Options	OptionsPage;
 
 /** Reference to the messagebox scene. */
 var transient UTUIScene_MessageBox MessageBoxReference;
+
+/** Has the user customized any settings? */
+var transient bool bCustomizedSettings;
+
+/** Do we need to update the captions next tick? */
+var transient bool bNeedsCaptionRefresh;
+
+/** If any properties are modified which require a restart, this will trigger the restart warning dialog when the user clicks 'apply' */
+var transient bool bRequireRestartWarning;
+
+
+
 
 /**
  * Sets the value of the video setting.
@@ -55,6 +93,8 @@ native function SetVideoSettingValueArray(array<EPossibleVideoSettings> Settings
  */
 native function int GetVideoSettingValue(EPossibleVideoSettings Setting);
 
+native function ResetToDefaults();
+
 /** Post initialize callback. */
 event PostInitialize()
 {
@@ -67,7 +107,7 @@ event PostInitialize()
 	// Find widget references
 	OptionsPage = UTUITabPage_Options(FindChild('pnlOptions', true));
 	OptionsPage.OnAcceptOptions=OnAcceptOptions;
-	OptionsPage.OnOptionChanged=OnOptionChanged;
+	OptionsPage.OnOptionChanged=None;
 
 	// Set all of the default values
 	for(SettingIdx=0; SettingIdx<SettingWidgetMapping.length; SettingIdx++)
@@ -77,8 +117,18 @@ event PostInitialize()
 
 		// Refresh the widget
 		WidgetIdx = OptionsPage.OptionList.GetObjectInfoIndexFromName(SettingWidgetMapping[SettingIdx]);
-		UIDataStoreSubscriber(OptionsPage.OptionList.GeneratedObjects[WidgetIdx].OptionObj).RefreshSubscriberValue();
+		if (WidgetIdx != -1)
+		{
+			UIDataStoreSubscriber(OptionsPage.OptionList.GeneratedObjects[WidgetIdx].OptionObj).RefreshSubscriberValue();
+		}
 	}
+
+	OptionsPage.OnOptionChanged=OnOptionChanged;
+
+	// nothing has been customized yet
+	bCustomizedSettings = false;
+
+	UpdateSpecialCaptions();
 }
 
 
@@ -88,35 +138,75 @@ function SetupButtonBar()
 	ButtonBar.Clear();
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Back>", OnButtonBar_Back);
 	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.Accept>", OnButtonBar_Accept);
+	ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ResetToDefaults>", OnButtonBar_ResetToDefaults);
+}
+
+function bool OnButtonBar_ResetToDefaults(UIScreenObject InButton, int InPlayerIndex)
+{
+	OnResetToDefaults();
+
+	return true;
+}
+
+/** Reset to defaults callback, resets all of the profile options in this widget to their default values. */
+function OnResetToDefaults()
+{
+	local array<string> MessageBoxOptions;
+
+	MessageBoxReference = GetMessageBoxScene();
+
+	if(MessageBoxReference != none)
+	{
+		MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.ResetToDefaultAccept>");
+		MessageBoxOptions.AddItem("<Strings:UTGameUI.ButtonCallouts.Cancel>");
+
+		MessageBoxReference.SetPotentialOptions(MessageBoxOptions);
+		MessageBoxReference.Display("<Strings:UTGameUI.MessageBox.ResetToDefaults_Message>", "<Strings:UTGameUI.MessageBox.ResetToDefaults_Title>", OnResetToDefaults_Confirm, 1);
+	}
+}
+
+/**
+ * Callback for the reset to defaults confirmation dialog box.
+ *
+ * @param SelectionIdx	Selected item
+ * @param PlayerIndex	Index of player that performed the action.
+ */
+function OnResetToDefaults_Confirm(UTUIScene_MessageBox MessageBox, int SelectionIdx, int PlayerIndex)
+{
+	if(SelectionIdx==0)
+	{
+		`log("Reseting to defaults, wabam!");
+		ResetToDefaults();
+		CloseScene(self);
+	}
+	else
+	{
+		OptionsPage.OptionList.SetFocus(none);
+	}
 }
 
 /** Called when one of our options changes. */
 function OnOptionChanged(UIScreenObject InObject, name OptionName, int PlayerIndex)
 {
-	/*
 	local int SettingIdx;
-	local int CurrentValue;
 
 	// Find the setting idx for this widget
 	SettingIdx = SettingWidgetMapping.Find(OptionName);
 
-	// Set the global settings using the new datastore value.
-	if(SettingIdx != INDEX_NONE)
+	// if we customize any of the world detail settings, mark the world detail as custom
+	if (SettingIdx >= PVS_FirstDirectWorldDetailSetting && SettingIdx <= PVS_LastDirectWorldDetailSetting)
 	{
-		// Force the widget to update its datastore value
-		if(UISlider(InObject)!=None)
-		{
-			CurrentValue=UISlider(InObject).GetValue();
-		}
-		else if(UICheckbox(InObject)!=None)
-		{
-			CurrentValue=UICheckbox(InObject).IsChecked() ? 1 : 0;
-		}
+		bCustomizedSettings = true;
 
-		// Save out the option
-		SetVideoSettingValue(EPossibleVideoSettings(SettingIdx), CurrentValue);
+		if (SettingIdx == PVS_DetailMode || SettingIdx == PVS_SkeletalMeshLODBias || 
+			SettingIdx == PVS_ParticleLODBias || SettingIdx == PVS_ShadowFilterQualityBias)
+		{
+			UpdateSpecialCaptions();
+		}
 	}
-	*/
+
+	if (SettingIdx == PVS_DirectionalLightmaps)
+		bRequireRestartWarning = True;
 }
 
 /** Callback for when the user wants to exit this screen. */
@@ -135,10 +225,24 @@ function OnAccept()
 	local array<EPossibleVideoSettings> SettingArray;
 	local array<int> ValueArray;
 
+	// if we customized any world settings, we need to mark the WorldDetail as custom
+	if (bCustomizedSettings)
+	{
+		SettingArray.length = 1;
+		SettingArray[0] = PVS_WorldDetail;
+		ValueArray.length = 1;
+		ValueArray[0] = 0;
+	}
+
 	// Save all out settings using the datastore value
 	for(SettingIdx=0; SettingIdx<SettingWidgetMapping.length; SettingIdx++)
 	{
 		WidgetIdx = OptionsPage.OptionList.GetObjectInfoIndexFromName(SettingWidgetMapping[SettingIdx]);
+		// don't set settings for removed options
+		if (WidgetIdx == -1)
+		{
+			continue;
+		}
 		InObject = OptionsPage.OptionList.GeneratedObjects[WidgetIdx].OptionObj;
 
 		// Force the widget to update its datastore value
@@ -161,8 +265,15 @@ function OnAccept()
 	// Save out the options
 	SetVideoSettingValueArray(SettingArray, ValueArray);
 
-	MessageBoxReference  = DisplayMessageBox("<Strings:UTGameUI.Errors.SomeChangesMayNotBeApplied_Message>", "<Strings:UTGameUI.Errors.SomeChangesMayNotBeApplied_Title>");
-	MessageBoxReference.OnClosed = WarningMessage_Closed;
+	if (bRequireRestartWarning)
+	{
+		MessageBoxReference  = DisplayMessageBox("<Strings:UTGameUI.Errors.SomeChangesMayNotBeApplied_Message>", "<Strings:UTGameUI.Errors.SomeChangesMayNotBeApplied_Title>");
+		MessageBoxReference.OnClosed = WarningMessage_Closed;
+	}
+	else
+	{
+		CloseScene(Self);
+	}
 }
 
 /** Callback for when the warning message has closed. */
@@ -239,6 +350,47 @@ event SetPlayerFOV(int NewFOV)
 	}
 }
 
+function string LevelToName(int Level)
+{
+	switch(Level)
+	{
+		case -1:
+			return Localize("SliderValues","ExtraLow","UTGame");
+		case 0:
+			return Localize("SliderValues","Low","UTGame");
+		case 1:
+			return Localize("SliderValues","Mid","UTGame");
+		case 2:
+			return Localize("SliderValues","High","UTGame");
+	};
+}
+
+function UpdateCaption(EPossibleVideoSettings Setting, int Offset)
+{
+	local int WidgetIdx;
+	local int Level;
+
+	WidgetIdx = OptionsPage.OptionList.GetObjectInfoIndexFromName(SettingWidgetMapping[Setting]);
+	Level = UISlider(OptionsPage.OptionList.GeneratedObjects[WidgetIdx].OptionObj).GetValue();
+	UISlider(OptionsPage.OptionList.GeneratedObjects[WidgetIdx].OptionObj).CaptionRenderComponent.SetValue(LevelToName(Level + Offset));
+	UISlider(OptionsPage.OptionList.GeneratedObjects[WidgetIdx].OptionObj).CaptionRenderComponent.RefreshValue();
+}
+
+event PerformUpdateSpecialCaptions()
+{
+	UpdateCaption(PVS_DetailMode, 0);
+	UpdateCaption(PVS_SkeletalMeshLODBias, 2);
+	UpdateCaption(PVS_ParticleLODBias, 2);
+	UpdateCaption(PVS_ShadowFilterQualityBias, 1);
+
+}
+
+function UpdateSpecialCaptions()
+{
+	bNeedsCaptionRefresh = true;
+}
+
+
 DefaultProperties
 {
 	SettingWidgetMapping(PVS_ScreenPercentage)="ScreenPercentage";
@@ -253,4 +405,28 @@ DefaultProperties
 	SettingWidgetMapping(PVS_SmoothFramerate)="SmoothFramerate";
 	SettingWidgetMapping(PVS_PlayerFOV)="PlayerFOV";
 	SettingWidgetMapping(PVS_EnableMotionBlur)="EnableMotionBlur";
+	SettingWidgetMapping(PVS_StaticDecals)="StaticDecals";
+	SettingWidgetMapping(PVS_DynamicDecals)="DynamicDecals";
+	SettingWidgetMapping(PVS_DynamicLights)="DynamicLights";
+	SettingWidgetMapping(PVS_DynamicShadows)="DynamicShadows";
+	SettingWidgetMapping(PVS_LightEnvironmentShadows)="LightEnvironmentShadows";
+	SettingWidgetMapping(PVS_CompositeDynamicLights)="CompositeDynamicLights";
+	SettingWidgetMapping(PVS_DirectionalLightmaps)="DirectionalLightmaps";
+	SettingWidgetMapping(PVS_DepthOfField)="DepthOfField";
+	SettingWidgetMapping(PVS_Bloom)="Bloom";
+	SettingWidgetMapping(PVS_QualityBloom)="QualityBloom";
+	SettingWidgetMapping(PVS_Distortion)="Distortion";
+	SettingWidgetMapping(PVS_DropParticleDistortion)="DropParticleDistortion";
+	SettingWidgetMapping(PVS_SpeedTreeLeaves)="SpeedTreeLeaves";
+	SettingWidgetMapping(PVS_SpeedTreeFronds)="SpeedTreeFronds";
+	SettingWidgetMapping(PVS_DetailMode)="DetailMode";
+	SettingWidgetMapping(PVS_LensFlares)="LensFlares";
+	SettingWidgetMapping(PVS_FogVolumes)="FogVolumes";
+	SettingWidgetMapping(PVS_FloatingPointRenderTargets)="FloatingPointRenderTargets";
+	SettingWidgetMapping(PVS_OneFrameThreadLag)="OneFrameThreadLag";
+	SettingWidgetMapping(PVS_SkeletalMeshLODBias)="SkeletalMeshLODBias";
+	SettingWidgetMapping(PVS_HighPolyChars)="HighPolyChars";
+	SettingWidgetMapping(PVS_ParticleLODBias)="ParticleLODBias";
+	SettingWidgetMapping(PVS_ShadowFilterQualityBias)="ShadowFilterQualityBias";
+
 }

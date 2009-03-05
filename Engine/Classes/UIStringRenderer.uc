@@ -1,7 +1,7 @@
 ﻿/**
  * Provides an interface for working with widgets that render strings in some way.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 interface UIStringRenderer
 	native(UIPrivate);

@@ -116,7 +116,7 @@ function IQueryHandler getHandlerFor(string path, out string title, out string d
 function WebAdminMenu getUserMenu(IWebAdminUser forUser)
 {
 	local WebAdminMenu result;
-	local MenuItem entry;
+	local MenuItem entry, dummy;
 
 	if (!forUser.canPerform(webadmin.getAuthURL("/")))
 	{
@@ -130,6 +130,11 @@ function WebAdminMenu getUserMenu(IWebAdminUser forUser)
 		if (forUser.canPerform(webadmin.getAuthURL(entry.path)))
 		{
 			result.addSortedItem(entry);
+		}
+		else {
+			dummy.path = entry.path;
+			dummy.weight = entry.weight;
+			result.addSortedItem(dummy);
 		}
 	}
 	result.createTree();
@@ -202,7 +207,7 @@ protected function createTree()
 			}
 		}
 
-		// add the time
+		// add the item
 		found = false;
 		foreach tree[parent].children(child, idx2)
 		{
@@ -232,17 +237,33 @@ protected function createTree()
 /**
  * Render the current menu tree to a navigation menu
  */
-function string render()
+function string render(optional string menu_template = "/navigation_menu.inc",
+	optional string item_template = "/navigation_item.inc")
 {
 	local string result;
 	local WebResponse wr;
+	local MenuItem entry;
+	local array<MenuItem> menuCopy;
+
 	wr = new class'WebResponse';
-	result = renderChilds(tree[0].children, wr);
+	if (tree.Length == 0)
+	{
+		menuCopy = menu;
+		menu.length = 0;
+		foreach menuCopy(entry)
+		{
+			addSortedItem(entry);
+		}
+		createTree();
+	}
+	result = renderChilds(tree[0].children, wr, menu_template, item_template);
 	wr.subst("navigation.items", result);
-	return wr.LoadParsedUHTM(webadmin.path$"/navigation_menu.inc");
+	return wr.LoadParsedUHTM(webadmin.path$menu_template);
 }
 
-protected function string renderChilds(array<int> childs, WebResponse wr)
+protected function string renderChilds(array<int> childs, WebResponse wr,
+	optional string menu_template = "/navigation_menu.inc",
+	optional string item_template = "/navigation_item.inc")
 {
 	local int child, menuid;
 	local string result, subitems;
@@ -253,22 +274,26 @@ protected function string renderChilds(array<int> childs, WebResponse wr)
 		{
 			if (tree[child].children.length > 0)
 			{
-				subitems = renderChilds(tree[child].children, wr);
-				wr.subst("navigation.items", subitems, true);
-				subitems = wr.LoadParsedUHTM(webadmin.path$"/navigation_menu.inc");
+				subitems = renderChilds(tree[child].children, wr, menu_template, item_template);
+				if (len(subitems) > 0)
+				{
+					wr.subst("navigation.items", subitems, true);
+					subitems = wr.LoadParsedUHTM(webadmin.path$menu_template);
+				}
 			}
 			else {
 				subitems = "";
 			}
 			wr.subst("item.submenu", subitems, true);
 			wr.subst("item.path", webadmin.path$menu[menuid].path);
+			wr.subst("item.menupath", menu[menuid].path);
 			wr.subst("item.title", menu[menuid].title);
 			wr.subst("item.description", menu[menuid].description);
-			result $= wr.LoadParsedUHTM(webadmin.path$"/navigation_item.inc");
+			result $= wr.LoadParsedUHTM(webadmin.path$item_template);
 		}
 		else if (tree[child].children.length > 0)
 		{
-			result $= renderChilds(tree[child].children, wr);
+			result $= renderChilds(tree[child].children, wr, menu_template, item_template);
 		}
 	}
 	return result;

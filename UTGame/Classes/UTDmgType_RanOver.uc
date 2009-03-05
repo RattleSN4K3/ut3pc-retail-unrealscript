@@ -7,6 +7,8 @@ class UTDmgType_RanOver extends UTDamageType
 
 var int NumMessages;
 
+var ForceFeedbackWaveform RanOverWaveForm;
+
 static function int IncrementKills(UTPlayerReplicationInfo KillerPRI)
 {
 	local int KillCount;
@@ -26,10 +28,22 @@ static function SmallReward(UTPlayerController Killer, int KillCount)
 
 static function SpawnHitEffect(Pawn P, float Damage, vector Momentum, name BoneName, vector HitLocation)
 {
+	local UTPawn UTP;
+	local UTConsolePlayerController UTPC;
+
 	Super.SpawnHitEffect(P,Damage,Momentum,BoneName,HitLocation);
-	if(UTPawn(P) != none)
+
+	UTP = UTPawn(P);
+	if(UTP != none)
 	{
-		UTPawn(P).SoundGroupClass.Static.PlayCrushedSound(P);
+		UTP.SoundGroupClass.Static.PlayCrushedSound(P);
+
+		//Play some rumble
+		UTPC = UTConsolePlayerController(UTP.Controller);
+		if(UTPC != None)
+	{
+			UTPC.ClientPlayForceFeedbackWaveform(default.RanOverWaveForm);
+		}
 	}
 }
 
@@ -51,4 +65,9 @@ defaultproperties
 	bVehicleHit=true
 
 	NumMessages=4
+
+	Begin Object Class=ForceFeedbackWaveform Name=ForceFeedbackWaveformRanOver
+	Samples(0)=(LeftAmplitude=90,RightAmplitude=90,LeftFunction=WF_Constant,RightFunction=WF_Constant,Duration=1.0)
+	End Object
+	RanOverWaveForm=ForceFeedbackWaveformRanOver
 }

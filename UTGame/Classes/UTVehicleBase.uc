@@ -20,6 +20,9 @@ var bool bShouldEject;
 var Texture2D HudIcons;
 var TextureCoordinates HudCoords;
 
+/** HUD should draw bar graph to indicate charge / ammo for this vehicle */
+var bool bHasBarGraph;
+
 
 
 simulated function SwitchWeapon(byte NewGroup)

@@ -16,6 +16,10 @@ var		array<UTVehicle>			VehicleList;
 simulated event PostBeginPlay()
 {
 	bCurrentlyActive = bInitiallyOn;
+
+	// ttp 113322: Make sure the box is always hidden
+	CollisionComponent.SetHidden(true);
+
 	Disable('Tick');
 }
 

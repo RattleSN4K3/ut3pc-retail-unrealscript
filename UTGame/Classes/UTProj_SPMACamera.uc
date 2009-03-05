@@ -86,7 +86,7 @@ simulated event PostBeginPlay()
 {
 	Super.PostBeginPlay();
 
-	SetTimer(2.0, true, 'SendDeployMessage');
+	SetTimer(0.25, false, 'SendDeployMessage');
 
 	if (Role == ROLE_Authority && AIController(InstigatorController) != None)
 	{
@@ -326,6 +326,7 @@ simulated function DeployCamera()
 	SetPhysics(PHYS_Projectile);
 
 	bRotationFollowsVelocity = false;
+	bNeverReplicateRotation = false;
 
 	// in case the simulated projectile already hit the ground on the client, make sure we allow the explosion again
 	bSuppressExplosionFX = false;
@@ -438,14 +439,14 @@ simulated function SendDeployMessage()
 	{
 		ForEach LocalPlayerControllers(class'PlayerController', PC)
 		{
-			if (InstigatorController == PC && PC.ViewTarget == self)
+			if (Instigator.Controller == PC && PC.ViewTarget == self)
 			{
 				PC.ReceiveLocalizedMessage(MessageClass, 4);
+				ClearTimer('SendDeployMessage');
 				return;
 			}
 		}
 	}
-	ClearTimer('SendDeployMessage');
 }
 
 /**

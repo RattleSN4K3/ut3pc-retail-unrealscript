@@ -99,10 +99,12 @@ function ScoreKill(Controller Killer, Controller Killed)
 		NextGameRules.ScoreKill(Killer,Killed);
 }
 
-function NetDamage( int OriginalDamage, out int Damage, pawn injured, Controller instigatedBy, vector HitLocation, out vector Momentum, class<DamageType> DamageType )
+function NetDamage(int OriginalDamage, out int Damage, pawn Injured, Controller InstigatedBy, vector HitLocation, out vector Momentum, class<DamageType> DamageType)
 {
 	if ( NextGameRules != None )
-		NextGameRules.NetDamage( OriginalDamage,Damage,injured,instigatedBy,HitLocation,Momentum,DamageType );
+	{
+		NextGameRules.NetDamage(OriginalDamage, Damage, Injured, InstigatedBy, HitLocation, Momentum, DamageType);
+	}
 }
 
 defaultproperties

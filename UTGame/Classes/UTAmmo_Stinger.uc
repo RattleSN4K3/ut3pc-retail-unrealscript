@@ -7,7 +7,7 @@ class UTAmmo_Stinger extends UTAmmoPickupFactory;
 
 defaultproperties
 {
-	AmmoAmount=50
+	AmmoAmount=40
 	TargetWeapon=class'UTWeap_Stinger'
 	PickupSound=SoundCue'A_Pickups.Ammo.Cue.A_Pickup_Ammo_Stinger_Cue'
 	MaxDesireability=0.25

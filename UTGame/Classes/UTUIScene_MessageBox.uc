@@ -73,6 +73,9 @@ var transient float						FadeStartTime;
 /** Flag that lets the dialog know it should hide itself. */
 var transient bool						bHideOnNextTick;
 
+/** Flag which is used natively to recalculate the dialog button positions */
+var bool							bRepositionButtons;
+
 /**
  * The user has made a selection of the choices available to them.
  */

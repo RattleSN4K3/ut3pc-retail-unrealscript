@@ -113,6 +113,9 @@ simulated function PostBeginPlay()
 
 	GlideBlend = AnimNodeBlend(Mesh.FindAnimNode('GlideNode'));
 	IdleAnimNode = AnimNodeSequence(Mesh.FindAnimNode('IdleAnim'));
+
+	// hack the radius
+	SetMaxRadius(SoundNodeAttenuation(EngineSound.SoundCue.FirstNode));
 }
 
 simulated function SetVehicleEffectParms(name TriggerName, ParticleSystemComponent PSC)
@@ -584,6 +587,20 @@ function bool TooCloseToAttack(Actor Other)
 	}
 }
 
+
+function bool RecommendCharge(UTBot B, Pawn Enemy)
+{
+	if ( B.Skill < 1 + FRand() )
+	{
+		return false;
+	}
+	if ( Vehicle(Enemy) == None )
+	{
+		return (VSize(Location - Enemy.Location) < 1000.0 + 3000.0*FRand());
+	}
+	return false;
+}	
+
 defaultproperties
 {
 	bAttachDriver=true
@@ -728,4 +745,5 @@ defaultproperties
 	bEjectKilledBodies=true
 
 	HornIndex=2
+	VehicleIndex=13
 }

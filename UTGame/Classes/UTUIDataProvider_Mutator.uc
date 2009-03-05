@@ -74,6 +74,7 @@ event bool SupportsCurrentGameMode()
 			{
 				// Make sure we use the UTGame version of classes.
 				GameMode = Repl(GameMode, "UTGameContent.", "UTGame.");
+				GameMode = Repl(GameMode, "UT3GoldGame.", "UTGame.");
 				GameMode = Repl(GameMode, "_Content", "");
 
 				// try checking the modified GameMode string as well
@@ -88,6 +89,7 @@ event bool SupportsCurrentGameMode()
 		{
 			// Make sure we use the UTGame version of classes.
 			GameMode = Repl(GameMode, "UTGameContent.", "UTGame.");
+			GameMode = Repl(GameMode, "UT3GoldGame.", "UTGame.");
 			GameMode = Repl(GameMode, "_Content", "");
 
 			// Find the class and then see if this mutator is allowed.

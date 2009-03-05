@@ -1,7 +1,7 @@
 ﻿/**
  * Base class for all switch condition ops which use an object value for branching.
  *
- * Copyright 2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved
  */
 class SeqCond_SwitchObject extends SeqCond_SwitchBase
 	native(inherit);

@@ -87,7 +87,8 @@ function bool SetEnemy( UTBot B, Pawn NewEnemy )
 	local bool bResult;
 
 	if ( (NewEnemy == None) || (NewEnemy.Health <= 0) || (NewEnemy.Controller == None)
-		|| ((UTBot(NewEnemy.Controller) != None) && (UTBot(NewEnemy.Controller).Squad == self)) )
+		|| ((UTBot(NewEnemy.Controller) != None) && (UTBot(NewEnemy.Controller).Squad == self)) 
+		|| !ValidEnemy(NewEnemy) )
 		return false;
 
 	// add new enemy to enemy list - return if already there
@@ -103,12 +104,16 @@ function bool SetEnemy( UTBot B, Pawn NewEnemy )
 
 function bool FriendlyToward(Pawn Other)
 {
-	return false;
+	return WorldInfo.GRI.OnSameTeam(self, Other);
 }
 
 function bool AllowContinueOnFoot(UTBot B, UTVehicle V)
 {
 	// don't give up vehicle to chase enemy
+	if ( V.ImportantVehicle() && (V.Health > 0.2 * V.default.Health) )
+	{
+		return false;
+	}
 	return (B.Enemy == None && Super.AllowContinueOnFoot(B, V));
 }
 
@@ -203,7 +208,7 @@ function bool AssignSquadResponsibility(UTBot B)
 			// maybe hunt player - only if have a fix on player location from sounds he's made
 			foreach WorldInfo.AllControllers(class'Controller', C)
 			{
-				if (C.bIsPlayer && C != self && C.Pawn != None)
+				if (C.bIsPlayer && C != B && C.Pawn != None)
 				{
 					PlayerPawn = C.Pawn;
 					if ( (WorldInfo.TimeSeconds - PlayerPawn.Noise1Time < 5) || (WorldInfo.TimeSeconds - PlayerPawn.Noise2Time < 5) )

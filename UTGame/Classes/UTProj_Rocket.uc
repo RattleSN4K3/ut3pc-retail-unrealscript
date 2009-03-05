@@ -9,6 +9,11 @@ simulated function PostBeginPlay()
 	// force ambient sound if not vehicle game mode
 	bImportantAmbientSound = !WorldInfo.bDropDetail && (UTOnslaughtGRI(WorldInfo.GRI) == None);
 	Super.PostBeginPlay();
+	
+	if ( (InstigatorController == None) && (UTVehicle(Instigator) != None) && (Instigator.Instigator != None) )
+	{
+		InstigatorController = Instigator.Instigator.Controller;
+	} 
 }
 
 defaultproperties
@@ -30,11 +35,12 @@ defaultproperties
 	RotationRate=(Roll=50000)
 	DesiredRotation=(Roll=30000)
 	bCollideWorld=true
-	CheckRadius=44.0
+	CheckRadius=42.0
 	bCheckProjectileLight=true
 	ProjectileLightClass=class'UTGame.UTRocketLight'
 	ExplosionLightClass=class'UTGame.UTRocketExplosionLight'
 
 	bWaitForEffects=true
 	bAttachExplosionToVehicles=false
+	bAttachExplosionToPawns=false
 }

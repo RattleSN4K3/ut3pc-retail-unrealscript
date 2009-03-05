@@ -6,9 +6,6 @@ class UTConsolePlayerInput extends UTPlayerInput within UTConsolePlayerControlle
 	config(Input)
 	native;
 
-/** Multiplier used to scale the sensitivity of the controls. */
-var float SensitivityMultiplier;
-
 /** Multiplier used to scale the sensitivity of the turning. */
 var float TurningAccelerationMultiplier;
 
@@ -138,10 +135,7 @@ function PreProcessInput( float DeltaTime )
 	local UTWeapon UW;
 	local bool bUsingTiltController;
 
-	Super.PreProcessInput(DeltaTime);
-	//`log( " RawJoyUp: " $ RawJoyUp $ " RawJoyRight: " $ RawJoyRight );
-	//RawJoyLookRight	= aTurn;
-	//RawJoyLookUp	= aLookUp;
+	Super(PlayerInput).PreProcessInput(DeltaTime);
 
 	if( Pawn == none )
 	{
@@ -156,17 +150,9 @@ function PreProcessInput( float DeltaTime )
 		// if we are playing in a Game that only allows Gamepads and we have received input from a non gamepad we disconnect the player
 		// as we consider that cheating
         // if we are the server then we want to set our server to allow KeyBoardAndMouse
+        /* Disabled for PC
 		if( UTGameReplicationInfo(WorldInfo.GRI).bAllowKeyboardAndMouse == FALSE )
 		{
-// 			if( WorldInfo.NetMode != NM_Client )
-// 			{
-//                 // @todo put in some UI screen saying KeyBoardAndMouse are now allowed
-//                 `log( "You have been detected as using a keyboard/mouse. As the server you have changed the Server Type to allow KeyBoardAndMice" );
-// 				UTGame(WorldInfo.Game).bAllowKeyboardAndMouse = TRUE;
-// 				UTGameReplicationInfo(WorldInfo.GRI).bAllowKeyboardAndMouse = TRUE;
-// 			}
-// 			else
-// 			{
 				// leaving this here now for when inevitably someone does this and wonders why they have no input
 				//`log( "You have been detected as using a keyboard/mouse in a GamePad only game and have been disconnected from the game." );
 				//UTConsolePlayerController(Pawn.Controller).SetFrontEndErrorMessage("<Strings:UTGameUI.Errors.CannotUseKeyboardMouse_Title>","<Strings:UTGameUI.Errors.CannotUseKeyboardMouse_Message>");
@@ -186,39 +172,16 @@ function PreProcessInput( float DeltaTime )
 				aLookUp = 0.0f;
 
 				//ConsoleCommand("Disconnect");
-//			}
 	
 			return;
 		}
+		*/
 	}
-
 
 	bUsingTiltController = FALSE;
 
-	//hack
-// 	if( UTVehicle(Pawn) != None )
-// 	{
-// 		UTConsolePlayerController(Pawn.Controller).SetOnlyUseControllerTiltInput( TRUE );
-// 		UTConsolePlayerController(Pawn.Controller).SetControllerTiltActive( TRUE );
-// 	}
-// 	else
-// 	{
-// 		UTConsolePlayerController(Pawn.Controller).SetOnlyUseControllerTiltInput( FALSE );
-// 		UTConsolePlayerController(Pawn.Controller).SetControllerTiltActive( FALSE );
-// 	}
-//
 // 	// haha so tricky
  	bUsingTiltController = UTConsolePlayerController(Pawn.Controller).IsControllerTiltActive();
-//
-// 		// so now depending on whether or not the Tilt is active  (e.g. we are getting values form the tilt)
-// 	// (AND also we are still getting values from the thumbsticks.  :-( ?? )
-// 	// we want to modify those values by some (e.g. don't have such crazy up and down when in vehicles)
-// 	//
-// 	if( bUsingTiltController == TRUE )
-// 	{
-// 		aTurn *= 1.0;
-// 		aLookUp *= 1.0f;//0.1f;
-// 	}
 
 	// so based on what we are doing (e.g. vehicle<type>, redeemer, weapon selector, etc.)
 	// so we will want to do the following (per axis)
@@ -226,17 +189,11 @@ function PreProcessInput( float DeltaTime )
 	//   -modify the scalar for that axis
 	//   -
 
-
-
 	UW = UTWeapon(Pawn.Weapon);
 
 	// Accelerate turning rate if we did not apply friction
 	// we have a "slowdown" acceleration so we need to do that first
-	if( ( bViewAccelerationEnabled )
-		//&& ( UW.GetZoomedState() != ZST_Zoomed ) // not certain if we want this here and just use the zooomed slow down?  or  use this and then zoom slow down on top
-		//&& ( UTVehicle(Pawn) == None )  // no view accel in a vehicle
-		&& ( bUsingTiltController == FALSE )
-		)
+	if( bViewAccelerationEnabled && !bUsingTiltController )
 	{
 		ApplyViewAcceleration( DeltaTime );
 	}
@@ -254,7 +211,7 @@ function PreProcessInput( float DeltaTime )
 
 	// these needs to happen after aForward has been updated.
 	// might be out of place here
-	if( ( !bAppliedTargetFriction )
+	if( !bAppliedTargetFriction
 		&& ( ( UW != none ) && ( UW.GetZoomedState() != ZST_Zoomed ) )
 		)
 	{
@@ -475,8 +432,6 @@ function ApplyViewAcceleration( float DeltaTime )
 	UW = UTWeapon(Pawn.Weapon);
 	CurrentPitch = NormalizeRotAxis(Rotation.Pitch);
 
-	//`log( "ahh: " $ square(Abs(RawJoyLookRight)) + square(Abs(RawJoyLookUp/0.75)) $ " RawJoyLookRight: " $ RawJoyLookRight $ " RawJoyLookUp: " $ RawJoyLookUp );
-
 	if( CurrentPitch < -1*ViewAccel_LookingUpOrDownBoundary )
 	{
 		//`log( "looking down: " $ CurrentPitch $ " aLookUp: " $ aLookUp );
@@ -494,10 +449,7 @@ function ApplyViewAcceleration( float DeltaTime )
 		|| ( ( bIsLookingUp == TRUE ) && ( RawJoyLookUp > ViewAccel_PitchThreshold ) )
 		)
 	{
-		//aLookUp = ( aLookUp < 0 ) ? (aLookUp*ViewAccel_BackToCenterSpeed) : (aLookUp*ViewAccel_BackToCenterSpeed);
 		aLookUp *= ViewAccel_BackToCenterSpeed;
-		//`log( "shizzle: " $ abs(RawJoyLookUp) $ " CurrentPitch: " $ CurrentPitch $ " aLookUp: " $ aLookUp $ " RawJoyLookUp: " $ RawJoyLookUp );
-		//`log( "CurrentPitch: " $ CurrentPitch $ " RawJoyLookUp: " $ RawJoyLookUp $ " aLookUp: " $ aLookUp );
 	}
 	// non-linear scale for turn magnitude
 	// If above threshold, accelerate Yaw turning rate (e.g. when you slam the thumbstick to the farthest position)
@@ -512,13 +464,9 @@ function ApplyViewAcceleration( float DeltaTime )
 		{
 			ViewAccel_CurrMutliplier += ( ViewAccel_RampSpeed ) ;
 			aTurn *= FMin( FMax(ViewAccel_CurrMutliplier, ViewAccel_BaseMultiplier), ViewAccel_MaxTurnSpeed );  // we need to always be at least a 1.0f here or we will go slower and hitch
-
-			//`log( "aTurn *=2 ViewAccel_CurrMutliplier: " $ FMin( FMax(ViewAccel_CurrMutliplier, ViewAccel_BaseMultiplier), ViewAccel_MaxTurnSpeed ) $ " aTurn: " $ aTurn $ " ViewAccel_BaseMultiplier: " $ ViewAccel_BaseMultiplier );
-			//`log( "RawJoyLookRight: " $ RawJoyLookRight $ " RawJoyLookUp: " $ RawJoyLookUp $ " " $ (RawJoyLookUp/0.75) $ " aTurn: " $ aTurn );
 		}
 		else
 		{
-// 				aTurn *= FMin( ViewAccel_CurrMutliplier, 3.0 );
 			aTurn = ( aTurn < 0 ) ? -1*Square(aTurn) : Square(aTurn);
 			aTurn /= MagicScaleForSensitivityEdge;
 			ViewAccel_CurrMutliplier = aTurn;
@@ -534,24 +482,6 @@ function ApplyViewAcceleration( float DeltaTime )
 
 		aTurn = ( aTurn < 0 ) ? -1*Square(aTurn) : Square(aTurn);
 		aTurn /= MagicScaleForSensitivityMiddle;
-
-// 			if( ( Abs(aTurn) < ViewAccel_Twitchy )
-// 				&& ( Abs(aTurn) > LeftThumbStickDeadZoneThreshold )
-// 				)
-// 			{
-// 				//`log( "aTurn Twitchy Pre: " $ aTurn );
-// 				aTurn = ( aTurn < 0 ) ? -1*Square(aTurn) : Square(aTurn);
-// 				aTurn /= MagicScaleForSensitivity;
-// 				//`log( "aTurn Twitchy: " $ aTurn );
-// 			}
-// 			else
-// 			{
-// 				aTurn = aTurn;
-// 				//`log( "aTurn NON twitchy: " $ aTurn );
-// 			}
-
-
-		//`log( "aTurn Pre: " $ aTurn );
 
 		//aTurn *= 0.;
 		//aTurn = ( aTurn < 0 ) ? -1*Square(aTurn) : Square(aTurn);
@@ -968,7 +898,6 @@ function Actor.EDoubleClickDir CheckForDoubleClickMove(float DeltaTime)
 
 defaultproperties
 {
-	SensitivityMultiplier=1.0f
 	TurningAccelerationMultiplier=1.0f
 	bUsingGamepad=TRUE
 }

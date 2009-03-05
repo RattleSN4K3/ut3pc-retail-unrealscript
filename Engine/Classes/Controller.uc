@@ -175,7 +175,7 @@ event PostBeginPlay()
 		InitPlayerReplicationInfo();
 	}
 	// randomly offset the sight counter to avoid hitches
-	SightCounter = 0.2 * FRand();
+	SightCounter = SightCounterInterval * FRand();
 }
 
 /* epic ===============================================

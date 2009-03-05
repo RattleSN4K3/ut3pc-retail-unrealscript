@@ -358,8 +358,16 @@ function ProcessGameInvite( int SelectedMessageItem, optional string ServerPassw
  */
 private function ProcessFollow( int SelectedMessageItem )
 {
+	local UTUIScene OwnerUTScene;
+	local UTPlayerController OwnerPC;
+
 	//MessageBoxReference = UTUIScene(GetScene()).GetMessageBoxScene();
 	//MessageBoxReference.DisplayModalBox("<Strings:UTGameUI.MessageBox.JoinFriend_Message>", "");
+
+	//Set the friend followed variable
+	OwnerUTScene = UTUIScene(GetScene());
+	OwnerPC = OwnerUTScene.GetUTPlayerOwner();
+	OwnerPC.PlayerReplicationInfo.FriendFollowedId = GetNetIdFromIndex(SelectedMessageItem);
 
 	//GameInt.AddGameInviteAcceptedDelegate(GetPlayerOwner().ControllerId,OnGameInviteAccepted);
 	PlayerInt.JoinFriendGame(GetPlayerOwner().ControllerId,GetNetIdFromIndex(SelectedMessageItem));

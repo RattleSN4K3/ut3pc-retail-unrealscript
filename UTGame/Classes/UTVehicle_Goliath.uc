@@ -40,7 +40,7 @@ replication
 {
 	if (bNetDirty)
 		GunnerFlashLocation;
-	if (!IsSeatControllerReplicationViewer(1))
+	if (!IsSeatControllerReplicationViewer(1) || bDemoRecording)
 		GunnerWeaponRotation;
 }
 
@@ -170,8 +170,8 @@ simulated function DisplayWheelsDebug(HUD HUD, float YL)
 
 defaultproperties
 {
-	Health=800
-	MaxDesireability=0.8
+	Health=900
+	MaxDesireability=1.25
 	MomentumMult=0.3
 	bCanFlip=false
 	bTurnInPlace=true
@@ -336,4 +336,7 @@ defaultproperties
 	NonPreferredVehiclePathMultiplier=3.0
 
 	HornIndex=1
+	VehicleIndex=3
+	HeroBonus=2.0
+	GreedCoinBonus=6
 }

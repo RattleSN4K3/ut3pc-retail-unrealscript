@@ -12,6 +12,7 @@ var UTProj_SPMACamera RemoteCamera;
 var vector TargetVelocity;
 var SoundCue BoomSound;
 var SoundCue IncomingSound;
+var SoundCue ReadyToFireSound;
 var bool bCanHitTargetVector;
 var vector IncomingTargetLoc;
 var float LastCanAttackTime;
@@ -22,6 +23,43 @@ replication
 		RemoteCamera;
 }
 
+
+
+simulated function PostBeginPlay()
+{
+	FireInterval[0] = 3.5;
+	Super.PostBeginPlay();
+}
+
+simulated event float GetPowerPerc()
+{
+	if ( IsTimerActive('RefireCheckTimer') )
+	{
+		return ( GetTimerCount('RefireCheckTimer') / GetFireInterval(CurrentFireMode) );
+	}
+	return 1.0;
+}
+
+simulated state WeaponFiring
+{
+	/** Play sound effect when weapon is ready to fire */
+	simulated event RefireCheckTimer()
+	{
+		if ( PlayerController(Instigator.Controller) != None )
+			PlayerController(Instigator.Controller).ClientPlaySound(ReadyToFireSound);
+		Super.RefireCheckTimer();
+	}
+}
+
+function float RangedAttackTime()
+{
+	return FireInterval[0];
+}	
+
+function bool RecommendLongRangedAttack()
+{
+	return true;
+}
 
 /**
  * Override BeginFire and restrict firing when the vehicle isn't deployed
@@ -203,6 +241,10 @@ function bool CanAttack(Actor Other)
 	Extent = ProjectileClass.default.CollisionComponent.Bounds.BoxExtent;
 	Start = MyVehicle.GetPhysicalFireStartLoc(self);
 	B = UTBot(Instigator.Controller);
+	if ( B == None )
+	{ 
+		B = UTBot(MyVehicle.Controller);
+	}
 
 	// Get the Suggested toss velocity
 	bResult = SuggestTossVelocity( RequiredVelocity, Other.GetTargetLocation(MyVehicle), Start, ProjectileClass.default.Speed,
@@ -332,5 +374,6 @@ simulated function bool EnableFriendlyWarningCrosshair()
 
 defaultproperties
 {
-
+	AmmoDisplayType=EAWDS_BarGraph
+	ReadyToFireSound=SoundCue'A_Weapon_RocketLauncher.Cue.A_Weapon_RL_SeekLock_Cue'
 }

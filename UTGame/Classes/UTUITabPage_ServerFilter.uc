@@ -65,6 +65,8 @@ event bool ActivatePage( int PlayerIndex, bool bActivate, optional bool bTakeFoc
 		{
 			OptionList.SelectNextItem(true);
 		}
+
+		ShowHideGameMode(PlayerIndex);
 	}
 
 	return bResult;
@@ -111,7 +113,7 @@ function ValidateServerType()
 
 final function ForceLANOption( int PlayerIndex )
 {
-	local UIObject ServerTypeOption, GameTypeOption;
+	local UIObject ServerTypeOption, GameTypeOption, AllGameTypesOption;
 	local int ValueIndex;
 	local name MatchTypeName;
 
@@ -137,22 +139,64 @@ final function ForceLANOption( int PlayerIndex )
 		}
 
 		GameTypeOption = FindChild('GameModeFilter', true);
+		AllGameTypesOption = FindChild('ListAllGameModes', true);
 
 		// use the accessor so that if the match or server type options are selected, we select the next possible one
 		OptionList.EnableItem(PlayerIndex, ServerTypeOption, false);
 		OptionList.EnableItem(PlayerIndex, GameTypeOption, false);
+		OptionList.EnableItem(PlayerIndex, AllGameTypesOption, false);
+	}
+}
+
+/** Update the gamemode visibility depending on LAN/Internet setting */
+function ShowHideGameMode(int PlayerIndex)
+{
+	local int ValueIndex;
+	local UIObject GameModeOption, FullServerOption, AllGameModesOption;
+	local bool bLANMode, bAllGameModes;
+	local string OptStr;
+
+	GameModeOption = FindChild('GameModeFilter',true);
+
+	if ( GameModeOption != None )
+	{
+		// Determine whether LAN has been selected
+		ValueIndex = StringListDataStore.GetCurrentValueIndex(IsConsole(CONSOLE_XBox360) ? 'MatchType360' : 'MatchType');
+		bLANMode = ValueIndex == class'UTUITabPage_ServerBrowser'.const.SERVERBROWSER_SERVERTYPE_LAN;
+
+		// Determine whethr 'List All Game Modes' has been selected
+		if (!bLANMode && GetDataStoreStringValue("<Registry:ListAllGameModes>", OptStr))
+			bAllGameModes = bool(OptStr);
+
+
+		// if the user wants to search for LAN matches, disable the gametype combo
+		OptionList.EnableItem(PlayerIndex, GameModeOption, !(bLANMode || bAllGameModes));
+
+
+		// Disable 'List All Game Modes' if LAN mode is enabled
+		AllGameModesOption = FindChild('ListAllGameModes', true);
+
+		if (AllGameModesOption != none)
+			OptionList.EnableItem(PlayerIndex, AllGameModesOption, !bLANMode);
+
+
+		FullServerOption = FindChild('ShowFullServers',true);
+		if ( FullServerOption != None )
+		{
+			// if the user wants to search for LAN matches, disable the fullservers option (it is not supported)
+			OptionList.EnableItem(PlayerIndex, FullServerOption, !bLANMode);
+		}
 	}
 }
 
 /** Pass through the option callback. */
 function OnOptionList_OptionChanged(UIScreenObject InObject, name OptionName, int PlayerIndex)
 {
-	local string OutStringValue;
+	local string OutStringValue, GameClassValue;
 	local int ProviderIdx;
-	local int ValueIndex;
-	local UIObject GameModeOption;
 	local array<UIDataStore> OutDataStores;
 	local UIDataStorePublisher Publisher;
+	local string OptStr;
 
 	Super.OnOptionList_OptionChanged(InObject, OptionName, PlayerIndex);
 
@@ -167,12 +211,31 @@ function OnOptionList_OptionChanged(UIScreenObject InObject, name OptionName, in
 		}
 	}
 
+	if (OptionName == 'AllGameModes_Client')
+	{
+		if (UICheckBox(InObject).IsChecked())
+		{
+			SearchDataStore.CustomGameTypeClass = "";
+			SearchDataStore.SetCurrentByName('UTGameSearchCustom', false);
+		}
+		else
+		{
+			// If 'List All Game Modes' was unchecked, then refresh the search data store
+			OptionName = 'GameMode_Client';
+		}
+
+		ShowHideGameMode(PlayerIndex);
+	}
+
 	if(OptionName=='GameMode_Client')
 	{
-		if(GetDataStoreStringValue("<UTMenuItems:GameModeFilterClass>", OutStringValue))
+		GetDataStoreStringValue("<Registry:ListAllGameModes>", OptStr);
+
+		if (!bool(OptStr) && GetDataStoreStringValue("<UTMenuItems:GameModeFilterClass>", OutStringValue))
 		{
 			// make sure to update the GameSettings value - this is used to build the join URL
 			SetDataStoreStringValue("<UTGameSettings:CustomGameMode>", OutStringValue);
+			GameClassValue = OutStringValue;
 
 			// find the index into the UTMenuItems data store for the gametype with the specified class name
 			ProviderIdx = MenuDataStore.FindValueInProviderSet('GameModeFilter','GameMode', OutStringValue);
@@ -181,6 +244,14 @@ function OnOptionList_OptionChanged(UIScreenObject InObject, name OptionName, in
 			// game search object in the Game Search data store.
 			if(ProviderIdx != INDEX_NONE && MenuDataStore.GetValueFromProviderSet('GameModeFilter','GameSearchClass', ProviderIdx, OutStringValue))
 			{
+				// If no game search object has been specified, then default to the custom game search object
+				if (OutStringValue == "")
+					OutStringValue = "UTGameSearchCustom";
+
+				// If the custom game search object has been specified, then supply the search datastore with the game class, for filtering
+				if (OutStringValue ~= "UTGameSearchCustom")
+					SearchDataStore.CustomGameTypeClass = GameClassValue;
+
 				// Set the search settings class
 				SearchDataStore.SetCurrentByName(name(OutStringValue), false);
 			}
@@ -191,15 +262,8 @@ function OnOptionList_OptionChanged(UIScreenObject InObject, name OptionName, in
 			MarkOptionsDirty();
 		}
 	}
-	else if ( OptionName == 'MatchType' || OptionName == 'MatchType360' )
+	else if ( OptionName == 'MatchType' || OptionName == 'MatchType360')
 	{
-		GameModeOption = FindChild('GameModeFilter',true);
-		if ( GameModeOption != None )
-		{
-			ValueIndex = StringListDataStore.GetCurrentValueIndex(OptionName);
-
-			// if the user wants to search for LAN matches, disable the gametype combo
-			OptionList.EnableItem(PlayerIndex, GameModeOption, ValueIndex != class'UTUITabPage_ServerBrowser'.const.SERVERBROWSER_SERVERTYPE_LAN);
-		}
+		ShowHideGameMode(PlayerIndex);
 	}
 }

@@ -102,6 +102,9 @@ var CameraAnim	RumbleCameraAnim;
 /** Range from leviathan to play rumble. */
 var	float		RumbleRange;
 
+/** Last time a bot fired the main cannon */
+var float LastBotFireTime;
+
 replication
 {
 	if (bNetDirty)
@@ -109,13 +112,13 @@ replication
 		LRTurretFlashLocation, RRTurretFlashLocation,
 		LFTurretHealth, RFTurretHealth, LRTurretHealth, RRTurretHealth,
 		ShieldStatus, TurretStatus, PassengerPRITwo, PassengerPRIThree, PassengerPRIFour, bFreezeMainGunRotation;
-	if (!IsSeatControllerReplicationViewer(1))
+	if (!IsSeatControllerReplicationViewer(1) || bDemoRecording)
 		LFTurretFlashCount, LFTurretWeaponRotation;
-	if (!IsSeatControllerReplicationViewer(2))
+	if (!IsSeatControllerReplicationViewer(2) || bDemoRecording)
 		RFTurretFlashCount, RFTurretWeaponRotation;
-	if (!IsSeatControllerReplicationViewer(3))
+	if (!IsSeatControllerReplicationViewer(3) || bDemoRecording)
 		LRTurretFlashCount, LRTurretWeaponRotation;
-	if (!IsSeatControllerReplicationViewer(4))
+	if (!IsSeatControllerReplicationViewer(4) || bDemoRecording)
 		RRTurretFlashCount, RRTurretWeaponRotation;
 }
 
@@ -123,6 +126,9 @@ replication
 
 simulated event PostBeginPlay()
 {
+	// clear out the buggy muzzle flash
+	VehicleEffects[11].EffectTemplate = None;
+
 	Super.PostBeginPlay();
 
 	Shield[0] = SpawnShield( vect(320,-180,200), 'LT_Front_TurretPitch');
@@ -149,7 +155,6 @@ simulated event PostBeginPlay()
 	CachedTurrets[3].InitTurret(Rotation, Mesh);
 }
 
-
 function NotifyTakeHit(Controller InstigatedBy, vector HitLocation, int Damage, class<DamageType> damageType, vector Momentum)
 {
 	NotifyDamage += Damage;
@@ -158,6 +163,24 @@ function NotifyTakeHit(Controller InstigatedBy, vector HitLocation, int Damage, 
 	{
 		NotifyDamage =0;
 		Super.NotifyTakeHit(InstigatedBy, HitLocation, Damage, DamageType, Momentum);
+	}
+}
+
+
+simulated function BlowupVehicle()
+{
+	local int i;
+	local UTVWeap_LeviathanTurretBase VWeap;
+
+	Super.BlowupVehicle();
+
+	for (i=0; i<Seats.length; i++)
+	{
+		VWeap = UTVWeap_LeviathanTurretBase( Seats[i].Gun );
+		if (VWeap != None)
+		{
+			VWeap.DeactivateShield();
+		}
 	}
 }
 
@@ -751,6 +774,12 @@ function TryToFindShieldHit(vector EndTrace, vector StartTrace, out TraceHitInfo
 	}
 }
 
+simulated function bool DisableVehicle()
+{
+	// Do not allow the Leviathan to be affected by EMP mines
+	return false;
+}
+
 simulated event TakeDamage(int Damage, Controller InstigatedBy, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
 	local int ShieldHitIndex, TurretHitIndex, i, TurretDamage;
@@ -890,24 +919,6 @@ simulated function int GetHealth(int SeatIndex)
 	return 0;
 }
 
-
-
-/*
-simulated function VehicleCalcCamera(float DeltaTime, int SeatIndex, out vector out_CamLoc, out rotator out_CamRot, out vector CamStart, optional bool bPivotOnly)
-{
-	if (SeatIndex >= 1 && !UTPawn(Seats[SeatIndex].SeatPawn.Driver).bFixedView)
-	{
-		Mesh.GetSocketWorldLocationAndRotation( Seats[SeatIndex].CameraTag, out_CamLoc);
-		out_CamRot = Seats[SeatIndex].SeatPawn.GetViewRotation();
-		out_CamLoc +=  Vector(out_CamRot) * Seats[SeatIndex].CameraOffset;
-	CamStart = out_CamLoc;
-	}
-	else
-	{
-		Super.VehicleCalcCamera(Deltatime, SeatIndex, out_CamLoc, out_CamRot, CamStart, bPivotOnly);
-	}
-}
-*/
 simulated native function vector GetTargetLocation(optional Actor RequestedBy, optional bool bRequestAlternateLoc) const;
 
 simulated event RigidBodyCollision( PrimitiveComponent HitComponent, PrimitiveComponent OtherComponent,
@@ -1084,35 +1095,68 @@ function bool ImportantVehicle()
 
 function bool RecommendLongRangedAttack()
 {
-	return true;
+	return DeployActivated() || CanDeploy();
 }
 
 event bool ContinueOnFoot()
-{
-	if (Super.ContinueOnFoot())
 	{
-		return true;
-	}
-	else
-	{
+	local UTBot B;
+	
 		// if we have to stand around anyway, might as well deploy and blow stuff up
-		if (UTBot(Controller) != None && !IsDeployed())
+	B = UTBot(Controller);
+	if (B != None && !DeployActivated() && ((B.RouteGoal == None) || B.LineOfSightTo(B.RouteGoal)) )
 		{
 			SetTimer(0.01, false, 'ServerToggleDeploy');
-		}
 		return false;
 	}
+	
+	// try to keep going anyway
+	return true;
 }
 
 function bool CanAttack(Actor Other)
 {
+	local UTBot B;
+	local vector HitLocation, HitNormal, projStart, X,Y,Z;
+	local Actor HitActor;
+	
+	// work around dumb code in UTVWeap_LeviathanPrimary - only keep shooting at last seen spot if target still close by
+	if ( IsDeployed() )
+	{
+		B = UTBot(Instigator.Controller);
+		if ( B != None && Other == B.Enemy && (WorldInfo.TimeSeconds - B.LastSeenTime > 1.5) 
+			&& ((VSizeSq(Other.Location - B.LastSeenPos) > 1000000) || !FastTrace(Other.Location, B.LastSeenPos)) )
+		{
+			return false;
+		}
+	}
+	
 	if (Super.CanAttack(Other))
 	{
+		if ( !IsDeployed() )
+		{
+			// only accept canattack if could attack from deployed position
+			if ( !CanDeploy() )
+			{
+				return false;
+			}
+
+			GetAxes(Rotation, X,Y,Z);
+			projStart = Weapon.GetPhysicalFireStartLoc() - 100*X + 100*Z;
+			HitActor = Trace(HitLocation, HitNormal, Other.GetTargetLocation(self), projStart, true,,, TRACEFLAG_Bullet);
+			if ( HitActor == None || HitActor == Other || (!HitActor.IsA('Pawn') && !HitActor.IsA('UTGameObjective'))
+				|| !WorldInfo.GRI.OnSameTeam(Instigator, HitActor) )
+			{
 		// deploy to attack stationary targets
-		if (UTBot(Controller) != None && !IsDeployed() && Other.IsStationary())
+				if (UTBot(Controller) != None && !DeployActivated() && Other.IsStationary())
 		{
 			SetTimer(0.01, false, 'ServerToggleDeploy');
 		}
+		return true;
+	}
+			return false;
+		}
+
 		return true;
 	}
 	else
@@ -1124,12 +1168,17 @@ function bool CanAttack(Actor Other)
 function bool BotFire(bool bFinished)
 {
 	// don't let bot fire if we already decided to deploy, so it doesn't fail because of that
-	return (IsTimerActive('ServerToggleDeploy') ? false : Super.BotFire(bFinished));
+	if ( !IsTimerActive('ServerToggleDeploy') && Super.BotFire(bFinished) )
+	{
+		LastBotFireTime = WorldInfo.TimeSeconds;
+		return true;
+	}
+	return false;
 }
 
 function bool TooCloseToAttack(Actor Other)
 {
-	// fire the nuke anyway
+	// fire the weapon anyway
 	return (!IsDeployed() && Super.TooCloseToAttack(Other));
 }
 
@@ -1151,7 +1200,10 @@ function bool NeedToTurn(vector Targ)
 				return true;
 			}
 		}
-
+		if ( WorldInfo.TimeSeconds - LastBotFireTime < 5.5 )
+		{
+			return true;
+		}
 		// make sure bot doesn't get stuck waiting to rotate when it'll never get there
 		if (UTBot(Controller) != None && Controller.InLatentExecution(509)) // 509 == FinishRotation
 		{
@@ -1254,6 +1306,16 @@ defaultproperties
 
 	HornSounds[1]=SoundCue'A_Vehicle_leviathan.Soundcues.A_Vehicle_leviathan_horn' // Big axon
 	HornIndex=1
+	VehicleIndex=5
 
 	DeployIconOffset=0.92
+	ChargeBarPosY=5.5
+	ChargeBarPosX=2.4
+	HeroBonus=5.0
+	GreedCoinBonus=10
+
+	PassengerTeamBeaconOffset=(X=250.0f,Y=-140.0f,Z=250.0f);
+	ExtraPassengerTeamBeaconOffset(0)=(X=250.0f,Y=140.0f,Z=250.0f);
+	ExtraPassengerTeamBeaconOffset(1)=(X=-350.0f,Y=-140.0f,Z=230.0f);
+	ExtraPassengerTeamBeaconOffset(2)=(X=-350.0f,Y=140.0f,Z=230.0f);
 }

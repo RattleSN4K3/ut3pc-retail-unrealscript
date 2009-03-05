@@ -254,6 +254,7 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 			bNeedsProfileSaved = false;
 		}
 
+
 		// We have to subtract 1 from UnlockChapterIndex because Jim used 1-X instead of 0-X.
 		// This is also done in Profile.UnlockChapter
 
@@ -261,20 +262,18 @@ function InitializeMissionSystem(UTMissionGRI MGRI,PlayerController Host)
 		if ( LastMissionResult == ESPMR_Win && PreviousMissionObj.bUnlockChapterWhenCompleted )
 		{
 			Profile.UnlockChapter(PreviousMissionObj.UnlockChapterIndex);
-
 			work = Localize("Campaign","Chapter"$PreviousMissionObj.UnlockChapterIndex-1$"Unlock","UTGameUI");
 			class'UTUIScene'.static.ShowOnlineToast(Work);
 			bNeedsProfileSaved = true;
 		}
 
-		// Look to see if we should be clearing the cards
 
+		// Look to see if we should be clearing the cards
 		if ( PreviousMissionObj.bClearCards )
 		{
 			Profile.ClearModifierCards();
 			bNeedsProfileSaved = true;
 		}
-
 
 		NoChildren = PreviousMissionObj.NumChildren();
 		for (i = 0; i < NoChildren; i++)

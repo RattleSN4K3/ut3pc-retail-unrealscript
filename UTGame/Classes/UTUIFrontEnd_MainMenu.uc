@@ -87,11 +87,21 @@ function OnMainRegion_Show_UIAnimEnd(UIObject AnimTarget, int AnimIndex, UIAnima
 		{
 			if ( !IsLoggedIn(INDEX_NONE, true) )
 			{
-				OpenSceneByName(LoginScreenScene, true, OnLoginScreenOpened);
+				OpenSceneByName(LoginScreenScene, True, OnLoginScreenOpened);
 				return;
 			}
 		}
 	}
+
+	// See if we should directly open the server browser
+	if (GetDataStoreStringValue("<Registry:ReturnToBrowser>", OutStringValue) && OutStringValue == "1")
+	{
+		SetDataStoreStringValue("<Registry:ReturnToBrowser>", "0");
+
+		// First opens the multiplayer menu, then the join game menu through 'OnMultiplayerScreenOpened'
+		OpenSceneByName(MultiplayerScene, true, OnMultiplayerScreenOpened);
+	}
+
 
 	// AnimIndex of 0 corresponds to the 'SceneShowInitial' animation
 	if ( AnimIndex == 0 )
@@ -172,6 +182,17 @@ function OnLoginScreenOpened(UIScene OpenedScene, bool bInitialActivation)
 	}
 }
 
+/** Callback for when the multiplayer screen has opened (only called when returning to the server browser after a disconnect). */
+function OnMultiplayerScreenOpened(UIScene OpenedScene, bool bInitialActivation)
+{
+	local UTUIFrontEnd_Multiplayer MPScene;
+
+	MPScene = UTUIFrontEnd_Multiplayer(OpenedScene);
+
+	if (MPScene != none)
+		MPScene.OpenSceneByName(MPScene.JoinScene, True);
+}
+
 /** PostInitialize event - Sets delegates for the scene. */
 event PostInitialize( )
 {
@@ -181,6 +202,11 @@ event PostInitialize( )
 
 event SceneActivated(bool bInitialActivation)
 {
+	local string StringValue;
+	local int IntValue;
+	local UIImage IconImages[4];
+	local int ImageIndex;
+
 	Super.SceneActivated(bInitialActivation);
 
 	`log(`location@`showvar(bInitialActivation),,'DevUI');
@@ -188,6 +214,37 @@ event SceneActivated(bool bInitialActivation)
 	{
 		MenuList.SetFocus(None);
 		SetupButtonBar();
+	}
+
+	// look to see if one of the images is there (ie with the Black reskin)
+	IconImages[0] = UIImage(FindChild('img_Reaper', true));
+
+	if (IconImages[0] != none)
+	{
+		// cache pointers to all the images
+		IconImages[1] = UIImage(FindChild('img_Necris01', true));
+		IconImages[2] = UIImage(FindChild('img_Krall01', true));
+		IconImages[3] = UIImage(FindChild('img_Corrupt01', true));
+
+		// look to see if we have one already set
+		GetDataStoreStringValue("<Registry:UsedMainMenuImage>", StringValue);
+
+		// convert to int
+		IntValue = int(StringValue);
+
+		if (IntValue == 0)
+		{
+			IntValue = rand(4) + 1;
+			SetDataStoreStringValue("<Registry:UsedMainMenuImage>", string(IntValue));
+		}
+	
+		`log("Setting image " $ IconImages[IntValue - 1] $ " to visible");
+
+		for (ImageIndex = 0; ImageIndex < 4; ImageIndex++)
+		{
+			// set the one visible that we want
+			IconImages[ImageIndex].SetVisibility(ImageIndex == IntValue - 1);
+		}
 	}
 }
 

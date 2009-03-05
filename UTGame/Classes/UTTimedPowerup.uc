@@ -33,6 +33,12 @@ var float PP_Scene_Desaturation;
 
 
 
+simulated function PostBeginPlay()
+{
+	Super.PostBeginPlay();
+	AddWeaponOverlay(UTGameReplicationInfo(WorldInfo.GRI));
+}
+
 function GivenTo(Pawn NewOwner, bool bDoNotActivate)
 {
 	Super.GivenTo(NewOwner, bDoNotActivate);

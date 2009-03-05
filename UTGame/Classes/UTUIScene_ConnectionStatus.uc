@@ -42,6 +42,8 @@ function OnDestroyOnlineGameComplete(bool bWasSuccessful)
 	local OnlineSubsystem OnlineSub;
 	local UTPlayerController PC;
 
+	ScriptTrace();
+
 	// Store a reference to the game interface
 	OnlineSub = class'GameEngine'.static.GetOnlineSubsystem();
 

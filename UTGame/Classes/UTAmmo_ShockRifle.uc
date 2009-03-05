@@ -5,7 +5,7 @@ class UTAmmo_ShockRifle extends UTAmmoPickupFactory;
 
 defaultproperties
 {
-	AmmoAmount=10
+	AmmoAmount=8
 	TargetWeapon=class'UTWeap_ShockRifle'
 	PickupSound=SoundCue'A_Pickups.Ammo.Cue.A_Pickup_Ammo_Shock_Cue'
 	MaxDesireability=0.28

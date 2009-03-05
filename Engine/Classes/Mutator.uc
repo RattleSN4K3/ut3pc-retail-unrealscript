@@ -148,6 +148,48 @@ function NotifyLogin(Controller NewPlayer)
 		NextMutator.NotifyLogin(NewPlayer);
 }
 
+function bool AllowChangeTeam(Controller Other, out int num, bool bNewTeam)
+{
+	if (NextMutator != none)
+		return NextMutator.AllowChangeTeam(Other, num, bNewTeam);
+
+	return True;
+}
+
+function NotifySetTeam(Controller Other, TeamInfo OldTeam, TeamInfo NewTeam, bool bNewTeam)
+{
+	if (NextMutator != None)
+		NextMutator.NotifySetTeam(Other, OldTeam, NewTeam, bNewTeam);
+}
+
+function bool AllowBecomeActivePlayer(PlayerController P)
+{
+	if (NextMutator != None)
+		return NextMutator.AllowBecomeActivePlayer(P);
+
+	return True;
+}
+
+function bool AllowBecomeSpectator(PlayerController P)
+{
+	if (NextMutator != None)
+		return NextMutator.AllowBecomeSpectator(P);
+
+	return True;
+}
+
+function NotifyBecomeActivePlayer(PlayerController Player)
+{
+	if (NextMutator != none)
+		NextMutator.NotifyBecomeActivePlayer(Player);
+}
+
+function NotifyBecomeSpectator(PlayerController Player)
+{
+	if (NextMutator != none)
+		NextMutator.NotifyBecomeSpectator(Player);
+}
+
 function DriverEnteredVehicle(Vehicle V, Pawn P)
 {
 	if ( NextMutator != None )

@@ -48,6 +48,9 @@ var() bool bContinueOnEncroachPhysicsObject;
 /** true by default, prevents mover from completing the movement that would leave it encroaching another actor */
 var() bool bStopOnEncroach;
 
+/** If true, have a liftcenter associated with this interpactor, so it is being used as a lift */
+var bool bIsLift;
+
 simulated event PostBeginPlay()
 {
 	Super.PostBeginPlay();
@@ -148,6 +151,11 @@ event RanInto( Actor Other )
 	else if(Other.bDestroyedByInterpActor)
 	{
 		Other.Destroy();
+	}
+	else if ( bIsLift )
+	{
+		// no encroach event if have liftcenter based on me
+		return;
 	}
 	else
 	{

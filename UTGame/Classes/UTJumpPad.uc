@@ -20,7 +20,7 @@ var AudioComponent			JumpAmbientSound;
 
 event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
 {
-	if ( (UTPawn(Other) == None) || (Other.Physics == PHYS_None) )
+	if ( (UTPawn(Other) == None) || (Other.Physics == PHYS_None) || UTPawn(Other).IsHero() )
 		return;
 
 	PendingTouch = Other.PendingTouch;

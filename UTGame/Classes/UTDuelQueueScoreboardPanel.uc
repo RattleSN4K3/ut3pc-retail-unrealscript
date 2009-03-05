@@ -22,6 +22,17 @@ function GetPRIList(UTGameReplicationInfo GRI)
 	}
 }
 
+/**
+* Tests a PRI to see if we should display it on the scoreboard
+*
+* @Param PRI		The PRI to test
+* @returns TRUE if we should display it, returns FALSE if we shouldn't
+*/
+function bool IsValidScoreboardPlayer( UTPlayerReplicationInfo PRI)
+{
+	return Super.IsValidScoreboardPlayer(PRI) && UTDuelPRI(PRI).QueuePosition >= 0;
+}
+
 function DrawScoreHeader()
 {
 	if ( HeaderFont != none )

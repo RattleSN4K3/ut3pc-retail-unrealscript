@@ -5,7 +5,7 @@
  * for publishing user selections to the appropriate persistent location so that these values are used by the gameplay code when the
  * game is played
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIDataStore_Settings extends UIDataStore
 	native(inherit)

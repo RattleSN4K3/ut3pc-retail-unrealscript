@@ -1,7 +1,7 @@
 ﻿/**
  * Contains information about how to present and format a widget's appearance.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  */
 class UIStyle_Data extends UIRoot
 	native(UIPrivate)

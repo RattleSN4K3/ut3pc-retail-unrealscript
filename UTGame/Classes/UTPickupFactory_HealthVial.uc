@@ -58,6 +58,12 @@ function SpawnCopyFor( Pawn Recipient )
 	{
 		PlayerController(Recipient.Controller).ReceiveLocalizedMessage(MessageClass,,,,class);
 	}
+
+	// not sure why this didn't call the super, but I need the pickflags to update and it looks like that stat would never update
+	if ( UTPlayerReplicationInfo(Recipient.PlayerReplicationInfo) != None )
+	{
+		UTPlayerReplicationInfo(Recipient.PlayerReplicationInfo).IncrementPickupStat(GetPickupStatName());
+	}
 }
 
 function float BotDesireability(Pawn P, Controller C)

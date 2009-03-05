@@ -2,7 +2,7 @@
  * This  widget allows the user to type numeric text into an input field.
  * The value of the text in the input field can be incremented and decremented through the buttons associated with this widget.
  *
- * Copyright 1998-2007 Epic Games, Inc. All Rights Reserved
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
  *
  * @todo - selection highlight support
  */

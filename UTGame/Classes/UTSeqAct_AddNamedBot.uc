@@ -1,4 +1,8 @@
-﻿class UTSeqAct_AddNamedBot extends SequenceAction;
+﻿/**
+ * Copyright 1998-2008 Epic Games, Inc. All Rights Reserved.
+ */
+
+class UTSeqAct_AddNamedBot extends SequenceAction;
 
 /** name of bot to spawn */
 var() string BotName;

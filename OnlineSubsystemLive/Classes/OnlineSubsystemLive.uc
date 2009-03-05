@@ -1849,6 +1849,17 @@ function ClearUnlockAchievementCompleteDelegate(byte LocalUserNum,delegate<OnUnl
 delegate OnUnlockAchievementComplete(bool bWasSuccessful);
 
 /**
+* Returns whether or not an achievement has been unlocked
+*
+* @return true if the achievement is already unlocked, false otherwise
+*/
+function bool IsAchievementUnlocked(int AchievementId)
+{
+	`log("IsAchievementUnlocked - Not implemented yet");
+	return false;
+}
+
+/**
  * Unlocks a gamer picture for the local user
  *
  * @param LocalUserNum the user to unlock the picture for
