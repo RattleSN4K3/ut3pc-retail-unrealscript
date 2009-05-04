@@ -12,7 +12,7 @@ defaultproperties
 	SuicideStatsName=KILLS_HEROBOMB
 	DamageWeaponFireMode=2
 	VehicleDamageScaling=1.5
-	NodeDamageScaling=0.5
+	NodeDamageScaling=0.35
 	bDestroysBarricades=true
 
 	bKUseOwnDeathVel=true

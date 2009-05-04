@@ -417,6 +417,37 @@ function SetCustomMutators( UTUIDataStore_MenuItems MenuDataStore, const out arr
 	SetStringProperty(PROPERTY_CUSTOMMUTCLASSES, CustomMutClasses);
 }
 
+
+/**
+ * If a property setting wont fit into the server details results, give the script a chance to trim the data
+ * NOTE: Value will be in the format: ",Property=Value"
+ *
+ * @param PropertyId The id of the property setting to be trimmed
+ * @param MaxLen The maximum length of the string
+ * @param Value The modified string value
+ *
+ * @return Whether or not the value was successfully trimmed
+ */
+function bool TrimPropertyValue(int PropertyID, int MaxLen, out string Value)
+{
+	local int DelimiterPos;
+
+	if (PropertyID == PROPERTY_CUSTOMMUTATORS || PropertyID == PROPERTY_CUSTOMMUTCLASSES)
+	{
+		Value = Left(Value, MaxLen+1);
+		DelimiterPos = InStr(Value, Chr(28), True);
+
+		if (DelimiterPos != INDEX_None)
+		{
+			Value = Left(Value, DelimiterPos);
+			return True;
+		}
+	}
+
+
+	return False;
+}
+
 defaultproperties
 {
 	// Default to 32 public and no private (user sets)
@@ -501,4 +532,15 @@ defaultproperties
 	Properties(11)=(PropertyId=PROPERTY_STEAMVAC,Data=(Type=SDT_Int32),AdvertisementType=ODAT_DontAdvertise)
 	PropertyMappings(11)=(Id=PROPERTY_STEAMVAC,Name="SteamVAC",MappingType=PVMT_RawValue)
 
+
+	OptionalDataBindingSettings.Add("AverageSkillRating")
+
+	OptionalLocalizedSettings.Add(CONTEXT_BOTSKILL)
+	OptionalLocalizedSettings.Add(CONTEXT_VSBOTS)
+	OptionalLocalizedSettings.Add(CONTEXT_FORCERESPAWN)
+
+	OptionalPropertySettings.Add(PROPERTY_GOALSCORE)
+	OptionalPropertySettings.Add(PROPERTY_TIMELIMIT)
+	OptionalPropertySettings.Add(PROPERTY_CUSTOMMUTATORS)
+	OptionalPropertySettings.Add(PROPERTY_CUSTOMMUTCLASSES)
 }

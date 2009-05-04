@@ -620,7 +620,9 @@ function CheckTouching()
 {
 	local int i;
 	local Controller BestToucher;
+	local Pawn PastHolder;
 
+	PastHolder = OldHolder;
 	OldHolder = None;
 	for ( i=0; i<Touching.Length; i++ )
 	{
@@ -628,7 +630,10 @@ function CheckTouching()
 		{
 			if ( PlayerController(Pawn(Touching[i]).Controller) != None )
 			{
-				SetHolder(Pawn(Touching[i]).Controller);
+				if ( PastHolder != Touching[i] )
+				{
+					SetHolder(Pawn(Touching[i]).Controller);
+				}
 				return;
 			}
 			else if ( BestToucher == None )

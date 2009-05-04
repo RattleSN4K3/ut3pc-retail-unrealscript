@@ -111,6 +111,12 @@ var UTMapList				MapVoteMapList;		// The maplist used for map voting
 var int					ForceEnableMapIdx;	// The index of the map to be forcibly enabled, when all a maplists maps are disabled
 var string				PendingGameClass;	// The game class set by game voting
 
+// Admin related variables
+var int					ForcedGameVoteIdx;	// The index of the game vote which an admin has forced to win
+var int					ForcedMapVoteIdx;	// As above, except for map votes
+var array<int>				ForcedOnMutVotes;	// The index of mutator votes which are forced on
+var array<int>				ForcedOffMutVotes;	// The index of mutator votes which are forced off
+
 
 var deprecated array<MapVoteInfo> Votes;
 
@@ -143,10 +149,10 @@ function Initialize(array<string> MapList)
 	local bool bValid;
 
 	PendingGameClass = PathName(WorldInfo.Game.Class);
+	ActiveGameProfileIdx = MapListManager.GetCurrentGameProfileIndex();
 
 	if (bAllowGameVoting)
 	{
-		ActiveGameProfileIdx = MapListManager.GetCurrentGameProfileIndex();
 		k = MapListManager.AvailableGameProfiles.Length;
 
 		if (k > 1)
@@ -346,14 +352,9 @@ function NotifyPlayerExiting(UTPlayerController Player)
 
 
 		// Check if the existing player caused a vote to win, through reducing the number of required votes (only happens during midgame voting)
-		if (bMidGameVoting)
-		{
-			if (!CountdownInProgress() && ((bGameVotingActive && CheckGameVoteCount(FindBestGame())) ||
-				(bMapVotingActive && !CountdownInProgress() && CheckMapVoteCount(FindBestMap()))))
-			{
+		if (bMidGameVoting && !CountdownInProgress())
+			if ((bGameVotingActive && CheckGameVoteCount(FindBestGame())) || (bMapVotingActive && CheckMapVoteCount(FindBestMap())))
 				BeginVoteCountdown();
-			}
-		}
 	}
 }
 
@@ -382,6 +383,8 @@ function NotifyEndGameVote()
 		ClearTimer('InitializeVoting');
 	}
 
+
+	// If a countdown is already in progress (i.e. a midgame vote has started), or there is no vote round state set, return
 	if (CountdownInProgress() || (GetStateName() == Class.Name && bMidGameVoting))
 		return;
 
@@ -429,6 +432,13 @@ function NotifyRestartGame()
 		VRIList[i].ClientTimesUp();
 }
 
+function ForceRestartGame()
+{
+	// Prevent 'EndTime' from holding up the restart
+	GameInfoRef.EndTime = 0;
+	GameInfoRef.RestartGame();
+}
+
 
 function AttachVoteReplicationInfo(UTPlayerController PC)
 {
@@ -461,7 +471,7 @@ function AttachVoteReplicationInfo(UTPlayerController PC)
 
 function bool CountdownInProgress()
 {
-	return bInEndGameVote || IsTimerActive('EndVoteCountdown');
+	return bInEndGameVote || bInMidGameVote || IsTimerActive('EndVoteCountdown');
 }
 
 // Used to determine the total amount of time that the vote collector will spend counting down
@@ -483,15 +493,31 @@ function int GetTotalVoteDuration(optional bool bEndGameVote=bInEndGameVote)
 	}
 
 	if (bEndGameVote)
-		ReturnVal = Max(GameInfoRef.RestartWait + GameInfoRef.EndTimeDelay, ReturnVal);
+	{
+		if (!bAllowGameVoting && !bAllowMapVoting)
+			ReturnVal = GameInfoRef.RestartWait + GameInfoRef.EndTimeDelay;
+		else
+			ReturnVal += 16;
+	}
 
 	return ReturnVal;
+}
+
+function TriggerVoteMenu()
+{
+	local int i;
+
+	for (i=0; i<VRIList.Length; ++i)
+		VRIList[i].ClientOpenVoteMenu();
 }
 
 
 // Function stubs (implemented within states)
 function BeginVoteCountdown(optional bool bInCountdown);
 function EndVoteCountdown();
+
+// Called when all players have game voted, and possibly again when all players have map voted (NOTE: Called regardless of 'MinMidGameVotes')
+function NotifyAllPlayersVoted();
 
 state GameVoteRound
 {
@@ -516,21 +542,27 @@ state GameVoteRound
 		if (!bInEndGameVote)
 			bInMidGameVote = True;
 
-		if (GameVoteDuration > 0 || bInEndGameVote)
+		if ((GameVoteDuration > 0 || bInEndGameVote) && !CheckTotalGameVoteCount())
 		{
 			GRI = UTGameReplicationInfo(GameInfoRef.GameReplicationInfo);
 
+			// ***
+			// UPDATE: I believe this was for backwards compatibility with 1.3; may not be needed anymore
 			// If this is the start of the vote countdown, then set the GameReplicationInfos 'MapVoteTimeRemaining' value
 			if (!bInCountdown)
 				GRI.MapVoteTimeRemaining = GetTotalVoteDuration();
+			// ***
 
-			// If it's an endgame vote, then take 'RestartWait' into consideration, by increasing the first rounds vote time
-			if (bInEndGameVote && !bInCountdown)
-				RoundDuration = (GetTotalVoteDuration(True) - GetTotalVoteDuration(False)) + GameVoteDuration;
-			else if (GameVoteDuration > 0)
+
+			if (GameVoteDuration > 0)
 				RoundDuration = GameVoteDuration;
 			else
 				RoundDuration = 15;
+
+
+			// In endgame votes, force an extra 16 seconds onto the counter, for the WAR core destruction cinematic
+			if (bInEndGameVote)
+				RoundDuration += 16;
 
 			if (bGameVotingActive)
 				GRI.SetVoteRoundTimeRemaining(RoundDuration);
@@ -543,9 +575,14 @@ state GameVoteRound
 				VRIList[i].SetDesiredTransferTime(,, True);
 				VRIList[i].ClientBeginVoting();
 
+				// Popup the vote menu immediately in midgame vote
 				if (!bInEndGameVote)
 					VRIList[i].ClientOpenVoteMenu();
 			}
+
+			// Popup the vote menu after 17 seconds during endgame votes, in case the scoreboard popup doesn't
+			if (bInEndGameVote && !IsTimerActive('TriggerVoteMenu'))
+				SetTimer(17 * WorldInfo.TimeDilation, False, 'TriggerVoteMenu');
 		}
 		else
 		{
@@ -557,14 +594,6 @@ state GameVoteRound
 	function EndVoteCountdown()
 	{
 		local int BestGameIdx, i;
-		local int RemainingTime;
-
-		if (bInEndGameVote)
-		{
-			RemainingTime = (GameInfoRef.EndTime + GameInfoRef.RestartWait) - WorldInfo.RealTimeSeconds;
-			UTGameReplicationInfo(GameInfoRef.GameReplicationInfo).SetVoteRoundTimeRemaining(RemainingTime);
-		}
-
 
 		BestGameIdx = FindBestGame();
 
@@ -587,6 +616,12 @@ state GameVoteRound
 		GotoState('MainVoteRound');
 	}
 
+	function NotifyAllPlayersVoted()
+	{
+		if (CountdownInProgress())
+			EndVoteCountdown();
+	}
+
 	function EndState(name NextStateName)
 	{
 		bGameVotingActive = False;
@@ -598,23 +633,24 @@ state MainVoteRound
 {
 	function BeginState(name PreviousStateName)
 	{
-		local int i, EnabledCount;
+		local int i, j, EnabledCount;
 		local UTMapList MLObj;
 		local bool bDisableMapVoting;
 		local string NextMap, CurMutClass;
 		local class<UTGame> NextGameClass;
+		local array<string> MutList, AddList;
+
+		ActiveGameProfileIdx = MapListManager.ActiveGameProfile;
+
+		if (ActiveGameProfileIdx == INDEX_None || ActiveGameProfileIdx >= MapListManager.AvailableGameProfiles.Length)
+		{
+			`log("Invalid 'ActiveGameProfileIdx', getting the current index",, 'UTVoting');
+			ActiveGameProfileIdx = MapListManager.GetCurrentGameProfileIndex();
+		}
 
 		if (!bMapVotingActive && bAllowMapVoting)
 		{
 			// Setup the map vote list
-			ActiveGameProfileIdx = MapListManager.ActiveGameProfile;
-
-			if (ActiveGameProfileIdx == INDEX_None || ActiveGameProfileIdx >= MapListManager.AvailableGameProfiles.Length)
-			{
-				`log("Invalid 'ActiveGameProfileIdx', getting the current index",, 'UTVoting');
-				ActiveGameProfileIdx = MapListManager.GetCurrentGameProfileIndex();
-			}
-
 			if (ActiveGameProfileIdx != INDEX_None)
 			{
 				MLObj = MapListManager.GetMapListByName(MapListManager.AvailableGameProfiles[ActiveGameProfileIdx].MapListName);
@@ -700,6 +736,69 @@ state MainVoteRound
 						MutatorVotes.Remove(i--, 1);
 				}
 			}
+
+
+			// Also consider the maplist manager game profile settings
+
+			// Remove all excluded mutators
+			CurMutClass = MapListManager.AvailableGameProfiles[ActiveGameProfileIdx].ExcludedMuts;
+
+			if (CurMutClass != "")
+			{
+				ParseStringIntoArray(Caps(CurMutClass), MutList, ",", True);
+
+				for (i=0; i<MutList.Length; ++i)
+				{
+					j = FindWithinMutatorVotes(MutList[i]);
+
+					if (j != INDEX_None)
+						MutatorVotes.Remove(j, 1);
+				}
+			}
+
+
+			// Mark all mutators that WILL be active, as currently active (so they get added to the 'remove' list)
+			CurMutClass = MapListManager.GetDefaultMutators(ActiveGameProfileIdx);
+
+			if (CurMutClass != "")
+			{
+				ParseStringIntoArray(Caps(CurMutClass), MutList, ",", True);
+
+				for (i=0; i<MutList.Length; ++i)
+				{
+					j = FindWithinMutatorVotes(MutList[i]);
+
+					if (j != INDEX_None)
+						MutatorVotes[j].bIsActive = True;
+				}
+			}
+
+
+			// Mark all current default mutators that WON'T be active, as not currently active (to put them on 'add' list)
+			if (MapListManager.StartupGameProfile != INDEX_None && MapListManager.ActiveGameProfile != MapListManager.StartupGameProfile)
+			{
+				CurMutClass = MapListManager.GetDefaultMutators(MapListManager.StartupGameProfile);
+
+				if (CurMutClass != "")
+				{
+					ParseStringIntoArray(CurMutClass, MutList, ",", True);
+					CurMutClass = MapListManager.GetDefaultMutators(MapListManager.ActiveGameProfile);
+
+					if (CurMutClass != "")
+					{
+						ParseStringIntoArray(CurMutClass, AddList, ",", True);
+						MutList = MapListManager.GetDisabledDefaultMutators(MutList, AddList);
+					}
+
+					for (i=0; i<MutList.Length; ++i)
+					{
+						j = FindWithinMutatorVotes(MutList[i]);
+
+						if (j != INDEX_None)
+							MutatorVotes[j].bIsActive = False;
+					}
+				}
+			}
 		}
 
 
@@ -712,8 +811,8 @@ state MainVoteRound
 		{
 			if (bMapVotingActive || bMutatorVotingActive)
 				BeginVoteCountdown(PreviousStateName != '');
-			else if (!bInEndGameVote)
-				GameInfoRef.RestartGame();
+			else
+				ForceRestartGame();
 		}
 
 
@@ -730,22 +829,20 @@ state MainVoteRound
 		if (!bInEndGameVote)
 			bInMidGameVote = True;
 
-		if (MapVoteDuration > 0 || bAllowGameVoting)
+		if ((MapVoteDuration > 0 || bAllowGameVoting || bInEndGameVote) && !CheckTotalMapVoteCount())
 		{
 			GRI = UTGameReplicationInfo(GameInfoRef.GameReplicationInfo);
 
+			// ***
+			// UPDATE: I believe this was for backwards compatibility with 1.3; may not be needed anymore
 			// If this is the start of the vote countdown, then set the GameReplicationInfos 'MapVoteTimeRemaining' value
 			if (!bInCountdown)
 				GRI.MapVoteTimeRemaining = GetTotalVoteDuration();
+			// ***
 
+			RoundDuration = MapVoteDuration;
 
-			// If it's an endgame vote and this is the first round, then take 'RestartWait' into consideration, by increasing the vote time
-			if (bInEndGameVote && !bInCountdown)
-				RoundDuration = (GetTotalVoteDuration(True) - GetTotalVoteDuration(False)) + MapVoteDuration;
-			else
-				RoundDuration = MapVoteDuration;
-
-			if (MapVoteDuration == 0)
+			if (MapVoteDuration <= 0)
 			{
 				if (GameVoteDuration > 0)
 					RoundDuration += GameVoteDuration;
@@ -753,6 +850,9 @@ state MainVoteRound
 					RoundDuration += 15;
 			}
 
+			// Add 16 seconds to the round duration, if this is the start of the overall vote countdown in an endgame vote
+			if (bInEndGameVote && !bInCountdown)
+				RoundDuration += 16;
 
 			if (bMapVotingActive || bMutatorVotingActive)
 				GRI.SetVoteRoundTimeRemaining(RoundDuration);
@@ -768,10 +868,14 @@ state MainVoteRound
 				if (!bInEndGameVote)
 					VRIList[i].ClientOpenVoteMenu();
 			}
+
+			// Popup the vote menu after 17 seconds during endgame votes, in case the scoreboard popup doesn't
+			if (bInEndGameVote && !bInCountDown && !IsTimerActive('TriggerVoteMenu'))
+				SetTimer(17 * WorldInfo.TimeDilation, False, 'TriggerVoteMenu');
 		}
 		else
 		{
-			// If the game vote duration is set to 0, then end voting immediately
+			// If the map vote duration is set to 0, then end voting immediately
 			EndVoteCountdown();
 		}
 	}
@@ -779,7 +883,8 @@ state MainVoteRound
 	function EndVoteCountdown()
 	{
 		local int i;
-		local int RemainingTime;
+
+		ClearTimer('TriggerVoteMenu');
 
 		if (bMapVotingActive)
 			MapVotePassed(FindBestMap());
@@ -787,15 +892,13 @@ state MainVoteRound
 			for (i=0; i<VRIList.Length; ++i)
 				VRIList[i].ClientTimesUp();
 
-		if (bInEndGameVote)
-		{
-			RemainingTime = (GameInfoRef.EndTime + GameInfoRef.RestartWait) - WorldInfo.RealTimeSeconds;
-			UTGameReplicationInfo(GameInfoRef.GameReplicationInfo).SetVoteRoundTimeRemaining(RemainingTime);
-		}
-		else
-		{
-			GameInfoRef.RestartGame();
-		}
+		ForceRestartGame();
+	}
+
+	function NotifyAllPlayersVoted()
+	{
+		if (CountdownInProgress())
+			EndVoteCountdown();
 	}
 
 	function EndState(name NextStateName)
@@ -827,9 +930,11 @@ function RemoveGameVote(UTVoteReplicationInfo VRI)
 	VRI.CurGameVoteIndex = 255;
 }
 
+// NOTE: If you modify this, check to see if 'AdminForceGameVote' also needs to be modified
 function AddGameVote(UTVoteReplicationInfo VRI, byte GameIdx)
 {
 	local UTPlayerController VotePC;
+	local name CurState;
 
 	if (!bGameVotingActive || GameIdx > GameVotes.Length || VRI.CurGameVoteIndex != 255)
 		return;
@@ -849,8 +954,47 @@ function AddGameVote(UTVoteReplicationInfo VRI, byte GameIdx)
 	VRI.CurGameVoteIndex = GameIdx;
 	VRI.ClientGameVoteConfirmed(GameIdx);
 
+
+	CurState = GetStateName();
+
 	if (!CountdownInProgress() && CheckGameVoteCount(GameIdx))
 		BeginVoteCountdown();
+
+	// If still in the game voting state, check to see if all players have game voted
+	if (GetStateName() == CurState && CheckTotalGameVoteCount())
+		NotifyAllPlayersVoted();
+}
+
+// Altered version of the above, which forces the vote to win
+function AdminForceGameVote(UTVoteReplicationInfo VRI, byte GameIdx)
+{
+	local UTPlayerController VotePC;
+	local name CurState;
+
+	if (!bGameVotingActive || GameIdx > GameVotes.Length || ForcedGameVoteIdx != INDEX_None)
+		return;
+
+
+	VotePC = UTPlayerController(VRI.Owner);
+
+	if (VotePC == none || !VotePC.PlayerReplicationInfo.bAdmin)
+		return;
+
+
+	GameVotes[GameIdx].NumVotes += 99;
+
+	ForcedGameVoteIdx = GameIdx;
+	UpdateGameVoteStatus(GameIdx, True, VotePC.PlayerReplicationInfo);
+
+
+	CurState = GetStateName();
+
+	if (!CountdownInProgress())
+		BeginVoteCountdown();
+
+	// Immediately end the vote
+	if (GetStateName() == CurState && CountdownInProgress())
+		EndVoteCountdown();
 }
 
 function UpdateGameVoteStatus(byte GameVoteIdx, optional bool bBroadcastVote, optional PlayerReplicationInfo VotePRI)
@@ -884,10 +1028,27 @@ function bool CheckGameVoteCount(byte Idx)
 	return (float(GameVotes[Idx].NumVotes) * 1000.0 >= ReqVotes);
 }
 
+/**
+ * Returns true if ALL players have voted for a gametype
+ */
+function bool CheckTotalGameVoteCount()
+{
+	local int i, VoteCount;
+
+	for (i=0; i<GameVotes.Length; ++i)
+		VoteCount += GameVotes[i].NumVotes;
+
+	return (VoteCount >= GameInfoRef.GetNumPlayers());
+}
+
 function int FindBestGame()
 {
 	local byte i, BiggestNum;
 	local array<byte> MostVoted;
+
+	if (ForcedGameVoteIdx != INDEX_None)
+		return ForcedGameVoteIdx;
+
 
 	// Get the list of gametypes with most votes
 	for (i=0; i<GameVotes.Length; ++i)
@@ -932,9 +1093,11 @@ function RemoveMapVote(UTVoteReplicationInfo VRI)
 	VRI.CurMapVoteIndex = 255;
 }
 
+// NOTE: If you modify this, check to see if 'AdminForceMapVote' needs to be modified
 function AddMapVote(UTVoteReplicationInfo VRI, byte MapIdx)
 {
 	local UTPlayerController VotePC;
+	local name CurState;
 
 	if (!bMapVotingActive || MapIdx > MapVotes.Length || VRI.CurMapVoteIndex != 255 ||
 		(!MapListManager.bMapEnabled(MapVoteMapList, MapIdx) && MapIdx != ForceEnableMapIdx))
@@ -955,8 +1118,49 @@ function AddMapVote(UTVoteReplicationInfo VRI, byte MapIdx)
 	VRI.CurMapVoteIndex = MapIdx;
 	VRI.ClientMapVoteConfirmed(MapIdx);
 
+
+	CurState = GetStateName();
+
 	if (!CountdownInProgress() && CheckMapVoteCount(MapIdx))
 		BeginVoteCountdown();
+
+	// If still in the map voting state, check to see if all players have map voted
+	if (GetStateName() == CurState && CheckTotalMapVoteCount())
+		NotifyAllPlayersVoted();
+}
+
+function AdminForceMapVote(UTVoteReplicationInfo VRI, byte MapIdx)
+{
+	local UTPlayerController VotePC;
+	local name CurState;
+
+	if (!bMapVotingActive || MapIdx > MapVotes.Length || ForcedMapVoteIdx != INDEX_None)
+		return;
+
+
+	VotePC = UTPlayerController(VRI.Owner);
+
+	if (VotePC == none || !VotePC.PlayerReplicationInfo.bAdmin)
+		return;
+
+
+	MapVotes[MapIdx].NoVotes += 99;
+
+	ForcedMapVoteIdx = MapIdx;
+	UpdateMapVoteStatus(MapIdx, True, VotePC.PlayerReplicationInfo);
+
+	VRI.ClientMapVoteConfirmed(MapIdx);
+
+
+	CurState = GetStateName();
+
+	if (!CountdownInProgress())
+		BeginVoteCountdown();
+
+
+	// Immediately end the vote
+	if (GetStateName() == CurState && CountdownInProgress())
+		EndVoteCountdown();
 }
 
 function UpdateMapVoteStatus(byte MapVoteIdx, optional bool bBroadcastVote, optional PlayerReplicationInfo VotePRI)
@@ -1000,6 +1204,19 @@ function bool CheckMapVoteCount(int Idx)
 	return (float(MapVotes[Idx].NoVotes) * 1000.0 >= ReqVotes);
 }
 
+/**
+ * Returns true if ALL players have voted for a map
+ */
+function bool CheckTotalMapVoteCount()
+{
+	local int i, VoteCount;
+
+	for (i=0; i<MapVotes.Length; ++i)
+		VoteCount += MapVotes[i].NoVotes;
+
+	return (VoteCount >= GameInfoRef.GetNumPlayers());
+}
+
 function MapVotePassed(int WinIdx)
 {
 	local int i;
@@ -1036,6 +1253,10 @@ function int FindBestMap()
 	local array<int> MostVoted;
 	local byte MostVotes;
 
+	if (ForcedMapVoteIdx != INDEX_None)
+		return ForcedMapVoteIdx;
+
+
 	// Gather a list of maps with the most votes
 	for (i=0; i<MapVotes.Length; ++i)
 	{
@@ -1067,8 +1288,11 @@ function int FindBestMap()
 
 function RemoveMutatorVote(UTVoteReplicationInfo VRI, byte MutIdx)
 {
-	if (!bMutatorVotingActive || MutIdx > MutatorVotes.Length)
+	if (!bMutatorVotingActive || MutIdx > MutatorVotes.Length || ForcedOnMutVotes.Find(MutIdx) != INDEX_None
+		|| ForcedOffMutVotes.Find(MutIdx) != INDEX_None)
+	{
 		return;
+	}
 
 	--MutatorVotes[MutIdx].NumVotes;
 
@@ -1080,16 +1304,51 @@ function RemoveMutatorVote(UTVoteReplicationInfo VRI, byte MutIdx)
 	VRI.ClientMutVoteConfirmed(MutIdx, False);
 }
 
+// NOTE: If you modify this, check to see if 'AdminForceMutatorVote' needs to be modified as well
 function AddMutatorVote(UTVoteReplicationInfo VRI, byte MutIdx)
 {
-	if (!bMutatorVotingActive || MutIdx > MutatorVotes.Length)
+	if (!bMutatorVotingActive || MutIdx > MutatorVotes.Length || ForcedOnMutVotes.Find(MutIdx) != INDEX_None
+		|| ForcedOffMutVotes.Find(MutIdx) != INDEX_None)
+	{
 		return;
+	}
 
 	++MutatorVotes[MutIdx].NumVotes;
 	UpdateMutVoteStatus(MutIdx);
 
 	VRI.CurMutVoteIndicies.AddItem(MutIdx);
 	VRI.ClientMutVoteConfirmed(MutIdx, True);
+}
+
+function AdminForceMutatorVote(UTVoteReplicationInfo VRI, byte MutIdx, bool bAddMutator)
+{
+	if (!bMutatorVotingActive || MutIdx > MutatorVotes.Length || (bAddMutator && ForcedOnMutVotes.Find(MutIdx) != INDEX_None) ||
+		(!bAddMutator && ForcedOffMutVotes.Find(MutIdx) != INDEX_None) || VRI.Owner == none ||
+		!UTPlayerController(VRI.Owner).PlayerReplicationInfo.bAdmin)
+	{
+		return;
+	}
+
+	if (bAddMutator)
+	{
+		ForcedOffMutVotes.RemoveItem(MutIdx);
+		ForcedOnMutVotes.AddItem(MutIdx);
+	}
+	else
+	{
+		ForcedOnMutVotes.RemoveItem(MutIdx);
+		ForcedOffMutVotes.AddItem(MutIdx);
+	}
+
+
+	// If the mutator is on the remove list, and you want to add it, or if it's on the add list, and you want to remove it, set 'NumVotes' to 255
+	//	and it will display as -1 on the menu (for 2.1 clients, NOT 2.0)
+	if ((MutatorVotes[MutIdx].bIsActive && bAddMutator) || (!MutatorVotes[MutIdx].bIsActive && !bAddMutator))
+		MutatorVotes[MutIdx].NumVotes = 255;
+	else
+		MutatorVotes[MutIdx].NumVotes = 100;
+
+	UpdateMutVoteStatus(MutIdx);
 }
 
 function UpdateMutVoteStatus(byte MutVoteIdx)
@@ -1193,7 +1452,7 @@ function AddKickVote(UTVoteReplicationInfo VRI, int KickID)
 	VRI.CurKickVoteIDs.AddItem(KickID);
 	VRI.ClientKickVoteConfirmed(KickID, True);
 
-	if (CheckKickVoteCount(i))
+	if (CheckKickVoteCount(i) || (VRI.Owner != none && UTPlayerController(VRI.Owner).PlayerReplicationInfo.bAdmin))
 		KickVotePassed(i);
 }
 
@@ -1305,24 +1564,7 @@ function BroadcastVoteMessage(int MessageIdx, optional PlayerReplicationInfo PRI
 //	(called from UTGame::GetNextMap)
 function string AddDefaultOptions(string CurOptions)
 {
-	local int i;
-	local string MutStr;
-	local array<string> AddList;
-
-	// Construct the list of mutators to be added
-	for (i=0; i<MutatorVotes.Length; ++i)
-	{
-		if (!MutatorVotes[i].bIsActive && CheckMutatorVoteCount(i))
-		{
-			MutStr = VotableMutators[MutatorVotes[i].MutIdx].MutClass;
-
-			if (AddList.Find(MutStr) == INDEX_None)
-				AddList.AddItem(MutStr);
-		}
-	}
-
-	if (AddList.Length != 0)
-		Class'UTMapListManager'.static.ModifyMutatorOptions(CurOptions, AddList);
+	// Code for adding mutators moved to 'ModifyOptions', as mutator votes should now always take precence over what the maplist manager does
 
 	return CurOptions;
 }
@@ -1333,22 +1575,29 @@ function ModifyOptions(out string CurOptions)
 {
 	local int i;
 	local string MutStr;
-	local array<string> RemoveList;
+	local array<string> RemoveList, AddList;
 
-	// Construct the list of mutators to be removed
+	// Construct the list of mutators to be added and removed
 	for (i=0; i<MutatorVotes.Length; ++i)
 	{
-		if (MutatorVotes[i].bIsActive && CheckMutatorVoteCount(i))
-		{
-			MutStr = VotableMutators[MutatorVotes[i].MutIdx].MutClass;
+		MutStr = VotableMutators[MutatorVotes[i].MutIdx].MutClass;
 
-			if (RemoveList.Find(MutStr) == INDEX_None)
-				RemoveList.AddItem(MutStr);
+		if ((ForcedOffMutVotes.Find(i) != INDEX_None ||
+			(ForcedOnMutVotes.Find(i) == INDEX_None && MutatorVotes[i].bIsActive && CheckMutatorVoteCount(i))) &&
+			RemoveList.Find(MutStr) == INDEX_None)
+		{
+			RemoveList.AddItem(MutStr);
+		}
+		else if ((ForcedOnMutVotes.Find(i) != INDEX_None ||
+			(ForcedOffMutVotes.Find(i) == INDEX_None && !MutatorVotes[i].bIsActive && CheckMutatorVoteCount(i))) &&
+			AddList.Find(MutStr) == INDEX_None)
+		{
+			AddList.AddItem(MutStr);
 		}
 	}
 
-	if (RemoveList.Length != 0)
-		Class'UTMapListManager'.static.ModifyMutatorOptions(CurOptions,, RemoveList);
+	if (RemoveList.Length != 0 || AddList.Length != 0)
+		Class'UTMapListManager'.static.ModifyMutatorOptions(CurOptions, AddList, RemoveList);
 }
 
 
@@ -1379,6 +1628,24 @@ final function bool GetMutVoteInfo(byte Index, out string MutClass, out string M
 }
 
 
+// Helper function for finding the index of mutator class entries within 'MutatorVotes'
+final function int FindWithinMutatorVotes(string MutatorClass)
+{
+	local int i;
+
+	MutatorClass = Caps(MutatorClass);
+
+	if (InStr(MutatorClass, ".") != INDEX_None)
+		return MutatorVotes.Find('MutIdx', VotableMutators.Find('MutClass', MutatorClass));
+	else
+		for (i=0; i<MutatorVotes.Length; ++i)
+			if (InStr(Caps(VotableMutators[MutatorVotes[i].MutIdx].MutClass), "."$MutatorClass) != INDEX_None)
+				return i;
+
+	return INDEX_None;
+}
+
+
 // Unused function stubs (kept for binary compatibility)
 function BroadcastVoteChange(int MapID, byte VoteCount);
 function RemoveVoteFor(out int CurrentVoteID);
@@ -1392,6 +1659,9 @@ defaultproperties
 {
 	WinningIndex=-1
 	ForceEnableMapIdx=-1
+
+	ForcedGameVoteIdx=-1
+	ForcedMapVoteIdx=-1
 
 	VRIClass=Class'UTVoteReplicationInfo'
 }

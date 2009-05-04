@@ -354,10 +354,15 @@ function SetTeam(int TeamIndex)
 
 	OldTeam = Team;
 	Team = UTOnslaughtGame(WorldInfo.Game).Teams[TeamIndex];
+	if ( Team.TeamFlag != None )
+	{
+		// clear the old flag's team so it doesn't stomp me
+		Team.TeamFlag.Team = None;
+	}
 	Team.TeamFlag = self;
 
 	// If the team has changed, clear the old team's flag reference
-	if ( OldTeam != Team )
+	if ( (OldTeam != Team) && (OldTeam != None) )
 	{
 		OldTeam.TeamFlag = None;
 	}

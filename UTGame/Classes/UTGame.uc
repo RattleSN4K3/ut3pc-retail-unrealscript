@@ -4062,11 +4062,11 @@ function string GetNextMap()
 		}
 
 		// Now let the same classes modify the new default options, e.g. to remove excluded mutators etc.
-		if (VoteCollector != none)
-			VoteCollector.ModifyOptions(Options);
-
 		if (MapListManager != none)
 			MapListManager.ModifyOptions(Options);
+
+		if (VoteCollector != none)
+			VoteCollector.ModifyOptions(Options);
 	}
 
 
@@ -4341,13 +4341,22 @@ function UpdateGameSettings()
 			RequiresPassword() ? class'UTGameSearchCommon'.const.CONTEXT_LOCKEDSERVER_YES : class'UTGameSearchCommon'.const.CONTEXT_LOCKEDSERVER_NO,
 			false);
 
+
 		// admins can do pretty much anything with the URL so we need to reparse the whole thing
+
+		// UPDATE: Always reapply the game mode value regardless of settings class, otherwise it will not always get set after transitioning gametypes
+		//	e.g. First game CTF, second game DM (value updated), third game CTF (value remains at DM, as settings class is the same)
+		/*
 		if (OnlineGameSettingsClass != GameSettings.Class)
 		{
 			//@hack: copy some stuff that is specific to the class
 			// should really be re-creating the GameSettings object here but that is non-trivial
 			GameSettings.LocalizedSettings[0] = OnlineGameSettingsClass.default.LocalizedSettings[0];
 		}
+		*/
+
+		GameSettings.LocalizedSettings[0] = OnlineGameSettingsClass.default.LocalizedSettings[0];
+
 		RemoveOption(ServerOptions, "GameMode");
 		RemoveOption(ServerOptions, "OwningPlayerName");
 		GameSettings.UpdateFromURL(ServerOptions, self);

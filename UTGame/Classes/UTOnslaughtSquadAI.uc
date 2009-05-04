@@ -727,6 +727,7 @@ function bool CheckSquadObjectives(UTBot B)
 	if ( (UTPawn(B.Pawn) != None) && 
 		 UTPawn(B.Pawn).bCanPickupInventory && 
 		 UTPawn(B.Pawn).bJustDroppedOrb && 
+		 (Team.TeamFlag != None) &&
 		 (Team.TeamFlag.Holder == None) &&
 		 (WorldInfo.TimeSeconds - B.ForcedFlagDropTime > 8) )
 	{

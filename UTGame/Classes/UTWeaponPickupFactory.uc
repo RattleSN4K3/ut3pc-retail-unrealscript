@@ -6,6 +6,8 @@ class UTWeaponPickupFactory extends UTPickupFactory
 
 var() class<UTWeapon> WeaponPickupClass;
 var bool bWeaponStay;
+var bool bVerifiedWeaponStay;
+
 /** The glow that emits from the base while the weapon is available */
 var ParticleSystemComponent BaseGlow;
 /** Used to scale weapon pickup drawscale */
@@ -107,11 +109,47 @@ function bool CheckForErrors()
  */
 function SetWeaponStay()
 {
-	bWeaponStay = ( !WeaponPickupClass.Default.bSuperWeapon && UTGame(WorldInfo.Game).bWeaponStay );
+	if ( WeaponPickupClass.Default.bSuperWeapon )
+	{
+		bWeaponStay = false;
+	}
+	else if ( (UTGame(WorldInfo.Game) != None) && !UTGame(WorldInfo.Game).bWeaponStay )
+	{
+		bWeaponStay = false;
+	}
+}
+
+simulated function CheckWeaponStay()
+{
+	local class<UTGame> UTGameClass;
+	
+	if ( !bWeaponStay )
+	{
+		bVerifiedWeaponStay = true;
+	}
+	else if ( WeaponPickupClass.Default.bSuperWeapon )
+	{
+		bWeaponStay = false;
+		bVerifiedWeaponStay = true;
+	}
+	else if (  Worldinfo.GRI != None )
+	{
+		UTGameClass = class<UTGame>(WorldInfo.GRI.GameClass);
+		if ( UTGameClass != None ) 
+		{
+			bWeaponStay = UTGameClass.default.bWeaponStay;
+			bVerifiedWeaponStay = true;
+		}
+	}
 }
 
 function StartSleeping()
 {
+	if ( !bVerifiedWeaponStay )
+	{
+		CheckWeaponStay();
+	}
+	
 	if (!bWeaponStay)
 	    GotoState('Sleeping');
 }
@@ -186,6 +224,11 @@ function PickedUpBy(Pawn P)
 {
 	local UTPlayerController PC;
 
+	if ( !bVerifiedWeaponStay )
+	{
+		CheckWeaponStay();
+	}
+	
 	if ( bWeaponStay )
 	{
 		AddCustomer(P);
@@ -242,6 +285,11 @@ auto state Pickup
 {
 	function bool AllowPickup(UTBot Bot)
 	{
+		if ( !bVerifiedWeaponStay )
+		{
+			CheckWeaponStay();
+		}
+	
 		return !bWeaponStay || !HasCustomer(Bot.Pawn);
 	}
 
@@ -255,6 +303,11 @@ auto state Pickup
 
 	simulated function NotifyLocalPlayerDead(PlayerController PC)
 	{
+		if ( !bVerifiedWeaponStay )
+		{
+			CheckWeaponStay();
+		}
+	
 		if ( bWeaponStay )
 		{
 			ShowActive();
@@ -267,6 +320,11 @@ auto state Pickup
 		local Pawn Recipient;
 		local Controller PickupController;
 
+		if ( !bVerifiedWeaponStay )
+		{
+			CheckWeaponStay();
+		}
+	
 		if ( !bWeaponStay )
 		{
 			super.Touch(Other, OtherComp, HitLocation, HitNormal);

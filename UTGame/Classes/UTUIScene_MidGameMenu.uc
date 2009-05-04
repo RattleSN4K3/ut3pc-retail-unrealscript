@@ -268,7 +268,8 @@ function SetupButtonBar()
 
 				ButtonBar.AppendButton("<Strings:UTGameUI.ButtonCallouts.ExitGame>",ButtonBarExitGame);
 
-				if (TabControl != None && (!bWaitingForReady || UTUITabPage_InGame(TabControl.ActivePage) != None))
+				if (TabControl != None && (!bWaitingForReady || UTUITabPage_InGame(TabControl.ActivePage) != None ||
+					UTUITabPage_VoteTab(TabControl.ActivePage) != none))
 				{
 					// Let the current tab page try to setup the button bar
 					UTTabPage(TabControl.ActivePage).SetupButtonBar(ButtonBar);

@@ -775,6 +775,11 @@ function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 		return true;
 	}
 
+	// Give mutators a chance to block team changes
+	if (BaseMutator != none && !BaseMutator.AllowChangeTeam(Other, num, bNewTeam))
+		return False;
+
+
 	//workaround for friend following
 	if (CurrentFriendId != ZeroNetId)
 	{

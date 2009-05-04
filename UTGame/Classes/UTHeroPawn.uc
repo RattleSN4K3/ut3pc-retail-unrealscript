@@ -111,7 +111,7 @@ reliable server function ServerForceHeroWeapon(byte FireModeNum)
 	{
 		if ( Weapon != None )
 		{
-			`log(PlayerReplicationInfo.PlayerName$" TELL CLIENT "$Weapon.Class);
+			//`log(PlayerReplicationInfo.PlayerName$" TELL CLIENT "$Weapon.Class);
 			ClientSetHeroWeapon(Weapon.Class);
 			Weapon.ServerStartFire(FireModeNum);
 		}
@@ -301,6 +301,7 @@ function CauseMeleeDamage()
 		{
 			bValidOtherTeamPawn = HitPawn != self && HitPawn.Mesh != None && !WorldInfo.GRI.OnSameTeam(HitPawn, self);
 			bValidOtherTeamPawn = bValidOtherTeamPawn && (FastTrace(MeleeLocation, HitPawn.Location) || FastTrace(MeleeLocation, HitPawn.Location + vect(0,0,1)*HitPawn.GetCollisionHeight()));
+			bValidOtherTeamPawn = bValidOtherTeamPawn && (WorldInfo.TimeSeconds - HitPawn.SpawnTime > UTGame(WorldInfo.Game).SpawnProtectionTime);
 		}
 		else
 		{
@@ -1381,7 +1382,26 @@ simulated State Dying
 	simulated function SpawnHeroGibs()
 	{
 		bSpawnHeroGibs = true;
-		SpawnGibs(class'UTGame.UTDmgType_HeroBomb', Location);
+		if ( !class'GameInfo'.static.UseLowGore(WorldInfo) )
+		{
+			SpawnGibs(class'UTGame.UTDmgType_HeroBomb', Location);
+		}
+		else
+		{
+			bTearOffGibs = true;
+			bGibbed = true;
+			
+			// if standalone or client, destroy here
+			if ( WorldInfo.NetMode != NM_DedicatedServer && !WorldInfo.IsRecordingDemo() &&
+				((WorldInfo.NetMode != NM_ListenServer) || (WorldInfo.Game.NumPlayers + WorldInfo.Game.NumSpectators < 2)) )
+			{
+				Destroy();
+			}
+			else
+			{
+				TurnOffPawn();
+			}
+		}
 	}
 
 	simulated function EndState(Name NextStateName)

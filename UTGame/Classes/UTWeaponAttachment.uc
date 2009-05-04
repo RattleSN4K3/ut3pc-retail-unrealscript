@@ -566,6 +566,7 @@ simulated function PlayImpactEffects(vector HitLocation)
 			// this code is mostly duplicated in:  UTGib, UTProjectile, UTVehicle, UTWeaponAttachment be aware when updating
 			if ( !WorldInfo.bDropDetail
 				&& (Pawn(HitActor) == None)
+				&& (UTOnslaughtNodeObjective(HitActor) == None)
 				&& (VSizeSQ(Owner.Location - HitLocation) < MaxDecalRangeSq)
 				&& (((WorldInfo.GetDetailMode() != DM_Low) && !class'Engine'.static.IsSplitScreen()) || (P.IsLocallyControlled() && P.IsHumanControlled())) )
 			{
@@ -578,18 +579,22 @@ simulated function PlayImpactEffects(vector HitLocation)
 					{
 						if( MaterialInstanceTimeVarying(MI) != none )
 						{
-							MITV_Decal = new(self) class'MaterialInstanceTimeVarying';
-							MITV_Decal.SetParent( MI );
+							// hack, since they don't show up on terrain anyway
+							if ( Terrain(HitActor) == None )
+							{
+								MITV_Decal = new(self) class'MaterialInstanceTimeVarying';
+								MITV_Decal.SetParent( MI );
 
-							WorldInfo.MyDecalManager.SpawnDecal( MITV_Decal, HitLocation, rotator(-HitNormal), ImpactEffect.DecalWidth,
+								WorldInfo.MyDecalManager.SpawnDecal( MITV_Decal, HitLocation, rotator(-HitNormal), ImpactEffect.DecalWidth,
 								ImpactEffect.DecalHeight, 10.0, false,, HitInfo.HitComponent, true, false, HitInfo.BoneName, HitInfo.Item, HitInfo.LevelIndex );
-							//here we need to see if we are an MITV and then set the burn out times to occur
-							MITV_Decal.SetScalarStartTime( ImpactEffect.DecalDissolveParamName, ImpactEffect.DurationOfDecal );
+								//here we need to see if we are an MITV and then set the burn out times to occur
+								MITV_Decal.SetScalarStartTime( ImpactEffect.DecalDissolveParamName, ImpactEffect.DurationOfDecal );
+							}
 						}
 						else
 						{
 							WorldInfo.MyDecalManager.SpawnDecal( MI, HitLocation, rotator(-HitNormal), ImpactEffect.DecalWidth,
-								ImpactEffect.DecalHeight, 10.0, false,, HitInfo.HitComponent, true, false, HitInfo.BoneName, HitInfo.Item, HitInfo.LevelIndex );
+							ImpactEffect.DecalHeight, 10.0, false,, HitInfo.HitComponent, true, false, HitInfo.BoneName, HitInfo.Item, HitInfo.LevelIndex );
 						}
 					}
 				}

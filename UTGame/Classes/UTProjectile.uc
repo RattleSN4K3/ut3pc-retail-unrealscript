@@ -437,16 +437,20 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 				}
 
 				// this code is mostly duplicated in:  UTGib, UTProjectile, UTVehicle, UTWeaponAttachment be aware when updating
-				if (ExplosionDecal != None && Pawn(ImpactedActor) == None)
+				if (ExplosionDecal != None && Pawn(ImpactedActor) == None && (UTOnslaughtNodeObjective(ImpactedActor) == None) )
 				{
 					if( MaterialInstanceTimeVarying(ExplosionDecal) != none )
 					{
-						MITV_Decal = new(self) class'MaterialInstanceTimeVarying';
-						MITV_Decal.SetParent( ExplosionDecal );
+						// hack, since they don't show up on terrain anyway
+						if ( Terrain(ImpactedActor) == None )
+						{
+							MITV_Decal = new(self) class'MaterialInstanceTimeVarying';
+							MITV_Decal.SetParent( ExplosionDecal );
 
-						WorldInfo.MyDecalManager.SpawnDecal(MITV_Decal, HitLocation, rotator(-HitNormal), DecalWidth, DecalHeight, 10.0, FALSE );
-						//here we need to see if we are an MITV and then set the burn out times to occur
-						MITV_Decal.SetScalarStartTime( DecalDissolveParamName, DurationOfDecal );
+							WorldInfo.MyDecalManager.SpawnDecal(MITV_Decal, HitLocation, rotator(-HitNormal), DecalWidth, DecalHeight, 10.0, FALSE );
+							//here we need to see if we are an MITV and then set the burn out times to occur
+							MITV_Decal.SetScalarStartTime( DecalDissolveParamName, DurationOfDecal );
+						}
 					}
 					else
 					{

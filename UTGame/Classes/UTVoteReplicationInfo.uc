@@ -1582,6 +1582,54 @@ reliable server function ServerClientIsReadyNew(string ClientVersion)
 }
 
 
+// ***** Admin related functions
+
+reliable server function ServerForceGameVote(byte GameIndex)
+{
+	if (UTPlayerController(Owner) == none || !UTPlayerController(Owner).PlayerReplicationInfo.bAdmin)
+	{
+		VoteRepeatCounter();
+		return;
+	}
+
+	if (!bVotingAllowed || GameIndex > Collector.GameVotes.Length)
+		return;
+
+
+	Collector.AdminForceGameVote(Self, GameIndex);
+}
+
+reliable server function ServerForceMapVote(byte MapIndex)
+{
+	if (UTPlayerController(Owner) == none || !UTPlayerController(Owner).PlayerReplicationInfo.bAdmin)
+	{
+		VoteRepeatCounter();
+		return;
+	}
+
+	if (!bVotingAllowed || MapIndex >= Collector.MapVotes.Length)
+		return;
+
+
+	Collector.AdminForceMapVote(Self, MapIndex);
+}
+
+reliable server function ServerForceMutVote(byte MutIndex, bool bAddMutator)
+{
+	if (UTPlayerController(Owner) == none || !UTPlayerController(Owner).PlayerReplicationInfo.bAdmin)
+	{
+		VoteRepeatCounter();
+		return;
+	}
+
+	if (!bVotingAllowed || MutIndex >= Collector.MutatorVotes.Length)
+		return;
+
+
+	Collector.AdminForceMutatorVote(Self, MutIndex, bAddMutator);
+}
+
+
 defaultproperties
 {
 	bSkipActorPropertyReplication=false

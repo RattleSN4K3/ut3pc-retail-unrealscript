@@ -114,6 +114,69 @@ struct native PlayerRecord
 /** Players currently playing on the server */
 var array<PlayerRecord> Players;
 
+
+/** Settings which can be safely omitted from the server details */
+
+/** Compared against the raw property name */
+var array<name> OptionalDataBindingSettings;
+
+/** Compared against the localized settings 'ID' value */
+var array<int> OptionalLocalizedSettings;
+
+/** Compared against the properties 'PropertyID' value */
+var array<int> OptionalPropertySettings;
+
+
+/** Forces the removal of all optional settings (to test whether or not values are safe to remove) */
+var bool bDebugRemoveOptionalSettings;
+
+
+/**
+ * If a databinding setting wont fit into the server details results, give the script a chance to trim the data
+ * NOTE: Value will be in the format: ",Property=Value"
+ *
+ * @param PropertyName The name of the property to be trimmed
+ * @param MaxLen The maximum length of the string
+ * @param Value The modified string value
+ *
+ * @return Whether or not the value was successfully trimmed
+ */
+event bool TrimDataBindingValue(name PropertyName, int MaxLen, out string Value)
+{
+	return False;
+}
+
+/**
+ * If a localized setting wont fit into the server details results, give the script a chance to trim the data
+ * NOTE: Value will be in the format: ",Property=Value"
+ *
+ * @param ID The id of the localized value to be trimmed
+ * @param MaxLen The maximum length of the string
+ * @param Value The modified string value
+ *
+ * @return Whether or not the value was successfully trimmed
+ */
+event bool TrimLocalizedValue(int ID, int MaxLen, out string Value)
+{
+	return False;
+}
+
+/**
+ * If a property setting wont fit into the server details results, give the script a chance to trim the data
+ * NOTE: Value will be in the format: ",Property=Value"
+ *
+ * @param PropertyId The id of the property setting to be trimmed
+ * @param MaxLen The maximum length of the string
+ * @param Value The modified string value
+ *
+ * @return Whether or not the value was successfully trimmed
+ */
+event bool TrimPropertyValue(int PropertyID, int MaxLen, out string Value)
+{
+	return False;
+}
+
+
 defaultproperties
 {
 	bAllowJoinInProgress=true

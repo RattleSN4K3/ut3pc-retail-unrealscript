@@ -63,6 +63,14 @@ var float LastPCountTimestamp;
 var bool bRefreshVoteLists;
 var float MapSwitchTimestamp;
 
+var transient UIList LastFocusedList;
+var transient bool bForceVote;
+var transient bool bAddMutator;
+var transient bool bOldAdminStatus;
+var transient int WinningGameIndex;
+var transient int WinningMapIndex;
+
+
 function PostInitialize()
 {
 	local UTConsole Con;
@@ -86,6 +94,10 @@ function PostInitialize()
 	GameList.OnSubmitSelection = OnListSubmitSelection;
 	MapList.OnSubmitSelection = OnListSubmitSelection;
 	MutatorList.OnSubmitSelection = OnListSubmitSelection;
+
+	GameList.NotifyActiveStateChanged = OnListStateChanged;
+	MapList.NotifyActiveStateChanged = OnListStateChanged;
+	MutatorList.NotifyActiveStateChanged = OnListStateChanged;
 
 
 	GameListImg = UIImage(FindChild('imgGames', True));
@@ -158,23 +170,47 @@ function TabTick(float DeltaTime)
 		// Detect map switches, and refresh all of the vote lists upon map switch
 		if (MapSwitchTimeStamp == 0 || WI.RealTimeSeconds < MapSwitchTimeStamp)
 		{
+			bOldAdminStatus = False;
 			UpdateGameVoteLists(none);
 			UpdateMapVoteLists(none);
 			UpdateMutatorVoteLists(none);
 		}
 		else
 		{
-			if (bRefreshVoteLists || VRI == none || VRI.WinningGameIndex != 255 || VRI.WinningMapIndex != 255)
+			// Update the lists once the player logs in as admin, in case the vote menu is open when the player logs in (e.g. to force a mapswitch)
+			if (!bOldAdminStatus && VRI != none && VRI.Owner != none)
+			{
+				bOldAdminStatus = UTPlayerController(VRI.Owner).PlayerReplicationInfo.bAdmin;
+
+				if (bOldAdminStatus)
+				{
+					UTUIScene_MidGameMenu(GetScene()).SetupButtonBar();
+					UpdateGameVoteLists(VRI);
+					UpdateMapVoteLists(VRI);
+				}
+			}
+
+			if (bRefreshVoteLists || VRI == none || VRI.WinningGameIndex != WinningGameIndex || VRI.WinningMapIndex != WinningMapIndex)
 			{
 				bRefreshVoteLists = False;
 
-				if (bShowingVotes && (VRI == none || VRI.WinningGameIndex != 255 || VRI.WinningMapIndex != 255))
+				if (bShowingVotes && (VRI == none || VRI.WinningGameIndex != WinningGameIndex || VRI.WinningMapIndex != WinningMapIndex))
 				{
-					if (VRI == none || VRI.WinningGameIndex != 255)
-						UpdateGameVoteLists(VRI);
+					if (VRI == none || VRI.WinningGameIndex != WinningGameIndex)
+					{
+						if (VRI != none)
+							WinningGameIndex = VRI.WinningGameIndex;
 
-					if (VRI == none || VRI.WinningMapIndex != 255)
+						UpdateGameVoteLists(VRI);
+					}
+
+					if (VRI == none || VRI.WinningMapIndex != WinningMapIndex)
+					{
+						if (VRI != none)
+							WinningMapIndex = VRI.WinningMapIndex;
+
 						UpdateMapVoteLists(VRI);
+					}
 				}
 			}
 
@@ -382,6 +418,7 @@ function OnActiveStateChanged(UIScreenObject Sender, int PlayerIndex, UIState Ne
 function SetGameVoteListState(EVoteListState ListState)
 {
 	local bool bVisible;
+	local int i;
 
 	bVisible = (ListState != VLS_Hidden);
 
@@ -398,7 +435,15 @@ function SetGameVoteListState(EVoteListState ListState)
 
 		GameListImg.SetEnabled(ListState == VLS_Disabled);
 		GameList.SetEnabled(ListState != VLS_Disabled);
+
+		GameList.IncrementAllMutexes();
 		GameList.RefreshSubscriberValue();
+
+		i = GameList.TopIndex;
+		GameList.DecrementAllMutexes(True);
+
+		if (i > 0)
+			GameList.SetTopIndex(i);
 	}
 }
 
@@ -416,13 +461,19 @@ function UpdateGameVoteLists(UTVoteReplicationInfo VRI)
 	}
 
 
-	bGameVotingInitialized = VRI != none && VRI.bGameVotingReady;
+	if (!bGameVotingInitialized && VRI != none && VRI.bGameVotingReady)
+	{
+		bGameVotingInitialized = True;
+		UTUIScene_MidGameMenu(GetScene()).SetupButtonBar();
+	}
+
 	RefreshGameList(VRI);
 }
 
 function SetMapVoteListState(EVoteListState ListState)
 {
 	local bool bVisible;
+	local int i;
 
 	bVisible = (ListState != VLS_Hidden);
 
@@ -439,7 +490,16 @@ function SetMapVoteListState(EVoteListState ListState)
 
 		MapListImg.SetEnabled(ListState == VLS_Disabled);
 		MapList.SetEnabled(ListState != VLS_Disabled);
+
+
+		MapList.IncrementAllMutexes();
 		MapList.RefreshSubscriberValue();
+
+		i = MapList.TopIndex;
+		MapList.DecrementAllMutexes(True);
+
+		if (i > 0)
+			MapList.SetTopIndex(i);
 	}
 }
 
@@ -456,13 +516,20 @@ function UpdateMapVoteLists(UTVoteReplicationInfo VRI)
 		return;
 	}
 
-	bMapVotingInitialized = VRI != none && VRI.bMapVotingEnabled;
+
+	if (!bMapVotingInitialized && VRI != none && VRI.bMapVotingEnabled)
+	{
+		bMapVotingInitialized = True;
+		UTUIScene_MidGameMenu(GetScene()).SetupButtonBar();
+	}
+
 	RefreshMapList(VRI);
 }
 
 function SetMutatorVoteListState(EVoteListState ListState)
 {
 	local bool bVisible;
+	local int i;
 
 	bVisible = (ListState != VLS_Hidden);
 
@@ -479,7 +546,15 @@ function SetMutatorVoteListState(EVoteListState ListState)
 
 		MutatorListImg.SetEnabled(ListState == VLS_Disabled);
 		MutatorList.SetEnabled(ListState != VLS_Disabled);
+
+		MutatorList.IncrementAllMutexes();
 		MutatorList.RefreshSubscriberValue();
+
+		i = MutatorList.TopIndex;
+		MutatorList.DecrementAllMutexes(True);
+
+		if (i > 0)
+			MutatorList.SetTopIndex(i);
 	}
 }
 
@@ -497,7 +572,12 @@ function UpdateMutatorVoteLists(UTVoteReplicationInfo VRI, optional bool bFullUp
 	}
 
 	RefreshMutatorList(VRI, bFullUpdate || !bMutatorVotingInitialized);
-	bMutatorVotingInitialized = VRI != none && VRI.bMutatorVotingReady;
+
+	if (!bMutatorVotingInitialized && VRI != none && VRI.bMutatorVotingReady)
+	{
+		bMutatorVotingInitialized = True;
+		UTUIScene_MidGameMenu(GetScene()).SetupButtonBar();
+	}
 }
 
 // These functions display a "Transferring..." message on the vote menu, when waiting for replication to finish
@@ -593,7 +673,7 @@ function RefreshGameList(UTVoteReplicationInfo VRI)
 	}
 
 
-	StringDataStore.SetFieldRowLength(i, VRI.GameVotes.Length);
+	StringDataStore.SetFieldRowLength(i, VRI.GameVotes.Length, True);
 	//GoldColour = class'UTHUD'.default.GoldColor;
 
 	if (VRI.WinningGameIndex == 255)
@@ -621,7 +701,7 @@ function RefreshGameList(UTVoteReplicationInfo VRI)
 					",B="$(float(GoldColour.B)/255)$",A=1.0>"$string(VRI.GameVotes[j].NumVotes);
 		}
 
-		StringDataStore.UpdateFieldRow(i, j, RowData,, (j<(VRI.GameVotes.Length-1)));
+		StringDataStore.UpdateFieldRow(i, j, RowData,, True);
 	}
 
 	// If the winning game index is set, then force the game list to that index and update the styles
@@ -640,7 +720,19 @@ function RefreshGameList(UTVoteReplicationInfo VRI)
 		GameList.ResolveStyles();
 	}
 
+
+	GameList.IncrementAllMutexes();
 	GameList.RefreshSubscriberValue();
+
+	i = GameList.TopIndex;
+	GameList.DecrementAllMutexes(True);
+
+	if (i > 0)
+		GameList.SetTopIndex(i);
+
+
+	if (LastFocusedList == GameList)
+		UTUIScene_MidGameMenu(GetScene()).SetupButtonBar();
 }
 
 function RefreshMapList(UTVoteReplicationInfo VRI)
@@ -650,6 +742,7 @@ function RefreshMapList(UTVoteReplicationInfo VRI)
 	local color GoldColour;
 	local byte WinningCount;
 	local string MapName;
+	local bool bAdmin;
 
 	if (StringDataStore == none)
 	{
@@ -668,8 +761,11 @@ function RefreshMapList(UTVoteReplicationInfo VRI)
 		return;
 	}
 
+	if (VRI.Owner != none && UTPlayerController(VRI.Owner) != none)
+		bAdmin = UTPlayerController(VRI.Owner).PlayerReplicationInfo.bAdmin;
 
-	StringDataStore.SetFieldRowLength(i, VRI.MapVotes.Length);
+
+	StringDataStore.SetFieldRowLength(i, VRI.MapVotes.Length, True);
 	//GoldColour = class'UTHUD'.default.GoldColor;
 
 
@@ -680,6 +776,7 @@ function RefreshMapList(UTVoteReplicationInfo VRI)
 
 	if (WinningCount == 0)
 		WinningCount = 255;
+
 
 	for (j=0; j<VRI.MapVotes.Length; ++j)
 	{
@@ -708,7 +805,7 @@ function RefreshMapList(UTVoteReplicationInfo VRI)
 			RowData[1] = "";
 		}
 
-		StringDataStore.UpdateFieldRow(i, j, RowData, !VRI.MapVotes[j].bSelectable, (j<(VRI.MapVotes.Length-1)));
+		StringDataStore.UpdateFieldRow(i, j, RowData, !(VRI.MapVotes[j].bSelectable || bAdmin), True);
 	}
 
 
@@ -728,7 +825,19 @@ function RefreshMapList(UTVoteReplicationInfo VRI)
 		MapList.ResolveStyles();
 	}
 
+
+	MapList.IncrementAllMutexes();
 	MapList.RefreshSubscriberValue();
+
+	i = MapList.TopIndex;
+	MapList.DecrementAllMutexes(True);
+
+	if (i > 0)
+		MapList.SetTopIndex(i);
+
+
+	if (LastFocusedList == MapList)
+		UTUIScene_MidGameMenu(GetScene()).SetupButtonBar();
 }
 
 function RefreshMutatorList(UTVoteReplicationInfo VRI, optional bool bFullUpdate)
@@ -736,6 +845,7 @@ function RefreshMutatorList(UTVoteReplicationInfo VRI, optional bool bFullUpdate
 	local float ReqMutVotes;
 	local int i, j, k;
 	local array<string> RowData;
+	local string OnString, OffString;
 
 	if (StringDataStore == none)
 	{
@@ -753,6 +863,14 @@ function RefreshMutatorList(UTVoteReplicationInfo VRI, optional bool bFullUpdate
 
 		return;
 	}
+
+
+	// Get the localization on/off strings, for when an admin forces a mutator on/off
+	ParseStringIntoArray(Localize("MutatorFilterMenu", "MutatorInstalledComboList", "UTGameUI"), RowData, ",", True);
+
+	OnString = RowData[0];
+	OffString = RowData[1];
+	RowData.Length = 0;
 
 
 	// Multiple by 1000.0 for increased accuracy
@@ -778,7 +896,12 @@ function RefreshMutatorList(UTVoteReplicationInfo VRI, optional bool bFullUpdate
 			continue;
 
 
-		RowData[0] = string(VRI.MutatorVotes[j].NumVotes);
+		if (VRI.MutatorVotes[j].NumVotes == 255)
+			RowData[0] = OffString;
+		else if (VRI.MutatorVotes[j].NumVotes == 100)
+			RowData[0] = OnString;
+		else
+			RowData[0] = string(VRI.MutatorVotes[j].NumVotes);
 
 		if (float(VRI.MutatorVotes[j].NumVotes) * 1000.0 >= ReqMutVotes)
 			RowData[0] $= "*";
@@ -812,7 +935,12 @@ function RefreshMutatorList(UTVoteReplicationInfo VRI, optional bool bFullUpdate
 			continue;
 
 
-		RowData[0] = string(VRI.MutatorVotes[j].NumVotes);
+		if (VRI.MutatorVotes[j].NumVotes == 255)
+			RowData[0] = OnString;
+		else if (VRI.MutatorVotes[j].NumVotes == 100)
+			RowData[0] = OffString;
+		else
+			RowData[0] = string(VRI.MutatorVotes[j].NumVotes);
 
 		if (float(VRI.MutatorVotes[j].NumVotes) * 1000.0 >= ReqMutVotes)
 			RowData[0] $= "*";
@@ -823,13 +951,23 @@ function RefreshMutatorList(UTVoteReplicationInfo VRI, optional bool bFullUpdate
 		RowData[2] = string(j);
 
 
-		StringDataStore.UpdateFieldRow(i, k, RowData,, (k<VRI.MutatorVotes.Length+2));
+		StringDataStore.UpdateFieldRow(i, k, RowData,, True);
 
 		++k;
 	}
 
 	// Refresh the list
+	MutatorList.IncrementAllMutexes();
 	MutatorList.RefreshSubscriberValue();
+
+	i = MutatorList.TopIndex;
+	MutatorList.DecrementAllMutexes(True);
+
+	if (i > 0)
+		MutatorList.SetTopIndex(i);
+
+	if (LastFocusedList == MutatorList)
+		UTUIScene_MidGameMenu(GetScene()).SetupButtonBar();
 }
 
 // Used for calculating required votes from vote percentages
@@ -867,6 +1005,7 @@ function OnListSubmitSelection(UIList Sender, int PlayerIndex)
 {
 	local int CurIdx;
 	local UTVoteReplicationInfo VRI;
+	local bool bAdmin;
 
 	VRI = GetVoteRI();
 
@@ -883,19 +1022,29 @@ function OnListSubmitSelection(UIList Sender, int PlayerIndex)
 			if (CurIdx == INDEX_None || CurIdx > VRI.GameVotes.Length)
 				return;
 
-			VRI.ServerRecordGameVote(CurIdx);
+
+			if (bForceVote)
+				VRI.ServerForceGameVote(CurIdx);
+			else
+				VRI.ServerRecordGameVote(CurIdx);
 		}
 	}
 	else if (Sender == MapList)
 	{
 		if (bMapVotingInitialized)
 		{
+			if (VRI.Owner != none && UTPlayerController(VRI.Owner) != none)
+				bAdmin = UTPlayerController(VRI.Owner).PlayerReplicationInfo.bAdmin;
+
 			CurIdx = GetMapListMapIdx();
 
-			if (CurIdx == INDEX_None || CurIdx > VRI.MapVotes.Length || !VRI.MapVotes[CurIdx].bSelectable)
+			if (CurIdx == INDEX_None || CurIdx > VRI.MapVotes.Length || (!VRI.MapVotes[CurIdx].bSelectable && !bAdmin))
 				return;
 
-			VRI.ServerRecordMapVote(CurIdx);
+			if (bForceVote)
+				VRI.ServerForceMapVote(CurIdx);
+			else
+				VRI.ServerRecordMapVote(CurIdx);
 		}
 	}
 	else if (Sender == MutatorList)
@@ -908,7 +1057,10 @@ function OnListSubmitSelection(UIList Sender, int PlayerIndex)
 				return;
 
 			// Make the vote
-			VRI.ServerRecordMutVote(CurIdx, VRI.CurMutVoteIndicies.Find(CurIdx) == INDEX_None);
+			if (bForceVote)
+				VRI.ServerForceMutVote(CurIdx, bAddMutator);
+			else
+				VRI.ServerRecordMutVote(CurIdx, VRI.CurMutVoteIndicies.Find(CurIdx) == INDEX_None);
 		}
 	}
 }
@@ -1200,6 +1352,105 @@ final function int GetAvailableListMapIdx();
 final function int GetVotedMapsIndex();
 
 
+// Added button bar to add a 'Vote' button and a correspending 'Force Vote' button for admins
+function SetupButtonBar(UTUIButtonBar ButtonBar)
+{
+	local bool bValidFocus;
+	local UTPlayerController PC;
+
+	Super.SetupButtonBar(ButtonBar);
+
+	// If a vote list is focused, and a valid vote index selected, add button bar selections for voting
+	if (LastFocusedList != none)
+	{
+		if (LastFocusedList == GameList && bGameVotingInitialized && GetGameListGameIdx() != INDEX_None && GameList.IsEnabled())
+			bValidFocus = True;
+		else if (LastFocusedList == MapList && bMapVotingInitialized && GetMapListMapIdx() != INDEX_None && MapList.IsEnabled())
+			bValidFocus = True;
+		else if (LastFocusedList == MutatorList && bMutatorVotingInitialized && GetSelectedMutIdx() != INDEX_None && MutatorList.IsEnabled())
+			bValidFocus = True;
+
+		if (bValidFocus)
+		{
+			ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.TabCaption_Vote>", OnVote);
+
+			PC = UTUIScene(GetScene()).GetUTPlayerOwner();
+
+			if (PC != none && PC.PlayerReplicationInfo != none && PC.PlayerReplicationInfo.bAdmin)
+			{
+				if (LastFocusedList == MutatorList)
+				{
+					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.VoteTabForceMutOn>", OnForceMutOn);
+					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.VoteTabForceMutOff>", OnForceMutOff);
+				}
+				else
+				{
+					ButtonBar.AppendButton("<Strings:UTGameUI.MidGameMenu.VoteTabForceVote>", OnForceVote);
+				}
+			}
+		}
+	}
+}
+
+function bool OnVote(UIScreenObject Sender, int InPlayerIndex)
+{
+	if (LastFocusedList != none)
+		OnListSubmitSelection(LastFocusedList, InPlayerIndex);
+
+	return True;
+}
+
+function bool OnForceVote(UIScreenObject Sender, int InPlayerIndex)
+{
+	if (LastFocusedList != none)
+	{
+		bForceVote = True;
+		OnListSubmitSelection(LastFocusedList, InPlayerIndex);
+		bForceVote = False;
+	}
+
+	return True;
+}
+
+function bool OnForceMutOn(UIScreenObject Sender, int InPlayerIndex)
+{
+	if (LastFocusedList != none)
+	{
+		bForceVote = True;
+		bAddMutator = True;
+		OnListSubmitSelection(LastFocusedList, InPlayerIndex);
+		bForceVote = False;
+	}
+
+	return True;
+}
+
+function bool OnForceMutOff(UIScreenObject Sender, int InPlayerIndex)
+{
+	if (LastFocusedList != none)
+	{
+		bForceVote = True;
+		bAddMutator = False;
+		OnListSubmitSelection(LastFocusedList, InPlayerIndex);
+		bForceVote = False;
+	}
+
+	return True;
+}
+
+
+function OnListStateChanged(UIScreenObject Sender, int PlayerIndex, UIState NewlyActiveState, optional UIState PreviouslyActiveState)
+{
+	UIList(Sender).OnStateChanged(Sender, PlayerIndex, NewlyActiveState, PreviouslyActiveState);
+
+	if (UIState_Focused(NewlyActiveState) != none)
+	{
+		LastFocusedList = UIList(Sender);
+		UTUIScene_MidGameMenu(GetScene()).SetupButtonBar();
+	}
+}
+
+
 defaultproperties
 {
 	bRequiresTick=true
@@ -1209,4 +1460,7 @@ defaultproperties
 	WinningVoteOverlayStyle=(DefaultStyleTag="ListItemBackgroundHoverStyle",RequiredStyleClass=class'Engine.UIStyle_Image')
 	DefaultVoteCellStyle=(DefaultStyleTag="DefaultCellStyleSelected",RequiredStyleClass=class'Engine.UIStyle_Combo')
 	DefaultVoteOverlayStyle=(DefaultStyleTag="ListItemBackgroundSelectedStyle",RequiredStyleClass=class'Engine.UIStyle_Image')
+
+	WinningGameIndex=255
+	WinningMapIndex=255
 }

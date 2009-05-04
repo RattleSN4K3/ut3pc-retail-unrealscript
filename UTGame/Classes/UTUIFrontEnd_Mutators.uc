@@ -123,11 +123,15 @@ function SetupButtonBar()
 /** @return Returns the current list of enabled mutators, separated by commas. */
 static function string GetEnabledMutators()
 {
-	local string MutatorString;
+	local string MutatorString, SavedMutStr;
 	local string ClassName;
 	local int MutatorIdx;
 	local UTUIDataStore_MenuItems LocalMenuDataStore;
+	local UIDataStore_OnlineGameSettings OnlineDataStore;
+	local Settings GameSettings;
 
+
+	// Add mutators from the menu data store
 	LocalMenuDataStore = UTUIDataStore_MenuItems(GetCurrentUIController().DataStoreManager.FindDataStore('UTMenuItems'));
 
 	for(MutatorIdx=0; MutatorIdx < LocalMenuDataStore.EnabledMutators.length; MutatorIdx++)
@@ -142,6 +146,19 @@ static function string GetEnabledMutators()
 			MutatorString $= ClassName;
 		}
 	}
+
+	// Add mutators from the previously saved mutator list (this should not conflict with the code above, as this list is wiped after hitting 'accept')
+	if (MutatorString == "")
+	{
+		OnlineDataStore = UIDataStore_OnlineGameSettings(FindDataStore('UTGameSettings'));
+
+		if (OnlineDataStore != none)
+			GameSettings = OnlineDataStore.GetCurrentGameSettings();
+
+		if (GameSettings != none && GameSettings.GetStringProperty(PROPERTY_CUSTOMMUTCLASSES, SavedMutStr) && SavedMutStr != "")
+			MutatorString = SavedMutStr;
+	}
+
 
 	return MutatorString;
 }

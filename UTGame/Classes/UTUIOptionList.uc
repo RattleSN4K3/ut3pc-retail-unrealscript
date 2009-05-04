@@ -230,7 +230,7 @@ function int GetObjectInfoIndexFromName(name ProviderName)
 
 	Result = INDEX_NONE;
 
-	// Reoslve the option name
+	// Resolve the option name
 	for(ObjectIdx=0; ObjectIdx < GeneratedObjects.length; ObjectIdx++)
 	{
 		if(GeneratedObjects[ObjectIdx].OptionProviderName==ProviderName)
@@ -251,7 +251,7 @@ function int GetObjectInfoIndexFromObject(UIObject Sender)
 
 	Result = INDEX_NONE;
 
-	// Reoslve the option name
+	// Resolve the option name
 	for(ObjectIdx=0; ObjectIdx < GeneratedObjects.length; ObjectIdx++)
 	{
 		if(GeneratedObjects[ObjectIdx].OptionObj==Sender)
@@ -272,7 +272,7 @@ function OnValueChanged( UIObject Sender, int PlayerIndex )
 
 	OptionProviderName = '';
 
-	// Reoslve the option name
+	// Resolve the option name
 	ObjectIdx = GetObjectInfoIndexFromObject(Sender);
 
 	if(ObjectIdx != INDEX_NONE)
@@ -439,7 +439,7 @@ function bool SelectNextItem(optional bool bWrap=false, optional int PlayerIndex
 		}
 
 		//Keep going until we find an enabled widget, we've exceed bounds or we wrapped back around
-	} until(GeneratedObjects[TargetIndex].OptionObj.IsEnabled(PlayerIndex) == true || TargetIndex >= GeneratedObjects.length || TargetIndex == CurrentIndex);
+	} until(TargetIndex >= GeneratedObjects.length || TargetIndex == CurrentIndex || GeneratedObjects[TargetIndex].OptionObj.IsEnabled(PlayerIndex) == true );
 
 	return SelectItem(TargetIndex, PlayerIndex);
 }
@@ -462,8 +462,7 @@ function bool SelectPreviousItem(optional bool bWrap=false, optional int PlayerI
 		}
 
 		//Keep going until we find an enabled widget, we've exceed bounds or we wrapped back around
-	} until(GeneratedObjects[TargetIndex].OptionObj.IsEnabled(PlayerIndex) == true || TargetIndex < 0 || TargetIndex == CurrentIndex);
-
+	} until( TargetIndex < 0 || TargetIndex == CurrentIndex || GeneratedObjects[TargetIndex].OptionObj.IsEnabled(PlayerIndex) == true );
 
 	return SelectItem(TargetIndex, PlayerIndex);
 }
@@ -528,11 +527,11 @@ function bool ProcessInputKey( const out SubscribedInputEventParameters EventPar
 	{
 		if ( EventParms.InputAliasName == 'SelectionUp' )
 		{
-			SelectPreviousItem(true);
+			SelectPreviousItem(false);
 		}
 		else if ( EventParms.InputAliasName == 'SelectionDown' )
 		{
-			SelectNextItem(true);
+			SelectNextItem(false);
 		}
 		else if ( EventParms.InputAliasName == 'SelectionHome' )
 		{

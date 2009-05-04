@@ -149,7 +149,16 @@ function SetTitle(string NewTitle)
  */
 function SetMessage(string NewMessage)
 {
+	local int i;
+
+	// NOTE: GetValue should return the processed string, i.e. without markups
+	i = Len(MessageLabel.GetValue());
+
 	MessageLabel.SetDatastoreBinding(NewMessage);
+
+	// If the new label is bigger than the last, recalculate button positions (otherwise buttons may overlap text)
+	if (Len(MessageLabel.GetValue()) > i)
+		bRepositionButtons = True;
 }
 
 /**
@@ -499,6 +508,12 @@ function int FindCancelButtonIndex( optional string CancelButtonMarkupString )
 	return PotentialOptions.Find(CancelButtonMarkupString);
 }
 
+// Reposition buttons upon resolution change
+function OnResolutionChanged(const out Vector2D OldViewportsize, const out Vector2D NewViewportSize)
+{
+	bRepositionButtons = True;
+}
+
 defaultproperties
 {
 	OnRawInputKey=HandleInputKey
@@ -516,4 +531,6 @@ defaultproperties
 	SceneRenderMode=SPLITRENDER_Fullscreen
 
 	bRepositionMessageToCenter=true
+
+	NotifyResolutionChanged=OnResolutionChanged
 }

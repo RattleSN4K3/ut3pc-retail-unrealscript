@@ -308,7 +308,7 @@ event PostBeginPlay()
 		MaxIdleTime = FMax(MaxIdleTime, 20);
 	}
 
-	if (WorldInfo.NetMode == NM_DedicatedServer)
+	if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer)
 	{
 		// Update any online advertised settings
 		UpdateGameSettings();
@@ -2550,7 +2550,7 @@ event PostSeamlessTravel()
 	{
 		StartMatch();
 	}
-	if (WorldInfo.NetMode == NM_DedicatedServer)
+	if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer)
 	{
 		// Update any online advertised settings
 		UpdateGameSettings();

@@ -401,9 +401,9 @@ function CheckForFrontEndError()
 		{
 			// If the last failed travel was due to a missing password, then ask the client to enter a password
 			// NOTE: This should only be called when Gamespy is not in use (e.g. when using the 'Open' command)
-			if (GetDataStoreStringValue("<Registry:FrontEndError_LastErrorCode>", LastErrorCode)
-				&& LastErrorCode ~= "NeedPassword" && GetDataStoreStringValue("<Registry:FrontEndError_LastURL>", LastURL)
-				&& LastURL != "")
+			if (GetDataStoreStringValue("<Registry:FrontEndError_LastErrorCode>", LastErrorCode) &&
+				(LastErrorCode ~= "NeedPassword" || LastErrorCode ~= "WrongPassword") &&
+				GetDataStoreStringValue("<Registry:FrontEndError_LastURL>", LastURL) && LastURL != "")
 			{
 				PromptForPassword();
 			}

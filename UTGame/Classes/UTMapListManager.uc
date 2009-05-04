@@ -73,6 +73,12 @@ var array<GameProfile> AvailableGameProfiles;
 /** The currently active game profile; used to determine the current map cycle */
 var int ActiveGameProfile;
 
+/** The game profile that was active when the maplist manager was initialized */
+var int StartupGameProfile;
+
+/** Mutators added to the URL in 'AddDefaultOptions'; used by 'ModifyOptions' when switching between game profiles */
+var array<string> AddedMutators;
+
 
 function Initialize()
 {
@@ -87,6 +93,8 @@ function Initialize()
 
 	// Sync ActiveGameProfile with the current game class
 	GetCurrentGameProfileIndex();
+
+	StartupGameProfile = ActiveGameProfile;
 
 	// Determine whether or not the current map is the maplists 'active' map, and if not, increment the maps playcount
 	if (GetCurrentMapList() != none)
@@ -272,7 +280,6 @@ function NotifyTravelFailed(string TravelURL, string Error, optional string Erro
 function string AddDefaultOptions(string CurOptions)
 {
 	local string MutStr;
-	local array<string> AddMuts;
 
 	// If there is no active game profile, there are no checks to be made
 	if (ActiveGameProfile == INDEX_None)
@@ -280,14 +287,13 @@ function string AddDefaultOptions(string CurOptions)
 
 
 	// Parse the current game profiles default mutator lists
-	MutStr = AvailableGameProfiles[ActiveGameProfile].Mutators;
-	MutStr $= ","$Class'GameInfo'.static.ParseOption(AvailableGameProfiles[ActiveGameProfile].Options, "Mutator");
+	MutStr = GetDefaultMutators(ActiveGameProfile);
 
 	// If the list is not empty, parse the mutators and modify the URL
 	if (Len(MutStr) > 1)
 	{
-		ParseStringIntoArray(MutStr, AddMuts, ",", True);
-		ModifyMutatorOptions(CurOptions, AddMuts);
+		ParseStringIntoArray(MutStr, AddedMutators, ",", True);
+		ModifyMutatorOptions(CurOptions, AddedMutators);
 	}
 
 
@@ -329,19 +335,28 @@ function ModifyOptions(out string CurOptions)
 	}
 
 
+	// If switching between game profiles, disable mutators which were added by the old game profile
+	if (StartupGameProfile != INDEX_None && ActiveGameProfile != StartupGameProfile)
+	{
+		MutStr = GetDefaultMutators(StartupGameProfile);
+
+		if (Len(MutStr) > 1)
+		{
+			// Strip the newly added mutators (those being added by the new game profile) from the 'RemoveMuts' list
+			ParseStringIntoArray(MutStr, RemoveMuts, ",", True);
+			RemoveMuts = GetDisabledDefaultMutators(RemoveMuts, AddedMutators);
+
+			if (RemoveMuts.Length > 0)
+				ModifyMutatorOptions(CurOptions,, RemoveMuts);
+		}
+	}
+
+
 	// Append the game profile's options and game class
 	RemainingOptions = StripOption(StripOption(AvailableGameProfiles[ActiveGameProfile].Options, "Mutator"), "Game");
 
 	while (Class'GameInfo'.static.GrabOption(RemainingOptions, NewOpt))
 	{
-		/*
-		i = InStr(NewOpt, "=");
-
-		// Only add options if they are not already present
-		if (!Class'GameInfo'.static.HasOption(CurOptions, Left(NewOpt, i)))
-			CurOptions $= "?"$NewOpt;
-		*/
-
 		GrabbedOpt = Left(NewOpt, InStr(NewOpt, "="));
 
 		// Override options which are already present
@@ -519,7 +534,7 @@ function UTMapList GetCurrentMapList(optional bool bForceUpdate)
 function bool bMapEnabled(UTMapList MapList, int MapIdx, optional bool bStrict=True)
 {
 	local string CurMapData;
-	local int LastPlayDiff;
+	local int LastPlayDiff, ReplayLimit;
 
 	if (MapList == none || MapIdx >= MapList.Maps.Length)
 		return False;
@@ -530,12 +545,18 @@ function bool bMapEnabled(UTMapList MapList, int MapIdx, optional bool bStrict=T
 	if (CurMapData != "" && bool(CurMapData))
 		return False;
 
-	if (bStrict && MapReplayLimit > 0)
-	{
-		LastPlayDiff = GetMapLastPlayDiff(MapList, MapIdx);
 
-		if (LastPlayDiff != INDEX_None && LastPlayDiff < MapReplayLimit)
-			return False;
+	if (bStrict)
+	{
+		ReplayLimit = (MapList.MapReplayLimit != INDEX_None ? MapList.MapReplayLimit : MapReplayLimit);
+
+		if (ReplayLimit > 0)
+		{
+			LastPlayDiff = GetMapLastPlayDiff(MapList, MapIdx);
+
+			if (LastPlayDiff != INDEX_None && LastPlayDiff < ReplayLimit)
+				return False;
+		}
 	}
 
 
@@ -828,8 +849,43 @@ static final function ModifyMutatorOptions(out string CurOptions, optional out c
 	}
 }
 
+// Returns the default mutators for a particular game profile
+final function string GetDefaultMutators(int Idx)
+{
+	local string ReturnStr;
+
+	if (Idx < 0 || Idx >= AvailableGameProfiles.Length)
+		return ReturnStr;
+
+	ReturnStr = AvailableGameProfiles[Idx].Mutators;
+	ReturnStr $= ","$Class'GameInfo'.static.ParseOption(AvailableGameProfiles[Idx].Options, "Mutator");
+
+	if (ReturnStr == ",")
+		return "";
+
+
+	return ReturnStr;
+}
+
+
+// Returns the list of default mutators from one game profile, which should be removed when moving to another game profile
+//	(only moved here, due to also being used by the vote code)
+// NOTE: Expects both lists to contain the full package and class names
+final function array<string> GetDisabledDefaultMutators(const out array<string> OldDefaults, const out array<string> NewDefaults)
+{
+	local int i;
+	local array<string> ReturnVal;
+
+	for (i=0; i<OldDefaults.Length; ++i)
+		if (NewDefaults.Find(OldDefaults[i]) == INDEX_None)
+			ReturnVal.AddItem(OldDefaults[i]);
+
+	return ReturnVal;
+}
+
 
 defaultproperties
 {
 	ActiveGameProfile=INDEX_None
+	StartupGameProfile=INDEX_None
 }

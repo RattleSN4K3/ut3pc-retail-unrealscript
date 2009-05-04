@@ -406,7 +406,7 @@ event ServerTravel(string URL, optional bool bAbsolute)
  * @param Error:	The error message for the failed travel
  * @param ErrorCode:	A 'code' for easily identifying specific travel errors in script
  */
-event TravelFailed(string TravelURL, string Error, optional string ErrorCode)
+simulated event TravelFailed(string TravelURL, string Error, optional string ErrorCode)
 {
 	LastTravelErrorURL = TravelURL;
 	LastTravelErrorCode = ErrorCode;

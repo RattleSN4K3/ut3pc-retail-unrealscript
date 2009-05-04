@@ -10,4 +10,5 @@ defaultproperties
 	KillStatsName=KILLS_HEROSHOCKCOMBO
 	DeathStatsName=DEATHS_HEROSHOCKCOMBO
 	SuicideStatsName=SUICIDES_HEROSHOCKCOMBO
+	NodeDamageScaling=0.9
 }

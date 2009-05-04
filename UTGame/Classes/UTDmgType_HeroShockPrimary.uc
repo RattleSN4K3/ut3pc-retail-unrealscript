@@ -11,4 +11,5 @@ defaultproperties
 	KillStatsName=KILLS_HEROSHOCKRIFLE
 	DeathStatsName=DEATHS_HEROSHOCKRIFLE
 	SuicideStatsName=SUICIDES_HEROSHOCKRIFLE
+	NodeDamageScaling=0.7
 }

@@ -23,9 +23,11 @@ struct MapEntry
 
 
 var config array<MapEntry> Maps;
+var config array<MapEntry> BadMaps;
 var config string AutoLoadPrefixes;
 
 var config int LastActiveMapIndex;
+var config int MapReplayLimit;
 
 var bool bInitialized;
 
@@ -33,7 +35,7 @@ var bool bInitialized;
 function Initialize()
 {
 	local array<string> PrefixList;
-	local int i;
+	local int i, j;
 	local bool bSaveConfig;
 
 	// Only initialize once
@@ -59,9 +61,24 @@ function Initialize()
 	// Verify all of the maps within the maplist
 	for (i=0; i<Maps.Length; ++i)
 	{
+		// For some reason, spaces sometimes get added to the map strings in the .ini
+		if (!Class'WorldInfo'.static.MapExists(Maps[i].Map))
+		{
+			Maps[i].Map = Class'UTUIScene'.static.TrimWhitespace(Maps[i].Map);
+			bSaveConfig = True;
+		}
+
 		if (!Class'WorldInfo'.static.MapExists(Maps[i].Map))
 		{
 			`log("Map '"$Maps[i].Map$"' can't be found, removing from maplist '"$Name$"'");
+
+
+			// Move map to a different list, so that maps don't just disappear (e.g. so admins can fix up entries and copy them back))
+			j = BadMaps.Length;
+			BadMaps.Length = j+1;
+
+			BadMaps[j] = Maps[i];
+
 
 			Maps.Remove(i--, 1);
 			bSaveConfig = True;

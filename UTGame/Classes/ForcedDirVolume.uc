@@ -19,6 +19,7 @@ var() bool bBlockSpectators;
 var() bool bDontBlockRedeemers;
 var vector ArrowDirection;
 var array<UTVehicle> TouchingVehicles;
+var	float	VehiclePushMag;
 
 
 
@@ -39,6 +40,26 @@ simulated function PostBeginPlay()
 		if ( Left(MapName, 8) ~= "ISLANDER" )
 		{
 			bDontBlockRedeemers = true;
+		}
+	}
+	else if ( Name == 'ForcedDirVolume_16' )
+	{
+		// hack block raptors from core in confrontation
+		MapName = WorldInfo.GetMapName();
+		if ( Left(MapName, 13) ~= "CONFRONTATION" )
+		{
+			VehiclePushMag = 4000.0;
+			TypeToForce = class'UTVehicle';
+		}
+	}
+	else if ( Name == 'ForcedDirVolume_17' )
+	{
+		// hack block raptors from core in confrontation
+		MapName = WorldInfo.GetMapName();
+		if ( Left(MapName, 13) ~= "CONFRONTATION" )
+		{
+			VehiclePushMag = 4000.0;
+			TypeToForce = class'UTVehicle';
 		}
 	}
 }
@@ -140,4 +161,5 @@ defaultproperties
 	bBlockSpectators=true
 	bStatic=false
 	bNoDelete=true
+	VehiclePushMag=1100.0
 }

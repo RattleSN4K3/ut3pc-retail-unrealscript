@@ -20,7 +20,7 @@ defaultproperties
 	bKRadialImpulse=true
 	VehicleMomentumScaling=4.0
 	VehicleDamageScaling=0.8
-	NodeDamageScaling=1.1
+	NodeDamageScaling=0.9
 	bThrowRagdoll=true
 	GibPerterbation=0.15
     AlwaysGibDamageThreshold=99

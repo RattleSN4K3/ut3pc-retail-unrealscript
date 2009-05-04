@@ -533,6 +533,7 @@ var UTClientSideWeaponPawn ClientSideWeaponPawn;
 /** set on client when valid team info is received; future changes are then ignored unless this gets reset first
  * this is used to prevent the problem where someone changes teams and their old dying pawn changes color
  * because the team change was received before the pawn's dying
+ * NOTE: Disused as it caused other problems, and doesn't fix the problem it's supposed to
  */
 var bool bReceivedValidTeam;
 
@@ -1228,7 +1229,7 @@ simulated function NotifyTeamChanged()
 				OverlayMesh.SetSkeletalMesh(DefaultMesh);
 			}
 
-			if (WorldInfo.NetMode != NM_DedicatedServer && (!bReceivedValidTeam || bMeshChanged))
+			if (WorldInfo.NetMode != NM_DedicatedServer)
 			{
 				TeamNum = GetTeamNum();
 				VerifyBodyMaterialInstance();
@@ -1283,11 +1284,7 @@ simulated function NotifyTeamChanged()
 		NotifyArmMeshChanged(PRI);
 	}
 
-	if (!bReceivedValidTeam)
-	{
-		SetTeamColor();
-		bReceivedValidTeam = (GetTeam() != None);
-	}
+	SetTeamColor();
 }
 
 /** Updates first person arm meshes when the mesh they should be using changes
@@ -1442,6 +1439,10 @@ simulated function CheckGameClass()
 		if ( !class<UTGame>(WorldInfo.GRI.GameClass).Default.bTeamGame )
 		{
 			TeamBeaconMaxDist = class<UTGame>(WorldInfo.GRI.GameClass).Default.DMBeaconMaxDist;
+			if ( left(WorldInfo.GetMapName(), 9) ~= "DARKMATCH" )
+			{	
+				TeamBeaconMaxDist *= 0.25;
+			}
 		}
 	}
 }
@@ -3308,6 +3309,7 @@ simulated function PlayDying(class<DamageType> DamageType, vector HitLoc)
 	if ( DarkMatchLight != None )
 	{
 		DarkMatchLight.SetEnabled(false);
+		DarkMatchLight = None;
 	}
 
 	bCanTeleport = false;
@@ -6014,7 +6016,7 @@ ignores OnAnimEnd, Bump, HitWall, HeadVolumeChange, PhysicsVolumeChange, Falling
 			
 			// If necessary, initialize the light environment for FirstPersonDeathVisionMesh
 			// This is performed here because we cannot modify UTGameContent for UT3G
-			if (!bSetupDeathLight && FirstPersonDeathVisionMesh != None && FirstPersonDeathVisionLightEnvironment != None)
+			if ( (WorldInfo.NetMode != NM_DedicatedServer) && !bSetupDeathLight && FirstPersonDeathVisionMesh != None && FirstPersonDeathVisionLightEnvironment != None)
 			{
 				FirstPersonDeathVisionLightEnvironment.SetEnabled(true);
 				FirstPersonDeathVisionMesh.SetLightEnvironment(FirstPersonDeathVisionLightEnvironment);
@@ -6155,7 +6157,10 @@ ignores OnAnimEnd, Bump, HitWall, HeadVolumeChange, PhysicsVolumeChange, Falling
 	simulated function EndState(Name NextStateName)
 	{
 		bSetupDeathLight = false;
-		DetachComponent(FirstPersonDeathVisionLightEnvironment);
+		if ( WorldInfo.NetMode != NM_DedicatedServer )
+		{
+			DetachComponent(FirstPersonDeathVisionLightEnvironment);
+		}
 		Super.EndState(NextStateName);
 	}
 }

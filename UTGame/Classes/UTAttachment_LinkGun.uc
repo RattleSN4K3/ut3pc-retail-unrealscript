@@ -164,7 +164,7 @@ simulated function SetImpactedActor(Actor HitActor, vector HitLocation, vector H
 			}
 
 			// Apply beam decal
-			if ( (PlayerController(PawnOwner.Controller) != None) && (TicksBetweenDecals <= TicksSinceLastDecal) )
+			if ( (TicksBetweenDecals <= TicksSinceLastDecal) && (PlayerController(PawnOwner.Controller) != None) && PawnOwner.IsLocallyControlled() && (Terrain(HitActor) == None) && (UTOnslaughtNodeObjective(HitActor) == None) )
 			{
 				if( MaterialInstanceTimeVarying(BeamDecal) != none )
 				{

@@ -336,14 +336,10 @@ function bool ProcessInputKey( const out SubscribedInputEventParameters EventPar
 			bIsMouseAction = true;
 			if(SelectUnderCursor())
 			{
-				if ( EventParms.EventType == IE_DoubleClick )
+				if ( bHotTracking ? (EventParms.EventType == IE_DoubleClick) : (EventParms.EventType == IE_Pressed) )
 				{
 					PlayUISound('ListSubmit');
 					ItemChosen(EventParms.PlayerIndex);
-				}
-				else if(EventParms.EventType == IE_Pressed && bHotTracking==false)
-				{
-					PlayUISound('ListSubmit');
 				}
 
 				bHandled = true;

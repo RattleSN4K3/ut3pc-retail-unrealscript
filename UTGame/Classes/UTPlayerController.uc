@@ -1364,7 +1364,7 @@ function NotifyConnectionError( string Message, optional string Title )
 		GRI.CurrentMidGameMenu.CloseScene(GRI.CurrentMidGameMenu);
 	}
 
-	`log(`location@`showvar(Message)@`showvar(Title),,'DevNet');
+	`log("NOTIFYCONNECTIONERROR"@`location@`showvar(Message)@`showvar(Title));
 
 	if ( WorldInfo.Game != None )
 	{
